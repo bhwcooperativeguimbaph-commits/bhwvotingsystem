@@ -6,9 +6,20 @@
  */
 const http=require('node:http');
 const {connectMongo,initializeMongoIndexes}=require('./database/mongodb');
+const {getPublicElectionInfo}=require('./database/election-read');
 const port=Number(process.env.PORT)||10000;
 let connection;
-const server=http.createServer((req,res)=>{
+const server=http.createServer(async (req,res)=>{
+  if(req.url==='/api/election-info' && req.method==='GET'){
+    try {
+      const data=await getPublicElectionInfo(connection.db);
+      res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
+      return res.end(JSON.stringify(data));
+    } catch(_) {
+      res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});
+      return res.end(JSON.stringify({active:false,error:'Election information temporarily unavailable'}));
+    }
+  }
   if(req.url!=='/health' || req.method!=='GET') {
     res.writeHead(404,{'Content-Type':'application/json','Cache-Control':'no-store'});
     return res.end(JSON.stringify({error:'Not found'}));
