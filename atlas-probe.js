@@ -7,10 +7,16 @@
 const http=require('node:http');
 const {connectMongo,initializeMongoIndexes}=require('./database/mongodb');
 const {getPublicElectionInfo}=require('./database/election-read');
+const {getElectionTurnout}=require('./database/turnout');
 const port=Number(process.env.PORT)||10000;
 let connection;
 const server=http.createServer(async (req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/api/turnout' && req.method==='GET'){
+    // Preview intentionally exposes no election metrics until access control is migrated.
+    res.writeHead(403,{'Content-Type':'application/json','Cache-Control':'no-store'});
+    return res.end(JSON.stringify({success:false,message:'Turnout reports require authenticated admin access; unavailable in preview.'}));
+  }
   if((pathname==='/api/election-info' || pathname==='/api/election/active') && req.method==='GET'){
     try {
       const data=await getPublicElectionInfo(connection.db);
