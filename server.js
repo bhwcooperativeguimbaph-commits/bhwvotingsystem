@@ -1201,7 +1201,7 @@ app.post('/api/vote', async (req, res) => {
         const voteHash = crypto.createHash('sha256').update(encrypted).digest('hex');
         await connection.query("INSERT INTO VOTE (vote_id,voter_id,candidate_id,election_id,vote_hash,encrypted_vote,status) VALUES (?,?,NULL,?,?,?,'Valid')", [voteId,voterId,election.election_id,voteHash,encrypted]);
         await connection.commit();
-        res.json({success:true});
+        res.json({success:true,receiptNo:voteId});
         logActivity(voterId, 'Cast encrypted vote', req.ip);
     } catch (error) {
         if (connection) { try { await connection.rollback(); } catch (_) {} }
