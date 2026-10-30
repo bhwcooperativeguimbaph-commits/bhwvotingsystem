@@ -1,0 +1,1400 @@
+// server.js
+const express = require('express');
+const mysql = require('mysql2');
+const path = require('path');
+const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+const https = require('https');
+const fs = require('fs');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: { user: process.env.SMTP_USER || '', pass: process.env.SMTP_APP_PASSWORD || '' }
+});
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.static(path.join(__dirname, 'public')));
+
+// MySQL Connection Pool Configuration
+const pool = mysql.createPool({
+    host: process.env.DB_HOST || 'localhost',
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'voting_system',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+});
+
+let masterDecryptionKey = "";
+
+// Initialize MySQL Schema (Expanded for Roadmap)
+const initQueries = [
+    // 1. Base Tables
+    `CREATE TABLE IF NOT EXISTS ADMIN (
+        admin_id VARCHAR(50) PRIMARY KEY,
+        full_name VARCHAR(100) NOT NULL,
+        username VARCHAR(50) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        email VARCHAR(100),
+        role VARCHAR(50) NOT NULL,
+        status VARCHAR(20) DEFAULT 'Active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS VOTER (
+        voter_id VARCHAR(50) PRIMARY KEY,
+        full_name VARCHAR(100) NOT NULL,
+        email VARCHAR(100),
+        phone VARCHAR(20),
+        status VARCHAR(20) DEFAULT 'Active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    `CREATE TABLE IF NOT EXISTS ELECTION (
+        election_id VARCHAR(50) PRIMARY KEY,
+        title VARCHAR(150) NOT NULL,
+        description TEXT,
+        start_datetime DATETIME,
+        end_datetime DATETIME,
+        status VARCHAR(20) DEFAULT 'Pending',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`,
+    // 2. First-Level Dependent Tables
+    `CREATE TABLE IF NOT EXISTS BIOMETRIC_REGISTRATION (
+        biometric_id VARCHAR(50) PRIMARY KEY,
+        voter_id VARCHAR(50) NULL,
+        admin_id VARCHAR(50) NULL,
+        bhw_id VARCHAR(50),
+        facial_image LONGBLOB,
+        facial_encoding LONGTEXT,
+        biometric_status VARCHAR(20),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (voter_id) REFERENCES VOTER(voter_id) ON DELETE CASCADE,
+        FOREIGN KEY (admin_id) REFERENCES ADMIN(admin_id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS CANDIDATE (
+        candidate_id VARCHAR(50) PRIMARY KEY,
+        election_id VARCHAR(50) NOT NULL,
+        full_name VARCHAR(100) NOT NULL,
+        position VARCHAR(50) NOT NULL,
+        platform TEXT,
+        photo VARCHAR(255),
+        status VARCHAR(20) DEFAULT 'Active',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (election_id) REFERENCES ELECTION(election_id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS ELECTION_SCHEDULE (
+        schedule_id VARCHAR(50) PRIMARY KEY,
+        admin_id VARCHAR(50) NOT NULL,
+        election_id VARCHAR(50) NOT NULL,
+        action VARCHAR(50) NOT NULL,
+        schedule_datetime DATETIME NOT NULL,
+        remark TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (admin_id) REFERENCES ADMIN(admin_id),
+        FOREIGN KEY (election_id) REFERENCES ELECTION(election_id) ON DELETE CASCADE
+    )`,
+    // 3. Second-Level Dependent Tables
+    `CREATE TABLE IF NOT EXISTS VOTE (
+        vote_id VARCHAR(50) PRIMARY KEY,
+        voter_id VARCHAR(50) NOT NULL,
+        candidate_id VARCHAR(50) NOT NULL,
+        election_id VARCHAR(50) NOT NULL,
+        vote_datetime DATETIME DEFAULT CURRENT_TIMESTAMP,
+        vote_hash VARCHAR(255) NOT NULL,
+        encrypted_vote LONGTEXT NOT NULL,
+        status VARCHAR(20) DEFAULT 'Valid',
+        FOREIGN KEY (voter_id) REFERENCES VOTER(voter_id),
+        FOREIGN KEY (candidate_id) REFERENCES CANDIDATE(candidate_id),
+        FOREIGN KEY (election_id) REFERENCES ELECTION(election_id)
+    )`,
+    `CREATE TABLE IF NOT EXISTS ELECTION_RESULT (
+        result_id VARCHAR(50) PRIMARY KEY,
+        election_id VARCHAR(50) NOT NULL,
+        total_votes INT DEFAULT 0,
+        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        encryption_status VARCHAR(50) NOT NULL,
+        result_data LONGTEXT NOT NULL,
+        result_hash VARCHAR(255) NOT NULL,
+        FOREIGN KEY (election_id) REFERENCES ELECTION(election_id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS RESULT_DISCLOSURE (
+        rd_id VARCHAR(50) PRIMARY KEY,
+        admin_id VARCHAR(50) NOT NULL,
+        election_id VARCHAR(50) NOT NULL,
+        is_disclosed BOOLEAN DEFAULT FALSE,
+        scheduled_at DATETIME,
+        disclosed_at DATETIME NULL,
+        encryption_status VARCHAR(50),
+        encrypted_result_key VARCHAR(255) NULL,
+        remark TEXT,
+        FOREIGN KEY (admin_id) REFERENCES ADMIN(admin_id),
+        FOREIGN KEY (election_id) REFERENCES ELECTION(election_id) ON DELETE CASCADE
+    )`,
+    // 4. Third-Level Dependent Tables & Logs
+    `CREATE TABLE IF NOT EXISTS RECEIPT_CODE (
+        receipt_code_id VARCHAR(50) PRIMARY KEY,
+        vote_id VARCHAR(50) NOT NULL,
+        receipt_code VARCHAR(100) UNIQUE NOT NULL,
+        generated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        status VARCHAR(20) DEFAULT 'Issued',
+        FOREIGN KEY (vote_id) REFERENCES VOTE(vote_id) ON DELETE CASCADE
+    )`,
+    `CREATE TABLE IF NOT EXISTS AUDIT_LOG (
+        log_id INT AUTO_INCREMENT PRIMARY KEY,
+        admin_id VARCHAR(50) NULL,
+        voter_id VARCHAR(50) NULL,
+        action VARCHAR(150) NOT NULL,
+        details TEXT,
+        ip_address VARCHAR(45),
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (admin_id) REFERENCES ADMIN(admin_id),
+        FOREIGN KEY (voter_id) REFERENCES VOTER(voter_id) ON DELETE SET NULL
+    )`,
+    // 5. Insert Default Super Admin
+    `CREATE TABLE IF NOT EXISTS ADMIN_LOGIN_CHALLENGE (
+        challenge_hash CHAR(64) PRIMARY KEY,
+        code_hash CHAR(64) NOT NULL,
+        expires_at DATETIME NOT NULL,
+        attempts INT NOT NULL DEFAULT 0
+    )`,
+    `CREATE TABLE IF NOT EXISTS PASSWORD_RESET_COOLDOWN (
+        account_id VARCHAR(50) PRIMARY KEY,
+        next_allowed DATETIME NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS ADMIN_MFA_SEND_COOLDOWN (
+        account_id VARCHAR(50) PRIMARY KEY,
+        last_sent DATETIME(3) NOT NULL
+    )`,
+    `CREATE TABLE IF NOT EXISTS ADMIN_ID_SEQUENCE (id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY)`,
+    `CREATE TABLE IF NOT EXISTS AUTH_SESSION (
+        token_hash CHAR(64) PRIMARY KEY, account_id VARCHAR(50) NOT NULL,
+        role VARCHAR(30) NOT NULL, expires_at DATETIME NOT NULL,
+        INDEX (expires_at)
+    )`
+];
+
+// Execute table creation sequentially to prevent Foreign Key errors
+async function initializeDatabase() {
+    for (let i = 0; i < initQueries.length; i++) {
+        try {
+            await pool.promise().query(initQueries[i]);
+        } catch (err) {
+            console.error("DB Init Error:", err.sqlMessage || err.message);
+        }
+    }
+    const [[{ total }]] = await pool.promise().query("SELECT COUNT(*) AS total FROM ADMIN WHERE admin_id = 'SUPERADMIN'");
+    if (!total) {
+        if (!process.env.INITIAL_SUPERADMIN_PASSWORD || process.env.INITIAL_SUPERADMIN_PASSWORD.length < 12) {
+            console.error('SECURITY SETUP: Set INITIAL_SUPERADMIN_PASSWORD (12+ characters) before first launch.');
+        } else {
+            await pool.promise().query(`INSERT INTO ADMIN (admin_id, full_name, username, password_hash, role) VALUES ('SUPERADMIN','Master System','ADMIN',?,'superadmin')`, [hashPassword(process.env.INITIAL_SUPERADMIN_PASSWORD)]);
+        }
+    }
+    console.log("Database tables initialized successfully.");
+}
+
+initializeDatabase();
+
+
+
+function euclideanDistance(desc1, desc2) {
+    if (desc1.length !== desc2.length) return Infinity;
+    let sum = 0;
+    for (let i = 0; i < desc1.length; i++) sum += Math.pow(desc1[i] - desc2[i], 2);
+    return Math.sqrt(sum);
+}
+
+// Phase 3: authenticated ballot encryption for NEW votes. Legacy AES-CBC records
+// remain readable for archival compatibility until a planned, audited migration.
+function encryptVote(choice, key) {
+    if (!key) throw new Error('Election encryption tokens are missing.');
+    const validKey = crypto.createHash('sha256').update(key).digest();
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', validKey, iv);
+    const ciphertext = Buffer.concat([cipher.update(choice, 'utf8'), cipher.final()]);
+    return 'gcm1:' + iv.toString('hex') + ':' + cipher.getAuthTag().toString('hex') + ':' + ciphertext.toString('hex');
+}
+function decryptVote(encryptedChoice, key) {
+    try {
+        if (!key || typeof encryptedChoice !== 'string') return 'DECRYPTION_FAILED';
+        const validKey = crypto.createHash('sha256').update(key).digest();
+        if (encryptedChoice.startsWith('gcm1:')) {
+            const parts = encryptedChoice.split(':');
+            if (parts.length !== 4 || !/^[a-f0-9]{24}$/i.test(parts[1]) || !/^[a-f0-9]{32}$/i.test(parts[2]) || !/^(?:[a-f0-9]{2})+$/i.test(parts[3])) return 'DECRYPTION_FAILED';
+            const decipher = crypto.createDecipheriv('aes-256-gcm', validKey, Buffer.from(parts[1], 'hex'));
+            decipher.setAuthTag(Buffer.from(parts[2], 'hex'));
+            return Buffer.concat([decipher.update(Buffer.from(parts[3], 'hex')), decipher.final()]).toString('utf8');
+        }
+        // For pre-upgrade vote records only; never create new CBC records.
+        if (!/^(?:[a-f0-9]{2})+$/i.test(encryptedChoice)) return 'DECRYPTION_FAILED';
+        const decipher = crypto.createDecipheriv('aes-256-cbc', validKey, Buffer.alloc(16, 0));
+        return decipher.update(encryptedChoice, 'hex', 'utf8') + decipher.final('utf8');
+    } catch (_) { return 'DECRYPTION_FAILED'; }
+}
+
+// Patch to ensure the Areas table exists
+pool.query(`CREATE TABLE IF NOT EXISTS areas (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(100) UNIQUE)`, () => {});
+
+
+
+// Phase 1 security: persisted opaque sessions, roles, CSRF origin gate and login throttling.
+const secureCookie = process.env.COOKIE_SECURE === 'true'; // Set true behind HTTPS.
+// Phase 2: AES-256-GCM encryption of biometric templates and captured photos.
+// Keep BIOMETRIC_KEY out of source control. Back it up securely: losing it loses access to encrypted templates.
+function biometricKey() {
+    const hex = process.env.BIOMETRIC_KEY || '';
+    if (!/^[a-fA-F0-9]{64}$/.test(hex)) throw new Error('BIOMETRIC_KEY must be 64 hex characters (32 bytes)');
+    return Buffer.from(hex, 'hex');
+}
+function encryptBiometric(value) {
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', biometricKey(), iv);
+    const encrypted = Buffer.concat([cipher.update(String(value),'utf8'),cipher.final()]);
+    return 'enc:v1:' + iv.toString('base64') + ':' + cipher.getAuthTag().toString('base64') + ':' + encrypted.toString('base64');
+}
+function decryptBiometric(value) {
+    if (value == null) return null;
+    const txt = Buffer.isBuffer(value) ? value.toString('utf8') : String(value);
+    if (!txt.startsWith('enc:v1:')) return txt; // Legacy rows until the migration is run
+    const parts = txt.split(':');
+    if (parts.length !== 5) throw new Error('Invalid encrypted biometric data');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', biometricKey(),Buffer.from(parts[2],'base64'));
+    decipher.setAuthTag(Buffer.from(parts[3],'base64'));
+    return Buffer.concat([decipher.update(Buffer.from(parts[4],'base64')),decipher.final()]).toString('utf8');
+}
+function getDescriptor(value) {
+    try { const d=JSON.parse(decryptBiometric(value)); return Array.isArray(d)&&d.length===128?d:null; }
+    catch (e) { console.error('Biometric decryption failed:',e.message); return null; }
+}
+const hashToken = token => crypto.createHash('sha256').update(token).digest('hex');
+function hashPassword(password) {
+    const salt = crypto.randomBytes(16).toString('hex');
+    return `scrypt$${salt}$${crypto.scryptSync(password, salt, 64).toString('hex')}`;
+}
+function verifyPassword(password, stored) {
+    if (typeof password !== 'string' || typeof stored !== 'string' || !stored.startsWith('scrypt$')) return false;
+    const parts = stored.split('$');
+    if (parts.length !== 3) return false;
+    const expected = Buffer.from(parts[2], 'hex');
+    if (expected.length !== 64) return false;
+    return crypto.timingSafeEqual(expected, crypto.scryptSync(password, parts[1], 64));
+}
+const loginAttempts = new Map();
+function throttle(req, res, next) {
+    const key = req.ip + ':' + req.path;
+    const now = Date.now();
+    const record = loginAttempts.get(key) || { count: 0, until: now + 15 * 60000 };
+    if (now > record.until) { record.count = 0; record.until = now + 15 * 60000; }
+    if (record.count >= 8) return res.status(429).json({success:false,message:'Too many attempts. Try again later.'});
+    record.count++; loginAttempts.set(key, record);
+    next();
+}
+async function newSession(res, accountId, role) {
+    const token = crypto.randomBytes(32).toString('hex');
+    await pool.promise().query('INSERT INTO AUTH_SESSION (token_hash, account_id, role, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 8 HOUR))', [hashToken(token),accountId,role]);
+    res.cookie('bhw_session', token, {httpOnly:true,sameSite:'strict',secure:secureCookie,path:'/',maxAge:8*3600000});
+}
+function cookieToken(req) {
+    const match = /(?:^|; )bhw_session=([0-9a-f]{64})(?:;|$)/.exec(req.headers.cookie || '');
+    return match ? match[1] : null;
+}
+// Shared face matcher for pre-scan, login and the diagnostic test.
+const FACE_MATCH_THRESHOLD = 0.42;
+// Conservative buffer: if two identities score almost equally, do not guess.
+// Tune using consented genuine/impostor evaluation samples, not arbitrary percentage claims.
+const FACE_AMBIGUITY_MARGIN = 0.06;
+const FACE_SELECT_SQL = `SELECT b.biometric_id, b.facial_encoding, b.facial_image, b.biometric_status,
+    v.voter_id, v.full_name AS voter_name, v.status AS voter_status,
+    (SELECT COUNT(*) FROM VOTE WHERE voter_id = v.voter_id) AS has_voted,
+    a.admin_id, a.full_name AS admin_name, a.role, a.status AS admin_status
+    FROM BIOMETRIC_REGISTRATION b
+    LEFT JOIN VOTER v ON b.voter_id = v.voter_id
+    LEFT JOIN ADMIN a ON b.admin_id = a.admin_id
+    WHERE b.facial_encoding IS NOT NULL
+      AND (v.voter_id IS NOT NULL OR a.admin_id IS NOT NULL)`;
+function matchFace(records, descriptor, requireActive = true) {
+    const candidates = [];
+    for (const r of records) {
+        if (requireActive && ((r.voter_id && r.voter_status !== 'Active') ||
+            (r.admin_id && r.admin_status !== 'Active') ||
+            (r.biometric_status && r.biometric_status !== 'Active'))) continue;
+        const stored = getDescriptor(r.facial_encoding);
+        if (!stored) continue;
+        const distance = euclideanDistance(stored, descriptor);
+        if (Number.isFinite(distance) && distance < FACE_MATCH_THRESHOLD) {
+            candidates.push({ record: r, distance, identity: r.admin_id || r.voter_id });
+        }
+    }
+    candidates.sort((a, b) => a.distance - b.distance);
+    const first = candidates[0];
+    const secondDifferent = candidates.find(c => first && c.identity !== first.identity);
+    const ambiguous = !!(first && secondDifferent &&
+        secondDifferent.distance - first.distance < FACE_AMBIGUITY_MARGIN);
+    return { best: ambiguous ? null : (first?.record || null),
+        distance: first?.distance ?? FACE_MATCH_THRESHOLD, ambiguous };
+}
+function validFaceDescriptor(descriptor) {
+    return Array.isArray(descriptor) && descriptor.length === 128 && descriptor.every(Number.isFinite);
+}
+// Pre-scan intentionally does not disclose the person's name or account ID.
+// It is only a preliminary match, NOT authentication or liveness verification.
+app.post('/api/face-prescan', throttle, async (req, res) => {
+    const { descriptor } = req.body || {};
+    if (!validFaceDescriptor(descriptor)) return res.status(400).json({success:false,message:'Invalid face data.'});
+    res.set('Cache-Control','no-store');
+    try {
+        const [records] = await pool.promise().query(FACE_SELECT_SQL);
+        const {best, ambiguous} = matchFace(records, descriptor);
+        if (ambiguous) return res.json({success:true,recognized:false,message:'Face match is ambiguous. Contact an administrator for identity review.'});
+        if (!best) return res.json({success:true,recognized:false,message:'No active registered face found. Contact an administrator if you believe this is incorrect.'});
+        if (best.role === 'superadmin') return res.json({success:true,recognized:false,message:'Super Admin must sign in using the password and MFA.'});
+        return res.json({success:true,recognized:true,message:'Face recognized. Continue with the facial challenge.'});
+    } catch (e) {
+        console.error('Face pre-scan error:', e.message);
+        return res.status(503).json({success:false,message:'Face verification temporarily unavailable.'});
+    }
+});
+
+// One-use, short-lived login challenge. This is replay protection, NOT trusted PAD.
+const faceChallenges = new Map();
+const FACE_CHALLENGE_TTL_MS = 120_000;
+app.post('/api/face-challenge', throttle, (req, res) => {
+    const now = Date.now();
+    for (const [k,v] of faceChallenges) if (v.expires < now) faceChallenges.delete(k);
+    if (faceChallenges.size >= 1000) return res.status(503).json({success:false,message:'Challenge service busy.'});
+    const id = crypto.randomBytes(24).toString('hex');
+    const actions = crypto.randomInt(2) === 0 ? ['turn-left','turn-right','blink'] : ['turn-right','turn-left','blink'];
+    faceChallenges.set(id,{actions, expires:now+FACE_CHALLENGE_TTL_MS, ip:req.ip});
+    res.set('Cache-Control','no-store');
+    res.json({success:true,challengeId:id,actions,expiresInSeconds:120});
+});
+const publicEndpoints = new Set(['/areas','/election-info','/election/active','/admin/login-password','/admin/login-otp','/login-face','/face-prescan','/face-challenge','/superadmin/request-reset','/superadmin/verify-reset','/superadmin/reset-status']);
+app.use('/api', async (req,res,next) => {
+    if (!['GET','HEAD','OPTIONS'].includes(req.method)) {
+        const origin = req.get('origin');
+        const expected = `${req.protocol}://${req.get('host')}`;
+        if (origin && origin !== expected) return res.status(403).json({success:false,message:'Cross-origin request rejected.'});
+        if (req.method !== 'OPTIONS' && !req.is('application/json')) return res.status(415).json({success:false,message:'JSON content type required.'});
+    }
+    if (publicEndpoints.has(req.path) || req.path.startsWith('/geo/')) return next();
+    const token = cookieToken(req);
+    if (!token) return res.status(401).json({success:false,message:'Please log in.'});
+    try {
+        const [sessions] = await pool.promise().query('SELECT account_id, role FROM AUTH_SESSION WHERE token_hash=? AND expires_at > NOW()', [hashToken(token)]);
+        if (!sessions.length) return res.status(401).json({success:false,message:'Session expired.'});
+        const session = sessions[0];
+        const isMember = session.role === 'member';
+        const [accounts] = await pool.promise().query(isMember ? 'SELECT status FROM VOTER WHERE voter_id=?' : 'SELECT status FROM ADMIN WHERE admin_id=?', [session.account_id]);
+        if (!accounts.length || accounts[0].status !== 'Active') return res.status(403).json({success:false,message:'Account disabled.'});
+        req.auth = session;
+        if (req.path === '/logout' || req.path === '/session') return next();
+        if (req.path === '/vote') return isMember ? next() : res.status(403).json({success:false,message:'Voter access only.'});
+        if (req.path === '/test-face') return ['admin','superadmin'].includes(session.role) ? next() : res.status(403).json({success:false,message:'Admin access only.'});
+        if (req.path.startsWith('/superadmin/')) return session.role === 'superadmin' ? next() : res.status(403).json({success:false,message:'Super Admin only.'});
+        if (req.path.startsWith('/admin/')) return ['admin','superadmin'].includes(session.role) ? next() : res.status(403).json({success:false,message:'Admin access only.'});
+        return res.status(403).json({success:false,message:'Access denied.'});
+    } catch (err) { console.error('Authorization error',err); res.status(503).json({success:false,message:'Authentication unavailable.'}); }
+});
+app.get('/api/session', (req,res) => {
+    if (req.auth.role === 'member') return res.json({success:true,role:'member',memberId:req.auth.account_id});
+    pool.query('SELECT full_name FROM ADMIN WHERE admin_id=?',[req.auth.account_id],(err,rows)=>{
+        if (err || !rows?.length) return res.status(500).json({success:false});
+        res.json({success:true,role:req.auth.role,memberId:req.auth.account_id,fullName:rows[0].full_name});
+    });
+});
+app.post('/api/logout', async (req,res) => {
+    // req.auth is populated by the authenticated API middleware. Only a genuine,
+    // active Super Admin session can reset the mail send cooldowns.
+    const token = cookieToken(req);
+    const connection = await pool.promise().getConnection().catch(() => null);
+    if (!connection) return res.status(503).json({success:false,message:'Logout temporarily unavailable.'});
+    try {
+        await connection.beginTransaction();
+        await connection.query('DELETE FROM AUTH_SESSION WHERE token_hash=? AND account_id=?',
+            [hashToken(token),req.auth.account_id]);
+        if (req.auth.account_id === 'SUPERADMIN' && req.auth.role === 'superadmin') {
+            await connection.query("DELETE FROM ADMIN_MFA_SEND_COOLDOWN WHERE account_id='SUPERADMIN'");
+            await connection.query("DELETE FROM PASSWORD_RESET_COOLDOWN WHERE account_id='SUPERADMIN'");
+            // Previously issued reset codes are invalidated on logout to prevent
+            // old emailed codes from being valid alongside a freshly issued code.
+            await connection.query("UPDATE ADMIN SET reset_code=NULL,reset_expiry=NULL WHERE admin_id='SUPERADMIN'");
+        }
+        await connection.commit();
+        res.clearCookie('bhw_session',{path:'/',sameSite:'strict',secure:secureCookie});
+        res.clearCookie('bhw_pending_mfa',pendingMfaCookieOptions);
+        res.set('Cache-Control','no-store');
+        return res.json({success:true,emailCooldownReset:req.auth.role==='superadmin' && req.auth.account_id==='SUPERADMIN'});
+    } catch(err) {
+        await connection.rollback().catch(() => {});
+        console.error('Logout failed:',err.message);
+        return res.status(503).json({success:false,message:'Logout failed. Please retry.'});
+    } finally {connection.release();}
+});
+// Offline Philippine address selector — reads the complete PSGC snapshot from ./data/geo-cache.
+// Frontend /public/js/app.js uses these same API paths; no browser changes necessary.
+const GEO_ROOT = path.join(__dirname, 'data', 'geo-cache');
+app.get(['/api/geo/:level', '/api/geo/:level/:code'], (req, res) => {
+    const {level, code} = req.params;
+    const directories = {regions:'', provinces:'provinces', cities:'cities', regioncities:'regioncities', barangays:'barangays'};
+    if (!Object.prototype.hasOwnProperty.call(directories, level) ||
+        (level !== 'regions' && !/^[0-9]{6,12}$/.test(code || '')) ||
+        (level === 'regions' && code !== undefined)) {
+        return res.status(400).json({success:false,message:'Invalid location request.'});
+    }
+    const filename = level === 'regions' ? 'regions.json' : path.join(directories[level], `${code}.json`);
+    try {
+        // A completed manifest prevents silently using a partially downloaded hierarchy.
+        if (!fs.existsSync(path.join(GEO_ROOT,'manifest.json'))) {
+            return res.status(503).json({success:false,message:'Offline location data is not installed. Run node sync-locations.js on an internet-connected PC, then copy the data/geo-cache folder.'});
+        }
+        const json = JSON.parse(fs.readFileSync(path.join(GEO_ROOT,filename),'utf8'));
+        if (!Array.isArray(json) || !json.every(row=>row && typeof row.code === 'string' && typeof row.name === 'string')) {
+            throw new Error('Location file has invalid format');
+        }
+        res.json(json);
+    } catch (error) {
+        console.error('Local geographic data error:',filename,error.message);
+        res.status(503).json({success:false,message:'Offline location files incomplete or damaged. Re-run the sync script and transfer the whole data/geo-cache folder.'});
+    }
+});
+
+// --- AREA MANAGEMENT ROUTES ---
+app.get('/api/areas', (req, res) => {
+    pool.query(`SELECT * FROM areas ORDER BY name ASC`, (err, rows) => {
+        res.json({ success: true, areas: rows || [] });
+    });
+});
+
+app.post('/api/admin/areas', (req, res) => {
+    const { name } = req.body;
+    pool.query(`INSERT INTO areas (name) VALUES (?)`, [name], (err) => {
+        if (err) return res.json({ success: false, message: 'Area already exists.' });
+        logActivity('ADMIN', `Created new Area: ${name}`, req.ip);
+        res.json({ success: true });
+    });
+});
+
+
+// --- REGISTER NEW VOTER (DUPLICATE PREVENTION) ---
+app.post('/api/admin/register-member', async (req, res) => {
+    const { firstName, middleName = '', lastName, area, location, birthdate, gender, photoUrl, descriptor } = req.body || {};
+    const clean = value => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+    const first = clean(firstName), middle = clean(middleName), last = clean(lastName);
+    const fullName = [first, middle, last].filter(Boolean).join(' ');
+    // Enrollment also requires a fresh, single-use challenge (not certified PAD).
+    const registrationChallengeId = req.body?.challengeId;
+    const enrollmentChallenge = typeof registrationChallengeId === 'string' ? faceChallenges.get(registrationChallengeId) : null;
+    if (enrollmentChallenge) faceChallenges.delete(registrationChallengeId);
+    if (!enrollmentChallenge || enrollmentChallenge.expires < Date.now() || enrollmentChallenge.ip !== req.ip ||
+        !Array.isArray(req.body?.completedActions) ||
+        JSON.stringify(req.body.completedActions) !== JSON.stringify(enrollmentChallenge.actions)) {
+        return res.status(401).json({success:false,message:'Enrollment facial challenge expired or incomplete. Please retry.'});
+    }
+    const selectedArea = clean(area);
+    const address = typeof req.body.address === 'string' ? req.body.address.trim() : '';
+    if (!location || location.country !== 'Philippines' || !['regionCode','provinceCode','cityCode','barangayCode'].every(k => typeof location[k] === 'string' && location[k].length > 0) || address.length > 500 || !address || !/^\d{4}-\d{2}-\d{2}$/.test(birthdate || '') || !['Male','Female'].includes(gender)) return res.status(400).json({success:false,message:'Complete all required address, birthdate, and gender fields.'});
+    if (!first || !last || !selectedArea || fullName.length > 100 ||
+        !Array.isArray(descriptor) || descriptor.length !== 128 ||
+        !descriptor.every(x => typeof x === 'number' && Number.isFinite(x)) ||
+        typeof photoUrl !== 'string' || !photoUrl.startsWith('data:image/jpeg;base64,')) {
+        return res.status(400).json({ success: false, message: 'Valid first name, last name, area, and facial capture are required.' });
+    }
+
+    const connection = await pool.promise().getConnection().catch(() => null);
+    if (!connection) return res.status(500).json({ success: false, message: 'Database unavailable.' });
+    let enrollmentLocked = false;
+    try {
+        const [[lock]] = await connection.query("SELECT GET_LOCK('bhw_biometric_enrollment', 10) AS acquired");
+        if (lock.acquired !== 1) return res.status(503).json({success:false,message:'Biometric registration is busy; retry shortly.'});
+        enrollmentLocked = true;
+        // Backward compatibility: legacy databases may not have the area column yet.
+        const [columns] = await connection.query("SHOW COLUMNS FROM VOTER LIKE 'area'");
+        if (!columns.length) await connection.query("ALTER TABLE VOTER ADD COLUMN area VARCHAR(100) DEFAULT 'N/A'");
+        const [addrCols] = await connection.query("SHOW COLUMNS FROM VOTER LIKE 'address'");
+        if (!addrCols.length) await connection.query('ALTER TABLE VOTER ADD COLUMN address TEXT');
+        await connection.beginTransaction();
+        const [names] = await connection.query('SELECT voter_id FROM VOTER WHERE full_name = ? LIMIT 1', [fullName]);
+        if (names.length) {
+            await connection.rollback();
+            return res.status(409).json({ success: false, message: 'A member with this exact name already exists.' });
+        }
+        const [faces] = await connection.query('SELECT facial_encoding FROM BIOMETRIC_REGISTRATION WHERE facial_encoding IS NOT NULL');
+        for (const row of faces) {
+            try {
+                const stored = getDescriptor(row.facial_encoding);
+                if (!stored) { await connection.rollback(); return res.status(409).json({success:false,message:'An existing biometric template is unreadable. Contact the system administrator before new enrollment.'}); }
+                if (Array.isArray(stored) && stored.length === descriptor.length && euclideanDistance(stored, descriptor) < 0.42) {
+                    await connection.rollback();
+                    return res.status(409).json({ success: false, message: 'This face is already registered.' });
+                }
+            } catch (error) { throw error; }
+        }
+        const voterId = `COOPMEM${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+        const biometricId = `BIO${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+        await connection.query("INSERT INTO VOTER (voter_id, full_name, area, address, status) VALUES (?, ?, ?, ?, 'Active')", [voterId, fullName, selectedArea, address]);
+        await connection.query(`INSERT INTO BIOMETRIC_REGISTRATION
+            (biometric_id, voter_id, facial_image, facial_encoding, biometric_status)
+            VALUES (?, ?, ?, ?, 'Active')`, [biometricId, voterId, encryptBiometric(photoUrl), encryptBiometric(JSON.stringify(descriptor))]);
+        await connection.commit();
+        logActivity('SUPERADMIN', 'Registered new member', req.ip, `ID: ${voterId}`);
+        return res.json({ success: true, memberId: voterId });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Member registration failed:', err);
+        return res.status(500).json({ success: false, message: 'Could not register member.' });
+    } finally { if (enrollmentLocked) { try { await connection.query("SELECT RELEASE_LOCK('bhw_biometric_enrollment')"); } catch (e) { console.error('Enrollment lock release failed:', e.message); } } connection.release(); }
+});
+
+// --- DATABASE SCHEMA PATCHES FOR LARGE PHOTOS ---
+pool.query(`ALTER TABLE CANDIDATE MODIFY photo LONGTEXT`, () => {});
+pool.query(`ALTER TABLE BIOMETRIC_REGISTRATION MODIFY facial_image LONGTEXT`, () => {});
+
+app.post('/api/login-face', throttle, (req, res) => {
+    const { descriptor } = req.body || {};
+    if (!Array.isArray(descriptor) || descriptor.length !== 128 || !descriptor.every(Number.isFinite)) return res.status(400).json({ success: false, message: 'Invalid face data.' });
+
+    // Consume the nonce atomically before any database lookup; no replay allowed.
+    const challengeId = req.body?.challengeId;
+    const ch = typeof challengeId === 'string' ? faceChallenges.get(challengeId) : null;
+    if (ch) faceChallenges.delete(challengeId);
+    if (!ch || ch.expires < Date.now() || ch.ip !== req.ip ||
+        !Array.isArray(req.body?.completedActions) ||
+        JSON.stringify(req.body.completedActions) !== JSON.stringify(ch.actions)) {
+        return res.status(401).json({success:false,message:'Facial challenge expired or incomplete. Please retry.'});
+    }
+    // SECURITY LIMITATION: completedActions are asserted by browser JS, not trusted PAD.
+    // A video replay or forged HTTP request can bypass them. Do not use this as an
+    // independent proof of liveness or as production-grade voter identity assurance.
+    const query = FACE_SELECT_SQL;
+
+    pool.query(query, async (err, records) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error.' });
+        
+        const {best: bestMatch, ambiguous} = matchFace(records, descriptor);
+        if (ambiguous) return res.status(409).json({success:false,message:"Multiple identities look similar to this scan. Contact an administrator for identity review."});
+        if (!bestMatch) {
+            return res.status(401).json({ success: false, message: 'Face not recognized in the system.' });
+        }
+
+        // Convert the database photo string securely
+        let photoStr = null;
+        try { photoStr = decryptBiometric(bestMatch.facial_image); } catch (e) { console.error('Photo decryption error',e.message); }
+
+        // Handle Admin Match
+        if (bestMatch.admin_id) {
+            if (bestMatch.admin_status !== 'Active') return res.status(403).json({ success: false, message: 'Account Disabled.' });
+            if (bestMatch.role === 'superadmin') return res.status(403).json({success:false,message:'Super Admin must use password login.'});
+            await newSession(res,bestMatch.admin_id,bestMatch.role);
+            logActivity(bestMatch.admin_id, 'Admin biometric login successful', req.ip);
+            return res.json({ 
+                success: true, role: bestMatch.role, memberId: bestMatch.admin_id, 
+                firstName: bestMatch.admin_name.split(' ')[0], lastName: bestMatch.admin_name.split(' ')[1] || '',
+                photoUrl: photoStr
+            });
+        }
+        
+        // Handle Voter Match
+        if (bestMatch.voter_id) {
+            if (bestMatch.voter_status !== 'Active') return res.status(403).json({ success: false, message: 'Account Disabled.' });
+            await newSession(res,bestMatch.voter_id,'member');
+            logActivity(bestMatch.voter_id, 'Voter biometric login successful', req.ip);
+            return res.json({ 
+                success: true, role: 'member', memberId: bestMatch.voter_id, 
+                firstName: bestMatch.voter_name.split(' ')[0], lastName: bestMatch.voter_name.split(' ')[1] || '',
+                photoUrl: photoStr, hasVoted: bestMatch.has_voted > 0
+            });
+        }
+    });
+});
+
+// --- AUDIT LOG HELPER (FIXED FOR FOREIGN KEYS) ---
+function logActivity(userId, action, ip, details = '') {
+    let adminId = null;
+    let voterId = null;
+
+    // Strictly check if it's a valid ID, otherwise safely assign to SUPERADMIN
+    if (userId === 'SUPERADMIN' || (userId.startsWith('ADMIN') && userId.length > 5)) {
+        adminId = userId;
+    } else if (userId && userId.startsWith('COOPMEM')) {
+        voterId = userId;
+    } else {
+        adminId = 'SUPERADMIN'; // Fallback for 'SYSTEM' or 'ADMIN' texts to prevent FK crashes
+    }
+
+    pool.query(
+        `INSERT INTO AUDIT_LOG (admin_id, voter_id, action, details, ip_address) VALUES (?, ?, ?, ?, ?)`,
+        [adminId, voterId, action, details, ip],
+        (err) => {
+            if (err) console.error("Audit Log Error:", err.sqlMessage || err);
+        }
+    );
+}
+
+// --- BIOMETRIC TEST: MATCH BOTH VOTERS AND ADMINISTRATORS ---
+// Protected by the existing /api role middleware; this route never signs anyone in.
+app.post('/api/test-face', (req, res) => {
+    const { descriptor } = req.body || {};
+    if (!Array.isArray(descriptor) || descriptor.length !== 128 || !descriptor.every(Number.isFinite)) {
+        return res.status(400).json({ success: false, message: 'Invalid face descriptor.' });
+    }
+
+    const query = FACE_SELECT_SQL;
+    pool.query(query, (err, records) => {
+        if (err) return res.status(500).json({ success: false, message: 'Database error.' });
+        const {best: bestMatch, distance: lowestDistance, ambiguous} = matchFace(records, descriptor);
+        if (ambiguous) return res.json({success:false,message:"Ambiguous face match. Multiple accounts are too close to distinguish confidently; do not use this scan to authenticate."});
+        if (!bestMatch) {
+            // Authorized administrative diagnostic only. Never reduce the login
+            // threshold or expose account identity through unauthenticated endpoints.
+            let readable = 0, unreadable = 0, inactive = 0, closest = Infinity;
+            for (const record of records) {
+                const stored = getDescriptor(record.facial_encoding);
+                if (!stored) { unreadable++; continue; }
+                readable++;
+                const d = euclideanDistance(stored, descriptor);
+                if (d < closest) closest = d;
+                if ((record.voter_id && record.voter_status !== 'Active') ||
+                    (record.admin_id && record.admin_status !== 'Active') ||
+                    (record.biometric_status && record.biometric_status !== 'Active')) inactive++;
+            }
+            let message = 'No active matching identity. ';
+            if (!records.length) message += 'No linked biometric records found.';
+            else if (!readable) message += 'Stored biometric templates could not be read; verify BIOMETRIC_KEY and migration.';
+            else if (closest < FACE_MATCH_THRESHOLD) message += 'Closest stored face belongs to an inactive account or biometric record.';
+            else message += `Closest descriptor distance: ${closest.toFixed(4)} (required below ${FACE_MATCH_THRESHOLD}). Try even lighting and look straight at the camera.`;
+            return res.json({success:false, message, diagnostic:{records:records.length,readable,unreadable,inactive}});
+        }
+        // A face embedding distance is not a calibrated confidence or accuracy percentage.
+        return res.json({
+            success: true,
+            memberId: bestMatch.admin_id || bestMatch.voter_id,
+            name: bestMatch.admin_id ? bestMatch.admin_name : bestMatch.voter_name,
+            role: bestMatch.admin_id ? 'admin' : 'member',
+            biometricId: bestMatch.biometric_id,
+            distance: Number(lowestDistance.toFixed(4))
+        });
+    });
+});
+
+
+// --- FETCH MEMBERS DIRECTORY ---
+app.get('/api/admin/members', (req, res) => {
+    // Check if voter exists in the VOTE table to determine has_voted status
+    const query = `
+        SELECT 
+            v.voter_id as member_id, 
+            v.full_name, 
+            v.area, 
+            v.status as is_active,
+            CASE WHEN (SELECT COUNT(*) FROM VOTE WHERE voter_id = v.voter_id) > 0 THEN 1 ELSE 0 END as has_voted
+        FROM VOTER v
+        ORDER BY v.created_at DESC
+    `;
+    pool.query(query, (err, rows) => {
+        if (err) return res.status(500).json({ success: false });
+        // Format for frontend compatibility
+        const formatted = rows.map(r => ({
+            ...r,
+            first_name: r.full_name, last_name: '', // Fallback for old UI
+            is_active: r.is_active === 'Active' ? 1 : 0
+        }));
+        res.json({ success: true, members: formatted });
+    });
+});
+
+// --- LIVE DASHBOARD MONITORING ---
+app.get('/api/admin/monitoring', (req, res) => {
+    pool.query(`
+        SELECT 
+            (SELECT COUNT(*) FROM VOTER WHERE status = 'Active') as totalMembers,
+            (SELECT COUNT(DISTINCT voter_id) FROM VOTE) as totalVoted,
+            (SELECT title FROM ELECTION WHERE status = 'Active' LIMIT 1) as activeTitle
+    `, (err, rows) => {
+        if (err) return res.status(500).json({ success: false });
+        res.json({ 
+            success: true, 
+            totalMembers: rows[0] ? rows[0].totalMembers : 0,
+            totalVoted: rows[0] ? rows[0].totalVoted : 0,
+            activeTitle: rows[0] ? rows[0].activeTitle : null
+        });
+    });
+});
+
+// --- AREA DEMOGRAPHICS STATS ---
+app.get('/api/admin/area-stats', (req, res) => {
+    pool.query(`
+        SELECT 
+            v.area, 
+            COUNT(v.voter_id) as total, 
+            SUM(CASE WHEN (SELECT COUNT(*) FROM VOTE WHERE voter_id = v.voter_id) > 0 THEN 1 ELSE 0 END) as voted
+        FROM VOTER v
+        WHERE v.status = 'Active'
+        GROUP BY v.area
+        ORDER BY v.area ASC
+    `, (err, rows) => {
+        if (err) return res.status(500).json({ success: false });
+        res.json({ success: true, stats: rows || [] });
+    });
+});
+
+
+// --- FETCH ELECTION HISTORY ---
+app.get('/api/admin/history', (req, res) => {
+    pool.query(`SELECT election_id as id, title, start_datetime as start_time FROM ELECTION WHERE status = 'Completed' ORDER BY created_at DESC`, (err, rows) => {
+        res.json({ success: true, history: rows || [] });
+    });
+});
+
+// --- DISCLOSE RESULTS & GENERATE REPORT ---
+app.post('/api/admin/disclose-results', (req, res) => {
+    const { electionId, providedTokens } = req.body;
+    const reconstructedKey = providedTokens.map(t => t.trim()).sort().join('');
+    
+    let query = electionId === 'active' ? `SELECT * FROM ELECTION WHERE status = 'Active' LIMIT 1` : `SELECT * FROM ELECTION WHERE election_id = ?`;
+    
+    pool.query(query, electionId === 'active' ? [] : [electionId], (err, results) => {
+        const elec = results ? results[0] : null;
+        if (err || !elec) return res.status(400).json({ success: false, message: "Election not found." });
+        
+        // Build candidate tallies from the CANDIDATE table
+        pool.query(`SELECT full_name, position FROM CANDIDATE WHERE election_id = ?`, [elec.election_id], (err, candRows) => {
+            const tallies = {};
+            if(candRows) {
+                candRows.forEach(c => {
+                    if (!tallies[c.position]) tallies[c.position] = {};
+                    tallies[c.position][c.full_name] = 0;
+                });
+            }
+
+            // Decrypt votes from the VOTE table
+            pool.query(`SELECT encrypted_vote FROM VOTE WHERE election_id = ?`, [elec.election_id], (err, voteRows) => {
+                let decryptionFailed = false;
+                
+                if(voteRows) {
+                    voteRows.forEach(row => {
+                        const clearTextChoice = decryptVote(row.encrypted_vote, reconstructedKey);
+                        if (clearTextChoice === "DECRYPTION_FAILED") { decryptionFailed = true; return; }
+                        
+                        const voteData = JSON.parse(clearTextChoice);
+                        for (const position in voteData) {
+                            voteData[position].forEach(candidate => {
+                                if (tallies[position] && tallies[position][candidate] !== undefined) tallies[position][candidate]++;
+                            });
+                        }
+                    });
+                }
+
+                if (decryptionFailed) return res.status(401).json({ success: false, message: "Tokens are incorrect or missing. Access denied." });
+                
+                // Officially archive the election if it was active
+                if (elec.status === 'Active') {
+                    pool.query(`UPDATE ELECTION SET status = 'Completed' WHERE election_id = ?`, [elec.election_id]);
+                }
+                
+                logActivity('SUPERADMIN', `Disclosed election results: ${elec.title}`, req.ip);
+                res.json({ success: true, results: tallies, title: elec.title, message: "Results unlocked!" });
+            });
+        });
+    });
+});
+
+
+
+
+// --- DATABASE SCHEMA PATCHES FOR CRYPTOGRAPHIC BALLOT ---
+// Ensure the system tracks "Max Votes" per position and allows encrypted JSON ballots
+pool.query(`ALTER TABLE CANDIDATE ADD COLUMN max_votes INT DEFAULT 1`, () => {});
+pool.query(`ALTER TABLE VOTE MODIFY candidate_id VARCHAR(50) NULL`, () => {});
+
+// --- INITIALIZE ELECTION (UPDATED FOR MAX_VOTES) ---
+app.post('/api/admin/initialize-election', (req, res) => {
+    const { title, description, config, startTime, endTime, tokenExpiry, emails } = req.body;
+    const electionId = `ELEC-${Math.floor(Date.now() / 1000)}`;
+
+    pool.query(`CREATE TABLE IF NOT EXISTS KEY_CUSTODIAN (id INT AUTO_INCREMENT PRIMARY KEY, election_id VARCHAR(50), email VARCHAR(100), token VARCHAR(100))`, () => {
+        pool.query(`UPDATE ELECTION SET status = 'Completed' WHERE status = 'Active'`, () => {
+            pool.query(
+                `INSERT INTO ELECTION (election_id, title, description, start_datetime, end_datetime, status) VALUES (?, ?, ?, ?, ?, 'Active')`, 
+                [electionId, title, description || '', startTime, endTime], 
+                (err) => {
+                    if (err) return res.status(500).json({ success: false, message: 'Database error creating election.' });
+
+                    config.forEach(pos => {
+                        pos.candidates.forEach(cand => {
+                            const candidateId = `CAND-${Math.floor(Math.random() * 1000000)}`;
+                            pool.query(
+                                `INSERT INTO CANDIDATE (candidate_id, election_id, full_name, position, photo, max_votes) VALUES (?, ?, ?, ?, ?, ?)`,
+                                [candidateId, electionId, cand.name, pos.title, cand.photo, pos.maxVotes || 1]
+                            );
+                        });
+                    });
+
+                    const uniqueEmails = [...new Set(emails)];
+                    const tokens = uniqueEmails.map(() => crypto.randomBytes(16).toString('hex'));
+                    masterDecryptionKey = [...tokens].sort().join(''); 
+                    
+                    uniqueEmails.forEach((email, idx) => {
+                        pool.query(`INSERT INTO KEY_CUSTODIAN (election_id, email, token) VALUES (?, ?, ?)`, [electionId, email, tokens[idx]]);
+                        transporter.sendMail({
+                            from: '"Guimba BHW Voting System" <bhwcooperative.guimba.ph@gmail.com>',
+                            to: email,
+                            subject: `Cryptographic Token for ${title}`,
+                            text: `You have been assigned as a key custodian for the election: ${title}.\n\nYour Token is:\n${tokens[idx]}\n\nValid until: ${new Date(tokenExpiry).toLocaleString()}\nKeep this safe!`
+                        });
+                    });
+
+                    logActivity('SUPERADMIN', `Initialized new election: ${title}`, req.ip);
+                    res.json({ success: true, message: "Election configured securely and tokens distributed." });
+                }
+            );
+        });
+    });
+});
+
+// --- FETCH ELECTION INFO FOR VOTER SCREEN ---
+app.get('/api/election-info', (req, res) => {
+    pool.query(`SELECT * FROM ELECTION WHERE status = 'Active' LIMIT 1`, (err, elecRows) => {
+        if (err || !elecRows || elecRows.length === 0) return res.json({ active: false });
+
+        const elec = elecRows[0];
+
+        pool.query(`SELECT * FROM CANDIDATE WHERE election_id = ?`, [elec.election_id], (err, candRows) => {
+            if (err) return res.status(500).json({ active: false });
+
+            // Dynamically reconstruct the groups for the frontend ballot UI
+            const positionsMap = {};
+            candRows.forEach(c => {
+                if (!positionsMap[c.position]) {
+                    positionsMap[c.position] = { title: c.position, maxVotes: c.max_votes || 1, candidates: [] };
+                }
+                positionsMap[c.position].candidates.push({ name: c.full_name, photo: c.photo });
+            });
+
+            res.json({
+                active: true,
+                title: elec.title,
+                config: Object.values(positionsMap),
+                startTime: elec.start_datetime,
+                endTime: elec.end_datetime
+            });
+        });
+    });
+});
+
+// --- CAST CRYPTOGRAPHIC VOTE ---
+app.post('/api/vote', async (req, res) => {
+    const voterId = req.auth?.account_id;
+    const choices = req.body?.choices;
+    if (req.auth?.role !== 'member' || !voterId) return res.status(403).json({success:false,message:'Voter session required.'});
+    if (!choices || typeof choices !== 'object' || Array.isArray(choices)) return res.status(400).json({success:false,message:'Invalid ballot.'});
+    let connection;
+    try {
+        connection = await pool.promise().getConnection();
+        await connection.beginTransaction();
+        const [voters] = await connection.query('SELECT status FROM VOTER WHERE voter_id=? FOR UPDATE', [voterId]);
+        if (!voters.length || voters[0].status !== 'Active') {
+            await connection.rollback(); return res.status(403).json({success:false,message:'Voter is not active.'});
+        }
+        const [elections] = await connection.query("SELECT * FROM ELECTION WHERE status='Active' ORDER BY created_at DESC LIMIT 1", []);
+        if (!elections.length) { await connection.rollback(); return res.status(400).json({success:false,message:'No active election.'}); }
+        const election = elections[0];
+        if (new Date() < new Date(election.start_datetime) || new Date() > new Date(election.end_datetime)) {
+            await connection.rollback(); return res.status(403).json({success:false,message:'Voting is not currently open.'});
+        }
+        const [previous] = await connection.query('SELECT vote_id FROM VOTE WHERE voter_id=? AND election_id=? LIMIT 1', [voterId, election.election_id]);
+        if (previous.length) { await connection.rollback(); return res.status(409).json({success:false,message:'You have already voted in this election.'}); }
+        const [positions] = await connection.query("SELECT full_name, position, max_votes FROM CANDIDATE WHERE election_id=? AND status='Active'", [election.election_id]);
+        const validPositions = new Map();
+        for (const c of positions) {
+            if (!validPositions.has(c.position)) validPositions.set(c.position, {names:new Set(), max:Number(c.max_votes)||1});
+            validPositions.get(c.position).names.add(c.full_name);
+        }
+        if (!validPositions.size || Object.keys(choices).some(p => !validPositions.has(p))) {
+            await connection.rollback(); return res.status(400).json({success:false,message:'Ballot positions are invalid.'});
+        }
+        for (const [position, options] of validPositions) {
+            const selections = choices[position];
+            if (!Array.isArray(selections) || selections.length > options.max || new Set(selections).size !== selections.length || selections.some(name => !options.names.has(name))) {
+                await connection.rollback(); return res.status(400).json({success:false,message:'Invalid candidate selection for ' + position});
+            }
+        }
+        const [keys] = await connection.query('SELECT token FROM KEY_CUSTODIAN WHERE election_id=?', [election.election_id]);
+        if (!keys.length || keys.some(k => !k.token)) {
+            await connection.rollback(); return res.status(503).json({success:false,message:'Election encryption keys unavailable.'});
+        }
+        const electionKey = keys.map(k => k.token).sort().join('');
+        const encrypted = encryptVote(JSON.stringify(choices), electionKey);
+        const voteId = 'VOTE-' + crypto.randomUUID();
+        const voteHash = crypto.createHash('sha256').update(encrypted).digest('hex');
+        await connection.query("INSERT INTO VOTE (vote_id,voter_id,candidate_id,election_id,vote_hash,encrypted_vote,status) VALUES (?,?,NULL,?,?,?,'Valid')", [voteId,voterId,election.election_id,voteHash,encrypted]);
+        await connection.commit();
+        res.json({success:true});
+        logActivity(voterId, 'Cast encrypted vote', req.ip);
+    } catch (error) {
+        if (connection) { try { await connection.rollback(); } catch (_) {} }
+        if (error.code === 'ER_DUP_ENTRY') return res.status(409).json({success:false,message:'A vote is already recorded for this election.'});
+        console.error('Vote submission failed:', error.message);
+        res.status(500).json({success:false,message:'Could not securely record vote.'});
+    } finally { if (connection) connection.release(); }
+});
+
+// --- FETCH AUDIT LOGS ---
+app.get('/api/admin/logs', (req, res) => {
+    const query = `
+        SELECT 
+            a.log_id as id, 
+            COALESCE(a.voter_id, a.admin_id) as user_id, 
+            a.action, 
+            a.ip_address, 
+            a.created_at as timestamp,
+            COALESCE(v.full_name, ad.full_name) as full_name,
+            COALESCE(ad.role, 'member') as role
+        FROM AUDIT_LOG a
+        LEFT JOIN VOTER v ON a.voter_id = v.voter_id
+        LEFT JOIN ADMIN ad ON a.admin_id = ad.admin_id
+        ORDER BY a.created_at DESC 
+        LIMIT 200
+    `;
+    pool.query(query, (err, rows) => {
+        if (err) return res.status(500).json({ success: false, message: 'DB Error' });
+        
+        const formattedLogs = rows.map(r => ({
+            id: r.id,
+            user_id: r.user_id,
+            action: r.action,
+            ip_address: r.ip_address,
+            timestamp: r.timestamp,
+            first_name: r.full_name ? r.full_name.split(' ')[0] : 'System',
+            last_name: r.full_name ? r.full_name.split(' ').slice(1).join(' ') : '',
+            role: r.role
+        }));
+        res.json({ success: true, logs: formattedLogs });
+    });
+});
+
+
+
+// --- SUPER ADMIN: REGISTER NEW ADMIN ---
+app.post('/api/superadmin/register-admin', async (req, res) => {
+    const { firstName, middleName = '', lastName, photoUrl, descriptor } = req.body;
+    const clean = value => typeof value === 'string' ? value.trim().replace(/\s+/g, ' ') : '';
+    const first = clean(firstName), middle = clean(middleName), last = clean(lastName);
+    if (!first || !last || [first, middle, last].some(x => x.length > 100) ||
+        !Array.isArray(descriptor) || descriptor.length !== 128 ||
+        !descriptor.every(x => typeof x === 'number' && Number.isFinite(x)) ||
+        typeof photoUrl !== 'string' || !photoUrl.startsWith('data:image/jpeg;base64,')) {
+        return res.status(400).json({ success: false, message: 'Valid first name, last name, and biometric capture are required.' });
+    }
+    const fullName = [first, middle, last].filter(Boolean).join(' ');
+    if (fullName.length > 100) return res.status(400).json({ success: false, message: 'Full name must be 100 characters or fewer.' });
+    const connection = await pool.promise().getConnection().catch(() => null);
+    if (!connection) return res.status(500).json({ success: false, message: 'Database unavailable.' });
+    let enrollmentLocked = false;
+    try {
+        const [[lock]] = await connection.query("SELECT GET_LOCK('bhw_biometric_enrollment', 10) AS acquired");
+        if (lock.acquired !== 1) return res.status(503).json({success:false,message:'Biometric registration is busy; retry shortly.'});
+        enrollmentLocked = true;
+        await connection.beginTransaction();
+        const [existing] = await connection.query('SELECT admin_id FROM ADMIN WHERE full_name = ? LIMIT 1', [fullName]);
+        if (existing.length) { await connection.rollback(); return res.status(409).json({ success: false, message: 'An administrator with this name already exists.' }); }
+        const [faces] = await connection.query('SELECT facial_encoding FROM BIOMETRIC_REGISTRATION WHERE facial_encoding IS NOT NULL');
+        for (const row of faces) {
+            try {
+                const stored = getDescriptor(row.facial_encoding);
+                if (!stored) { await connection.rollback(); return res.status(409).json({success:false,message:'An existing biometric template is unreadable. Contact the system administrator before new enrollment.'}); }
+                if (Array.isArray(stored) && stored.length === descriptor.length && euclideanDistance(stored, descriptor) < 0.42) {
+                    await connection.rollback();
+                    return res.status(409).json({ success: false, message: 'This face is already registered.' });
+                }
+            } catch (error) { throw error; }
+        }
+        const [idResult] = await connection.query('INSERT INTO ADMIN_ID_SEQUENCE (id) VALUES (NULL)');
+        const adminId = `ADM${String(idResult.insertId).padStart(4, '0')}`;
+        const biometricId = `BIO${crypto.randomBytes(12).toString('hex').toUpperCase()}`;
+        const passwordHash = crypto.randomBytes(32).toString('hex'); // Random, non-login credential for biometric-only admins
+        await connection.query(`INSERT INTO ADMIN (admin_id, full_name, username, password_hash, role, status)
+            VALUES (?, ?, ?, ?, 'admin', 'Active')`, [adminId, fullName, adminId, passwordHash]);
+        await connection.query(`INSERT INTO BIOMETRIC_REGISTRATION
+            (biometric_id, admin_id, facial_image, facial_encoding, biometric_status)
+            VALUES (?, ?, ?, ?, 'Active')`, [biometricId, adminId, encryptBiometric(photoUrl), encryptBiometric(JSON.stringify(descriptor))]);
+        await connection.commit();
+        logActivity('SUPERADMIN', `Registered new Admin: ${adminId}`, req.ip);
+        res.json({ success: true, adminId });
+    } catch (err) {
+        await connection.rollback();
+        console.error('Admin registration failed:', err);
+        res.status(500).json({ success: false, message: 'Could not register administrator.' });
+    } finally { if (enrollmentLocked) { try { await connection.query("SELECT RELEASE_LOCK('bhw_biometric_enrollment')"); } catch (e) { console.error('Enrollment lock release failed:', e.message); } } connection.release(); }
+});
+
+
+// --- FETCH ALL SYSTEM USERS (COMBINED ADMIN & VOTER TABLES) ---
+app.get('/api/superadmin/users', (req, res) => {
+    const query = `
+        SELECT admin_id AS member_id, full_name, role, status FROM ADMIN
+        UNION ALL
+        SELECT voter_id AS member_id, full_name, 'member' AS role, status FROM VOTER
+        ORDER BY role DESC, member_id ASC
+    `;
+    pool.query(query, (err, rows) => {
+        if (err) return res.status(500).json({ success: false });
+        
+        // Format the data to match what the frontend UI expects
+        const formattedUsers = rows.map(u => ({
+            member_id: u.member_id,
+            first_name: u.full_name.split(' ')[0],
+            last_name: u.full_name.split(' ').slice(1).join(' ') || '',
+            role: u.role,
+            is_active: u.status === 'Active' ? 1 : 0
+        }));
+        res.json({ success: true, users: formattedUsers });
+    });
+});
+
+// --- TOGGLE ACCOUNT STATUS (ACTIVE / DISABLED) ---
+app.post('/api/superadmin/toggle-status', (req, res) => {
+    const { targetId, currentStatus, reason } = req.body;
+    if (targetId === 'SUPERADMIN') return res.json({ success: false, message: "Cannot disable the master account." });
+
+    const newStatusStr = currentStatus === 1 ? 'Disabled' : 'Active';
+    const isAdmin = targetId.startsWith('ADMIN');
+    const table = isAdmin ? 'ADMIN' : 'VOTER';
+    const idCol = isAdmin ? 'admin_id' : 'voter_id';
+
+    pool.query(`UPDATE ${table} SET status = ? WHERE ${idCol} = ?`, [newStatusStr, targetId], (err) => {
+        if (err) return res.json({ success: false, message: 'Database error.' });
+        
+        const logMsg = newStatusStr === 'Disabled' 
+            ? `Disabled account: ${targetId} (Reason: ${reason || 'Not specified'})` 
+            : `Enabled account: ${targetId}`;
+            
+        logActivity('SUPERADMIN', logMsg, req.ip);
+        res.json({ success: true, newStatus: newStatusStr === 'Active' ? 1 : 0 });
+    });
+});
+
+// --- FETCH TIMELINE DATA FOR DASHBOARD GRAPH ---
+app.get('/api/admin/timeline-stats', (req, res) => {
+    // Queries the new AUDIT_LOG table using the 'created_at' column
+    pool.query(`SELECT created_at as timestamp FROM AUDIT_LOG WHERE action = 'Cast encrypted vote' ORDER BY created_at ASC`, (err, rows) => {
+        if (err) return res.status(500).json({ success: false });
+        res.json({ success: true, logs: rows || [] });
+    });
+});
+
+// A short-lived, HttpOnly pending-MFA cookie lets a user resume verification
+// after refreshing, logging out, or re-entering their password. It never authenticates
+// the user by itself; the password must still be verified to resume via login-password.
+const pendingMfaCookieOptions = {httpOnly:true,sameSite:'strict',secure:secureCookie,path:'/api/admin',maxAge:5*60*1000};
+function pendingMfaFromRequest(req) {
+    const match = /(?:^|;\s*)bhw_pending_mfa=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '');
+    return match ? match[1] : null;
+}
+async function getActivePendingMfa(req) {
+    const challenge = pendingMfaFromRequest(req);
+    if (!challenge) return null;
+    const [records] = await pool.promise().query(
+        'SELECT 1 FROM ADMIN_LOGIN_CHALLENGE WHERE challenge_hash=? AND expires_at>NOW() AND attempts<5 LIMIT 1',
+        [hashToken(challenge)]
+    );
+    return records.length ? challenge : null;
+}
+// Verify Super Admin Password Login dynamically
+// Verify Super Admin Password Login dynamically
+app.post('/api/admin/login-password', throttle, async (req,res) => {
+    const password = req.body?.password;
+    if (typeof password !== 'string' || password.length > 256) return res.status(400).json({success:false,message:'Invalid credentials.'});
+    try {
+        const [rows] = await pool.promise().query("SELECT password_hash,email,status FROM ADMIN WHERE admin_id='SUPERADMIN'");
+        const admin = rows[0];
+        if (!admin || admin.status !== 'Active' || !verifyPassword(password,admin.password_hash)) return res.status(401).json({success:false,message:'Invalid credentials.'});
+        if (process.env.SUPERADMIN_MFA_ENABLED === 'true') {
+            if (!admin.email || !process.env.SMTP_USER || !process.env.SMTP_APP_PASSWORD) return res.status(503).json({success:false,message:'MFA requires a saved recovery email and configured SMTP credentials.'});
+            // A prior successful password login may already have a valid, emailed OTP.
+            // Resume it immediately instead of forcing another email / cooldown wait.
+            const existingChallenge = await getActivePendingMfa(req);
+            if (existingChallenge) return res.json({
+                success:false,mfaRequired:true,challenge:existingChallenge,
+                reused:true,message:'Enter the code already sent to your email. No new email is needed.'
+            });
+            // Atomic, persisted five-minute cooldown per account. This prevents concurrent clicks,
+            // multiple tabs and server restarts from generating extra email messages.
+            await pool.promise().query(
+                `INSERT IGNORE INTO ADMIN_MFA_SEND_COOLDOWN (account_id,last_sent) VALUES ('SUPERADMIN', '1970-01-01 00:00:00.000')`
+            );
+            const [reservation] = await pool.promise().query(
+                `UPDATE ADMIN_MFA_SEND_COOLDOWN SET last_sent=NOW(3)
+                 WHERE account_id='SUPERADMIN' AND last_sent <= DATE_SUB(NOW(3),INTERVAL 5 MINUTE)`
+            );
+            if (reservation.affectedRows !== 1) {
+                const [[cooldown]] = await pool.promise().query(
+                    `SELECT GREATEST(1,CEIL(TIMESTAMPDIFF(SECOND,NOW(3),DATE_ADD(last_sent,INTERVAL 5 MINUTE)))) AS retryAfter
+                     FROM ADMIN_MFA_SEND_COOLDOWN WHERE account_id='SUPERADMIN'`
+                );
+                const retryAfter = Math.max(1, Number(cooldown?.retryAfter) || 300);
+                res.set('Retry-After',String(retryAfter));
+                return res.status(429).json({success:false,code:'MFA_COOLDOWN',retryAfter,message:`A verification code was recently sent. Wait ${Math.ceil(retryAfter/60)} minute(s) before requesting another. Use the code already emailed to you.`});
+            }
+            const challenge = crypto.randomBytes(32).toString('hex');
+            const code = String(crypto.randomInt(100000,1000000));
+            await pool.promise().query('INSERT INTO ADMIN_LOGIN_CHALLENGE (challenge_hash,code_hash,expires_at) VALUES (?,?,DATE_ADD(NOW(),INTERVAL 5 MINUTE))', [hashToken(challenge), hashToken(code)]);
+            try { await transporter.sendMail({from:process.env.SMTP_USER,to:admin.email,subject:'BHW Admin Login Verification',text:`Your login verification code is ${code}. It expires in 5 minutes. If you did not request this, contact your system administrator.`}); }
+            catch(e) {
+                await pool.promise().query('DELETE FROM ADMIN_LOGIN_CHALLENGE WHERE challenge_hash=?',[hashToken(challenge)]);
+                // Cooldown remains set on delivery failure to avoid email floods; operator can troubleshoot SMTP.
+                return res.status(503).json({success:false,message:'Could not send login verification email. Wait five minutes before trying again.'});
+            }
+            res.cookie('bhw_pending_mfa',challenge,pendingMfaCookieOptions);
+            return res.json({success:false,mfaRequired:true,challenge,message:'Enter the verification code sent to your registered email.'});
+        }
+        await newSession(res,'SUPERADMIN','superadmin');
+        res.json({success:true,emailConfigured:Boolean(admin.email)});
+    } catch(e) { console.error(e);res.status(500).json({success:false,message:'Login unavailable.'}); }
+});
+
+app.post('/api/admin/login-otp', throttle, async (req,res) => {
+    if (process.env.SUPERADMIN_MFA_ENABLED !== 'true') return res.status(404).json({success:false});
+    const {challenge,code} = req.body || {};
+    if (!/^[a-f0-9]{64}$/.test(challenge||'') || !/^\d{6}$/.test(code||'')) return res.status(400).json({success:false,message:'Invalid verification request.'});
+    try {
+        const [rows] = await pool.promise().query('SELECT code_hash, attempts FROM ADMIN_LOGIN_CHALLENGE WHERE challenge_hash=? AND expires_at>NOW()', [hashToken(challenge)]);
+        if (!rows.length || rows[0].attempts>=5) return res.status(401).json({success:false,message:'Verification expired or too many attempts.'});
+        await pool.promise().query('UPDATE ADMIN_LOGIN_CHALLENGE SET attempts=attempts+1 WHERE challenge_hash=?',[hashToken(challenge)]);
+        if (!crypto.timingSafeEqual(Buffer.from(rows[0].code_hash,'hex'),Buffer.from(hashToken(code),'hex'))) return res.status(401).json({success:false,message:'Incorrect verification code.'});
+        await pool.promise().query('DELETE FROM ADMIN_LOGIN_CHALLENGE WHERE challenge_hash=?',[hashToken(challenge)]);
+        res.clearCookie('bhw_pending_mfa',{path:'/api/admin',sameSite:'strict',secure:secureCookie});
+        await newSession(res,'SUPERADMIN','superadmin');
+        res.json({success:true});
+    } catch(e) {console.error('MFA error',e);res.status(503).json({success:false,message:'Verification unavailable.'});}
+});
+
+// Patch ADMIN table for dynamic password resets
+pool.query(`ALTER TABLE ADMIN ADD COLUMN reset_code VARCHAR(64) DEFAULT NULL`, () => {});
+pool.query(`ALTER TABLE ADMIN MODIFY COLUMN reset_code VARCHAR(64) DEFAULT NULL`, () => {});
+pool.query(`ALTER TABLE ADMIN ADD COLUMN reset_expiry DATETIME DEFAULT NULL`, () => {});
+
+// Update Super Admin Email
+app.post('/api/superadmin/set-email', (req, res) => {
+    const { email } = req.body;
+    pool.query(`UPDATE ADMIN SET email = ? WHERE admin_id = 'SUPERADMIN'`, [email], (err) => {
+        if (err) return res.status(500).json({ success: false });
+        logActivity('SUPERADMIN', `Updated Superadmin recovery email to ${email}`, req.ip);
+        res.json({ success: true });
+    });
+});
+
+// Password reset: one server-enforced send attempt per five minutes for the account.
+// The database cooldown survives refreshes, browser changes and server restarts.
+const PASSWORD_RESET_COOLDOWN_SECONDS = 300;
+function validResetPassword(password) {
+    return typeof password === 'string' && password.length >= 12 && password.length <= 128
+        && /[a-z]/.test(password) && /[A-Z]/.test(password)
+        && /[0-9]/.test(password) && /[^A-Za-z0-9\s]/.test(password);
+}
+app.get('/api/superadmin/reset-status', async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+        const [rows] = await pool.promise().query(
+            `SELECT GREATEST(0, TIMESTAMPDIFF(SECOND, NOW(), next_allowed)) AS retryAfterSeconds
+             FROM PASSWORD_RESET_COOLDOWN WHERE account_id='SUPERADMIN'`
+        );
+        res.json({success:true, retryAfterSeconds:Math.max(0,Number(rows[0]?.retryAfterSeconds||0))});
+    } catch(e) {
+        res.status(503).json({success:false,message:'Reset status unavailable.'});
+    }
+});
+
+app.post('/api/superadmin/request-reset', throttle, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    let claimed = false;
+    let codeHash = null;
+    try {
+        // Atomic database claim blocks simultaneous clicks in different tabs.
+        await pool.promise().query(
+            `INSERT IGNORE INTO PASSWORD_RESET_COOLDOWN (account_id,next_allowed) VALUES ('SUPERADMIN',NOW())`
+        );
+        const [claim] = await pool.promise().query(
+            `UPDATE PASSWORD_RESET_COOLDOWN
+             SET next_allowed=DATE_ADD(NOW(), INTERVAL 5 MINUTE)
+             WHERE account_id='SUPERADMIN' AND next_allowed<=NOW()`
+        );
+        if (claim.affectedRows !== 1) {
+            const [[row]] = await pool.promise().query(
+                `SELECT GREATEST(1,TIMESTAMPDIFF(SECOND,NOW(),next_allowed)) AS remaining
+                 FROM PASSWORD_RESET_COOLDOWN WHERE account_id='SUPERADMIN'`
+            );
+            const remaining = Math.max(1, Number(row?.remaining || 300));
+            res.set('Retry-After', String(remaining));
+            return res.status(429).json({success:false,message:'A reset code was recently requested. Please wait before requesting another.',retryAfterSeconds:remaining});
+        }
+        claimed = true;
+        const [accounts] = await pool.promise().query(
+            "SELECT email FROM ADMIN WHERE admin_id='SUPERADMIN' LIMIT 1"
+        );
+        if (!accounts.length || !accounts[0].email) throw new Error('Recovery email not configured');
+        const email = accounts[0].email;
+        const resetCode = String(crypto.randomInt(100000,1000000));
+        codeHash = hashToken(resetCode);
+        await pool.promise().query(
+            `UPDATE ADMIN SET reset_code=?, reset_expiry=DATE_ADD(NOW(), INTERVAL 15 MINUTE)
+             WHERE admin_id='SUPERADMIN'`, [codeHash]
+        );
+        await transporter.sendMail({
+            from: process.env.SMTP_USER,
+            to: email,
+            subject: 'Super Admin Password Reset Code',
+            text: `Your Guimba BHW password reset code is ${resetCode}. It expires in 15 minutes. If you did not request this, contact your system administrator.`,
+            html: `<div style="font-family:Arial,sans-serif;padding:20px"><h2>Super Admin Password Reset</h2><p>Use this one-time code:</p><h1 style="letter-spacing:4px">${resetCode}</h1><p>The code expires in 15 minutes. Ignore this message if you did not request it.</p></div>`
+        });
+        logActivity('SYSTEM','Sent Super Admin password reset code',req.ip);
+        return res.json({success:true,message:'If recovery email is configured, a verification code has been sent.',retryAfterSeconds:PASSWORD_RESET_COOLDOWN_SECONDS});
+    } catch(e) {
+        console.error('Password reset email error:',e.message);
+        // If the delivery failed, allow a retry; clear only our own code.
+        if (claimed) {
+            try {
+                if(codeHash) await pool.promise().query(
+                    "UPDATE ADMIN SET reset_code=NULL,reset_expiry=NULL WHERE admin_id='SUPERADMIN' AND reset_code=?",[codeHash]
+                );
+                await pool.promise().query(
+                    "UPDATE PASSWORD_RESET_COOLDOWN SET next_allowed=NOW() WHERE account_id='SUPERADMIN'"
+                );
+            } catch(cleanupErr) {console.error('Reset cooldown rollback failed:',cleanupErr.message);}
+        }
+        return res.status(503).json({success:false,message:'Unable to send reset code. Check the configured recovery email and SMTP settings.'});
+    }
+});
+
+app.post('/api/superadmin/verify-reset', throttle, async (req, res) => {
+    const {code,newPassword} = req.body || {};
+    if (!/^\d{6}$/.test(code || ''))
+        return res.status(400).json({success:false,message:'Enter a valid six-digit verification code.'});
+    if (!validResetPassword(newPassword))
+        return res.status(400).json({success:false,message:'Password must be 12–128 characters and include uppercase, lowercase, a number, and a symbol.'});
+    try {
+        const [rows] = await pool.promise().query(
+            "SELECT reset_code,reset_expiry FROM ADMIN WHERE admin_id='SUPERADMIN' LIMIT 1"
+        );
+        if (!rows.length || !rows[0].reset_code || !rows[0].reset_expiry || new Date() > new Date(rows[0].reset_expiry)
+            || !crypto.timingSafeEqual(Buffer.from(rows[0].reset_code,'hex'), Buffer.from(hashToken(code),'hex')))
+            return res.status(400).json({success:false,message:'Invalid or expired verification code.'});
+        const hash = hashPassword(newPassword);
+        const [update] = await pool.promise().query(
+            `UPDATE ADMIN SET password_hash=?,reset_code=NULL,reset_expiry=NULL
+             WHERE admin_id='SUPERADMIN' AND reset_code=? AND reset_expiry>NOW()`,
+            [hash,hashToken(code)]
+        );
+        if(update.affectedRows !== 1)
+            return res.status(400).json({success:false,message:'Code already used or expired.'});
+        await pool.promise().query("DELETE FROM AUTH_SESSION WHERE account_id='SUPERADMIN'");
+        logActivity('SUPERADMIN','Super Admin password reset via email code',req.ip);
+        res.json({success:true,message:'Password updated successfully.'});
+    } catch(e) {
+        console.error('Password reset verification error:',e.message);
+        res.status(503).json({success:false,message:'Password reset unavailable.'});
+    }
+});
+
+
+// ==========================================
+// ELECTION & CANDIDATE MANAGEMENT ROUTES
+// ==========================================
+
+// 1. Create a New Election
+app.post('/api/admin/election/create', (req, res) => {
+    const { title, description, startDatetime, endDatetime } = req.body;
+    
+    // Generate a unique election ID (e.g., ELEC-170420391)
+    const electionId = `ELEC-${Math.floor(Date.now() / 1000)}`;
+
+    const query = `
+        INSERT INTO ELECTION (election_id, title, description, start_datetime, end_datetime, status) 
+        VALUES (?, ?, ?, ?, ?, 'Active')
+    `;
+
+    pool.query(query, [electionId, title, description, startDatetime, endDatetime], (err) => {
+        if (err) return res.status(500).json({ success: false, message: 'Failed to create election.' });
+        
+        logActivity('SUPERADMIN', `Created new election: ${title}`, req.ip);
+        res.json({ success: true, election_id: electionId, message: 'Election created successfully.' });
+    });
+});
+
+// 2. Add a Candidate to an Election
+app.post('/api/admin/candidate/add', (req, res) => {
+    const { electionId, fullName, position, platform, photoUrl } = req.body;
+    
+    // Generate a unique candidate ID
+    const candidateId = `CAND-${Math.floor(Math.random() * 1000000)}`;
+
+    const query = `
+        INSERT INTO CANDIDATE (candidate_id, election_id, full_name, position, platform, photo) 
+        VALUES (?, ?, ?, ?, ?, ?)
+    `;
+
+    pool.query(query, [candidateId, electionId, fullName, position, platform, photoUrl], (err) => {
+        if (err) return res.status(500).json({ success: false, message: 'Failed to add candidate.' });
+        
+        logActivity('SUPERADMIN', `Added candidate ${fullName} for position ${position}`, req.ip);
+        res.json({ success: true, candidate_id: candidateId, message: 'Candidate added successfully.' });
+    });
+});
+
+// 3. Fetch the currently Active Election and its Candidates
+app.get('/api/election/active', (req, res) => {
+    // First, find the active election
+    pool.query(`SELECT * FROM ELECTION WHERE status = 'Active' ORDER BY created_at DESC LIMIT 1`, (err, elecRows) => {
+        if (err || elecRows.length === 0) {
+            return res.json({ success: true, active: false, election: null, candidates: [] });
+        }
+
+        const election = elecRows[0];
+
+        // Next, fetch all candidates for this election
+        pool.query(`SELECT * FROM CANDIDATE WHERE election_id = ? AND status = 'Active'`, [election.election_id], (err, candRows) => {
+            if (err) return res.status(500).json({ success: false });
+            
+            res.json({ 
+                success: true, 
+                active: true, 
+                election: election, 
+                candidates: candRows || [] 
+            });
+        });
+    });
+});
+
+// --- UPDATE MEMBER INFORMATION ---
+app.post('/api/admin/update-member', (req, res) => {
+    const { memberId, fullName, area, status } = req.body;
+    pool.query(
+        `UPDATE VOTER SET full_name = ?, area = ?, status = ? WHERE voter_id = ?`,
+        [fullName, area, status, memberId],
+        (err) => {
+            if (err) return res.json({ success: false, message: 'Database error' });
+            logActivity('SUPERADMIN', `Updated information for member: ${memberId}`, req.ip);
+            res.json({ success: true });
+        }
+    );
+});
+
+// --- UPDATE MEMBER BIOMETRIC FACE ---
+app.post('/api/admin/update-member-face', (req, res) => {
+    const { memberId, descriptor, photoUrl } = req.body;
+    pool.query(
+        `UPDATE BIOMETRIC_REGISTRATION SET facial_encoding = ?, facial_image = ? WHERE voter_id = ?`,
+        [encryptBiometric(JSON.stringify(descriptor)), encryptBiometric(photoUrl), memberId],
+        (err) => {
+            if (err) return res.json({ success: false, message: 'Database error' });
+            logActivity('SUPERADMIN', `Updated face biometrics for: ${memberId}`, req.ip);
+            res.json({ success: true });
+        }
+    );
+});
+
+app.listen(PORT, () => console.log(`Secure Server running on http://localhost:${PORT}`));
+
