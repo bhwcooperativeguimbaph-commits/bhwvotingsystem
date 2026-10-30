@@ -8,6 +8,8 @@ const {findFaceMatch,validDescriptor}=require('./database/face-matching');
 const {issueSession,authenticateSession,revokeSession}=require('./database/sessions');
 const {getPublicElectionInfo}=require('./database/election-read');
 const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
+const {beginAdminLogin,completeAdminLogin}=require('./database/admin-auth');
+const nodemailer=require('nodemailer');
 const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',1);
@@ -75,10 +77,43 @@ app.post('/api/login-face',rateLimit,async(req,res)=>{
   res.json({success:true,role:'member',memberId:found.match.accountId,firstName:parts[0],lastName:parts.slice(1).join(' ')});
  }catch(_){return res.status(503).json({success:false,message:'Login temporarily unavailable'})}
 });
+app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
+  const {password,username}=req.body||{};
+  if(typeof password!=='string'||password.length>256)return res.status(400).json({success:false,message:'Invalid credentials'});
+  const smtpUser=process.env.SMTP_USER,smtpPassword=process.env.SMTP_APP_PASSWORD;
+  if(!smtpUser||!smtpPassword)return res.status(503).json({success:false,message:'Administrator MFA email is unavailable'});
+  const transport=nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword}});
+  try{
+    const result=await beginAdminLogin(connection.db,{
+      username:typeof username==='string'?username:(process.env.INITIAL_SUPERADMIN_USERNAME||'superadmin'),
+      password,
+      deliverOtp:(email,code)=>transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'})
+    });
+    if(result.code==='INVALID_CREDENTIALS')return res.status(401).json({success:false,message:'Invalid credentials'});
+    if(!result.ok)return res.status(503).json({success:false,message:'Admin verification temporarily unavailable',code:result.code});
+    res.set('Cache-Control','no-store');
+    return res.json({success:false,mfaRequired:true,challenge:result.challenge,message:'Enter the verification code emailed to you.'});
+  }catch(_){return res.status(503).json({success:false,message:'Admin verification temporarily unavailable'})}
+});
+app.post('/api/admin/login-otp',rateLimit,async(req,res)=>{
+  try{
+    const result=await completeAdminLogin(connection.db,req.body||{});
+    if(!result.ok)return res.status(401).json({success:false,message:'Invalid or expired verification code'});
+    cookie(res,result.token,8*3600000);
+    res.set('Cache-Control','no-store');
+    return res.json({success:true,role:'superadmin'});
+  }catch(_){return res.status(503).json({success:false,message:'Admin verification temporarily unavailable'})}
+});
 app.get('/api/session',async(req,res)=>{
  try{
   const auth=await authenticateSession(connection.db,token(req));
   if(!auth)return res.status(401).json({success:false,message:'Session expired'});
+  if(auth.role==='superadmin'){
+    const admin=await connection.db.collection('admins').findOne({adminId:auth.accountId,status:'Active'});
+    if(!admin)return res.status(401).json({success:false,message:'Session expired'});
+    res.set('Cache-Control','no-store');
+    return res.json({success:true,role:'superadmin',memberId:auth.accountId,fullName:admin.fullName});
+  }
   const member=await connection.db.collection('members').findOne({memberId:auth.accountId,status:'Active'});
   if(!member)return res.status(401).json({success:false,message:'Session expired'});
   const election=await connection.db.collection('elections').findOne({status:'Active',endTime:{$gt:new Date()}},{sort:{createdAt:-1}});
