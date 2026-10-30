@@ -41,7 +41,17 @@ async function connectMongo(config = process.env) {
 async function initializeMongoIndexes(db) {
   for (const [collection,specs] of Object.entries(indexSpecs)) {
     const col=db.collection(collection);
-    for (const [keys,opts] of specs) await col.createIndex(keys,opts);
+    for (const [keys,opts] of specs) {
+      try { await col.createIndex(keys,opts); }
+      catch(error) {
+        // Safe diagnostic: do not log URI, documents, credentials, or driver messages.
+        const code=typeof error?.code==='number'?error.code:'unknown';
+        const name=Object.keys(keys).join('_');
+        const failure=new Error('MongoDB index setup failed at '+collection+'.'+name+' (code '+code+')');
+        failure.code='INDEX_SETUP_FAILED';
+        throw failure;
+      }
+    }
   }
 }
 
