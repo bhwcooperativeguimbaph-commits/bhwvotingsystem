@@ -3,6 +3,7 @@
 // Existing browser-reported facial actions are retained; they are NOT trusted PAD.
 const express=require('express');
 const crypto=require('node:crypto');
+const path=require('node:path');
 const {connectMongo,initializeMongoIndexes}=require('./database/mongodb');
 const {findFaceMatch,validDescriptor}=require('./database/face-matching');
 const {issueSession,authenticateSession,revokeSession}=require('./database/sessions');
@@ -36,6 +37,11 @@ function originCheck(req,res,next){
 app.use(originCheck);
 let connection;
 app.get('/health',(req,res)=>res.json({status:'ok',database:'mongodb',mode:'auth-preview'}));
+app.get('/admin-auth-preview',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ res.sendFile(path.join(__dirname,'public','admin-auth-preview.html'));
+});
 app.get('/api/election-info',async(req,res)=>{
  try{return res.json(await getPublicElectionInfo(connection.db))}
  catch(_){return res.status(503).json({active:false,error:'Election information unavailable'})}
