@@ -10,7 +10,8 @@ const {getPublicElectionInfo}=require('./database/election-read');
 const port=Number(process.env.PORT)||10000;
 let connection;
 const server=http.createServer(async (req,res)=>{
-  if(req.url==='/api/election-info' && req.method==='GET'){
+  const pathname=new URL(req.url,'http://localhost').pathname;
+  if(pathname==='/api/election-info' && req.method==='GET'){
     try {
       const data=await getPublicElectionInfo(connection.db);
       res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
@@ -20,7 +21,7 @@ const server=http.createServer(async (req,res)=>{
       return res.end(JSON.stringify({active:false,error:'Election information temporarily unavailable'}));
     }
   }
-  if(req.url!=='/health' || req.method!=='GET') {
+  if(pathname!=='/health' || req.method!=='GET') {
     res.writeHead(404,{'Content-Type':'application/json','Cache-Control':'no-store'});
     return res.end(JSON.stringify({error:'Not found'}));
   }
