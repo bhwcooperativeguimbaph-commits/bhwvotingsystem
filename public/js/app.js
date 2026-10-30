@@ -41,7 +41,17 @@ async function restoreSession() {
         const response = await fetch('/api/session', {credentials:'same-origin',cache:'no-store'});
         if (!response.ok) return;
         const data = await response.json();
-        if (!data.success || !['admin','superadmin'].includes(data.role)) return;
+        if (!data.success) return;
+        if (data.role === 'member') {
+            currentVoterId = data.memberId;
+            await fetchElectionInfo();
+            document.getElementById('landing-page')?.classList.add('hidden');
+            document.getElementById('auth-section')?.classList.add('hidden');
+            document.getElementById('voter-portal')?.classList.remove('hidden');
+            document.getElementById('voter-profile-section')?.classList.remove('hidden');
+            return;
+        }
+        if (!['admin','superadmin'].includes(data.role)) return;
         currentAdminRole = data.role;
         currentAdminName = data.fullName || 'Administrator';
         currentAdminPhoto = `https://ui-avatars.com/api/?name=${encodeURIComponent(currentAdminName)}&background=1d7642&color=fff`;
@@ -96,6 +106,11 @@ function calculateEAR(eye) {
 function encodeCandidateImage(fileInput) {
     const file = fileInput.files[0];
     if (!file) return;
+    if (!["image/jpeg","image/png"].includes(file.type) || !/\.(jpe?g|png)$/i.test(file.name) || file.size > 5 * 1024 * 1024) {
+        fileInput.value = "";
+        fileInput.nextElementSibling.value = "";
+        return showModal("error","Invalid Photo","Upload a JPG or PNG file up to 5 MB.");
+    }
     const reader = new FileReader();
     reader.onload = function(e) {
         const img = new Image();
@@ -1303,8 +1318,8 @@ let posCount = 0;
 function getCandidateHTML() {
     return `<div class="candidate-entry" style="display:flex;gap:10px;margin-bottom:10px;align-items:center;flex-wrap:wrap">
         <input type="text" class="cand-name" placeholder="Candidate Name" style="margin:0;flex:2;min-width:220px">
-        <input type="file" accept="image/*" onchange="encodeCandidateImage(this)" style="margin:0;flex:1;min-width:150px;font-size:.8rem;background:white;padding:9px">
-        <input type="hidden" class="cand-photo-base64"></div>`;
+        <input type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" onchange="encodeCandidateImage(this)" style="margin:0;flex:1;min-width:150px;font-size:.8rem;background:white;padding:9px">
+        <input type="hidden" class="cand-photo-base64"><button type="button" class="btn btn-danger" style="width:auto;padding:8px" onclick="this.closest('.candidate-entry').remove();updateBallotNextButton()">Remove Candidate</button></div>`;
 }
 function escapeReportText(v) {return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 
