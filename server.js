@@ -1069,6 +1069,16 @@ app.post('/api/admin/initialize-election', async (req, res) => {
             return res.status(400).json({success:false,message:'Add enough candidates for '+pos.title+' to cover Max Votes.'});
         const names = new Set();
         for (const cand of pos.candidates) {
+            if (cand.photo) {
+                const match = typeof cand.photo === 'string' && cand.photo.match(/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/);
+                if (!match || cand.photo.length > 700000)
+                    return res.status(400).json({success:false,message:'Candidate photo must be a JPG or PNG under 500 KB.'});
+                const bytes = Buffer.from(match[2], 'base64');
+                const isJpeg = bytes.length >= 3 && bytes[0]===255 && bytes[1]===216 && bytes[2]===255;
+                const isPng = bytes.length >= 8 && bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+                if (bytes.length > 500000 || !(match[1]==='jpeg' ? isJpeg : isPng))
+                    return res.status(400).json({success:false,message:'Invalid candidate photo format.'});
+            }
             if (!cand || typeof cand.name !== 'string' || !cand.name.trim() || cand.name.trim().length > 100)
                 return res.status(400).json({success:false,message:'Every candidate in '+pos.title+' needs a name (up to 100 characters).'});
             const nameKey = cand.name.trim().toLowerCase();
