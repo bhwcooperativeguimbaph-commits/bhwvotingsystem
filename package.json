@@ -1,9 +1,10 @@
 {
   "name": "secure-voting-system",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "node --check server.js && node --check public/js/app.js && node --check public/js/report-pdf.js && node --check public/js/receipt-pdf.js",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
