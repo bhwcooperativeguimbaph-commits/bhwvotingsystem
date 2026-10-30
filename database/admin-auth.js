@@ -20,7 +20,8 @@ async function beginAdminLogin(db,{username,password,deliverOtp,now=new Date()})
  const challenges=db.collection('adminMfaChallenges');
  // One live challenge per administrator; atomic cooldown is checked with a conditional update.
  await db.collection('adminMfaCooldowns').updateOne({adminId:admin.adminId},{$setOnInsert:{adminId:admin.adminId,nextAllowed:new Date(0)}},{upsert:true});
- const reserved=await db.collection('adminMfaCooldowns').findOneAndUpdate(
+ const cooldowns=db.collection('adminMfaCooldowns');
+ const reserved=await cooldowns.findOneAndUpdate(
   {adminId:admin.adminId,$or:[{nextAllowed:{$lte:now}},{nextAllowed:{$exists:false}}]},
   {$set:{nextAllowed:new Date(now.getTime()+300000)}},{returnDocument:'after',upsert:false});
  if(!reserved)return {ok:false,code:'MFA_COOLDOWN'};
@@ -28,6 +29,9 @@ async function beginAdminLogin(db,{username,password,deliverOtp,now=new Date()})
   expiresAt:new Date(now.getTime()+300000),attempts:0,consumed:false});
  try{await deliverOtp(admin.email,code)}catch(_){
   await challenges.deleteOne({challengeHash});
+  // Undo only our own reservation; do not clear a newer attempt's cooldown.
+  await cooldowns.updateOne({adminId:admin.adminId,nextAllowed:new Date(now.getTime()+300000)},
+    {$set:{nextAllowed:new Date(0)}}).catch(()=>{});
   return {ok:false,code:'MFA_DELIVERY_FAILURE'};
  }
  return {ok:true,mfaRequired:true,challenge};
