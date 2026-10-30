@@ -10,8 +10,12 @@
 let challenge=null;
 const msg=document.getElementById('message');
 async function request(url,body){
- const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body)});
- const data=await res.json();return {status:res.status,data};
+ const controller=new AbortController();
+ const timeout=setTimeout(()=>controller.abort(),20000);
+ try {
+  const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify(body),signal:controller.signal});
+  const data=await res.json();return {status:res.status,data};
+ } finally {clearTimeout(timeout)}
 }
 document.getElementById('credentials').addEventListener('submit',async ev=>{
  ev.preventDefault();msg.textContent='Checking credentials...';
@@ -19,7 +23,7 @@ document.getElementById('credentials').addEventListener('submit',async ev=>{
  document.getElementById('password').value='';
  if(data.mfaRequired&&data.challenge){challenge=data.challenge;document.getElementById('otpForm').hidden=false;msg.textContent='Verification code sent. Check your email.'}
  else msg.textContent=data.message||data.code||'Authentication unavailable';
- }catch(_){msg.textContent='Request failed'}
+ }catch(e){msg.textContent=e.name==='AbortError'?'Request timed out. Check Render logs for SMTP or database delays.':'Request failed. Check Render logs.'}
 });
 document.getElementById('otpForm').addEventListener('submit',async ev=>{
  ev.preventDefault();
