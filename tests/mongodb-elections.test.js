@@ -8,6 +8,7 @@ async function main(){
  assert.equal(validateElection(base).config[1].maxVotes,2);
  assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:2,candidates:[{name:'A'}]}]}),/Insufficient candidates/);
  assert.throws(()=>validateElection({...base,endTime:base.startTime}),/schedule/);
+ assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:1,candidates:[{name:'A',photo:'data:image/svg+xml;base64,AAAA'}]}]}),/photo/);
  const elections=[],candidates=[];
  const session={withTransaction:async fn=>fn(),endSession:async()=>{}};
  const db={collection(name){
