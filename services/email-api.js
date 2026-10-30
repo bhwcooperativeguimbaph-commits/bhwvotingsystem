@@ -19,8 +19,10 @@ async function sendVerificationEmail({to,code},config=process.env){
   });
   if(!response.ok){
    const error=new Error('Email API rejected request');
-   error.code=response.status===401||response.status===403?'EMAIL_API_AUTH':
+   error.code=response.status===401?'EMAIL_API_INVALID_KEY':
+     response.status===403?'EMAIL_API_FORBIDDEN':
      response.status===422?'EMAIL_API_SENDER_OR_RECIPIENT':'EMAIL_API_HTTP';
+   error.httpStatus=response.status;
    throw error;
   }
   return true;
