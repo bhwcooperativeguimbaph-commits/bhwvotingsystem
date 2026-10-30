@@ -94,7 +94,18 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
     const result=await beginAdminLogin(connection.db,{
       username:typeof username==='string'?username:(process.env.INITIAL_SUPERADMIN_USERNAME||'superadmin'),
       password,
-      deliverOtp:(email,code)=>transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'})
+      deliverOtp:async(email,code)=>{
+        try {
+          const info=await transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'});
+          if(!Array.isArray(info.accepted)||info.accepted.length===0)throw Object.assign(new Error('Not accepted'),{code:'NOT_ACCEPTED'});
+        } catch(e) {
+          const allowed=new Set(['EAUTH','ECONNECTION','ETIMEDOUT','ESOCKET','EDNS','EENVELOPE','EMESSAGE','NOT_ACCEPTED']);
+          const category=allowed.has(e?.code)?e.code:'OTHER_SMTP_ERROR';
+          const responseCode=Number.isInteger(e?.responseCode)&&e.responseCode>=400&&e.responseCode<=599?e.responseCode:'none';
+          console.error('Admin MFA SMTP failure:',category,'SMTP status:',responseCode);
+          throw new Error('SMTP_DELIVERY_FAILED');
+        }
+      }
     });
     if(result.code==='INVALID_CREDENTIALS')return res.status(401).json({success:false,message:'Invalid credentials'});
     if(!result.ok){
