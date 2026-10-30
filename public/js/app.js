@@ -271,6 +271,9 @@ function switchToAdminView() {
     document.getElementById('auth-section').style.display = 'none';
     document.getElementById('landing-page').style.display = 'none';
     
+    // The member authentication camera must not remain visible in an admin session.
+    document.getElementById('voter-camera-slot')?.classList.add('hidden');
+    if (video.srcObject) { video.srcObject.getTracks().forEach(track => track.stop()); video.srcObject = null; }
     // Hide the top navigation to prevent UI overlapping
     const topNav = document.querySelector('.top-nav');
     if (topNav) topNav.style.display = 'none';
@@ -841,7 +844,7 @@ async function fetchElectionInfo() {
                     const inputType = pos.maxVotes === 1 ? 'radio' : 'checkbox';
                     
                     html += `
-                        <label class="candidate-choice-card" onclick="selectCandidateCard(this, ${pos.maxVotes}, 'grid-${index}')" style="display:flex; flex-direction:column; align-items:center; padding: 20px 10px;">
+                        <label class="candidate-choice-card" onchange="selectCandidateCard(this, ${pos.maxVotes}, 'grid-${index}')" style="display:flex; flex-direction:column; align-items:center; padding: 20px 10px;">
                             <input type="${inputType}" name="pos-${index}" value="${candName}">
                             <img src="${candPhoto}" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; margin-bottom: 15px; border: 3px solid #f1f5f9; box-shadow: 0 4px 10px rgba(0,0,0,0.05);">
                             <h4 style="margin-bottom: 5px; font-size: 1.05rem;">${candName}</h4>
@@ -865,23 +868,18 @@ async function fetchElectionInfo() {
 }
 
 function selectCandidateCard(cardLabel, maxVotes, gridId) {
-    const isRadio = maxVotes === 1;
     const grid = document.getElementById(gridId);
-    
-    setTimeout(() => {
-        if (isRadio) {
-            grid.querySelectorAll('.candidate-choice-card').forEach(c => c.classList.remove('selected'));
-            cardLabel.classList.add('selected');
-        } else {
-            const checkedCount = grid.querySelectorAll(`input:checked`).length;
-            if (checkedCount > maxVotes) {
-                cardLabel.querySelector('input').checked = false; 
-                showModal('error', 'Limit Exceeded', `You can only select up to ${maxVotes} candidates for this position.`);
-            } else {
-                cardLabel.classList.toggle('selected');
-            }
-        }
-    }, 10);
+    if (!grid) return;
+    const input = cardLabel.querySelector('input');
+    if (!input) return;
+    const checkedCount = grid.querySelectorAll('input:checked').length;
+    if (checkedCount > maxVotes) {
+        input.checked = false;
+        showModal('error', 'Limit Exceeded', 'You can only select up to ' + maxVotes + ' candidates for this position.');
+    }
+    grid.querySelectorAll('.candidate-choice-card').forEach(card => {
+        card.classList.toggle('selected', Boolean(card.querySelector('input:checked')));
+    });
 }
 
 function submitVote() {
