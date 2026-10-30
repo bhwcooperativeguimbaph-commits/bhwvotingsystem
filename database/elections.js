@@ -28,11 +28,12 @@ function validateElection(input){
  });
  return {title,startTime:start,endTime:end,config};
 }
-async function createElection(db,input,{now=new Date()}={}){
+async function createElection(connection,input,{now=new Date()}={}){
+ const {db,client}=connection;
+ if(!db||!client)throw new TypeError('MongoDB connection with db and client is required');
  const prepared=validateElection(input);
  const electionId='ELEC-'+crypto.randomUUID();
- const session=db.client?.startSession?.();
- if(!session)throw new Error('MongoDB transaction session is required');
+ const session=client.startSession();
  try {
   let saved=false;
   await session.withTransaction(async()=>{
