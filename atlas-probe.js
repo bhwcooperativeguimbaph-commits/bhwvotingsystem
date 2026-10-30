@@ -5,7 +5,7 @@
  * Keep this service private until full API migration and security review.
  */
 const http=require('node:http');
-const {connectMongo}=require('./database/mongodb');
+const {connectMongo,initializeMongoIndexes}=require('./database/mongodb');
 const port=Number(process.env.PORT)||10000;
 let connection;
 const server=http.createServer((req,res)=>{
@@ -18,6 +18,8 @@ const server=http.createServer((req,res)=>{
 });
 async function main(){
   connection=await connectMongo();
+  await initializeMongoIndexes(connection.db);
+  console.log('MongoDB indexes initialized');
   // This server intentionally does not expose registration, voting or admin routes.
   server.listen(port,'0.0.0.0',()=>console.log('Atlas connectivity probe listening'));
 }
