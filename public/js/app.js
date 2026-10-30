@@ -927,7 +927,7 @@ function submitVote() {
                 // Populate the Receipt Modal
                 document.getElementById('receipt-voter-id').innerText = currentVoterId;
                 document.getElementById('receipt-date').innerText = new Date().toLocaleString();
-                document.getElementById('receipt-no').innerText = 'TXN-' + Math.random().toString(36).substr(2, 9).toUpperCase();
+                document.getElementById('receipt-no').innerText = result.receiptNo || 'Unavailable';
 
                 // Secret ballot: a receipt must NOT expose voter choices.
                 document.getElementById('receipt-choices').textContent = 'Your ballot was received. Candidate selections are not displayed to protect ballot secrecy.';
