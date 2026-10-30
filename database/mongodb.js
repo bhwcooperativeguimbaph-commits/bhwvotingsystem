@@ -16,7 +16,7 @@ const indexSpecs = {
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaCooldowns: [[{adminId:1},{unique:true}]],
   adminMfaChallenges: [[{challengeHash:1},{unique:true}],[{expiresAt:1},{expireAfterSeconds:0}]],
-  biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true,unique:true}]],
+  biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
   keyCustodians: [[{electionId:1,email:1},{unique:true}]],
   finalReports: [[{electionId:1},{unique:true}]],
   memberInbox: [[{electionId:1,memberId:1},{unique:true}]],
