@@ -14,7 +14,7 @@ const indexSpecs = {
     [{electionId:1,status:1}]
   ],
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
-  biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
+  biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true,unique:true}]],
   keyCustodians: [[{electionId:1,email:1},{unique:true}]],
   finalReports: [[{electionId:1},{unique:true}]],
   memberInbox: [[{electionId:1,memberId:1},{unique:true}]],
