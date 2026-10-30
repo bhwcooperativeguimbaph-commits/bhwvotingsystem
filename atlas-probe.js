@@ -11,11 +11,14 @@ const port=Number(process.env.PORT)||10000;
 let connection;
 const server=http.createServer(async (req,res)=>{
   const pathname=new URL(req.url,'http://localhost').pathname;
-  if(pathname==='/api/election-info' && req.method==='GET'){
+  if((pathname==='/api/election-info' || pathname==='/api/election/active') && req.method==='GET'){
     try {
       const data=await getPublicElectionInfo(connection.db);
+      const payload=pathname==='/api/election/active' ?
+        {success:true,active:data.active,election:data.active?{title:data.title,startTime:data.startTime,endTime:data.endTime}:null,
+          candidates:data.active?data.config.flatMap(p=>p.candidates.map(c=>({candidate_id:c.candidateId,full_name:c.name,photo:c.photo,position:p.title,max_votes:p.maxVotes}))):[]} : data;
       res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
-      return res.end(JSON.stringify(data));
+      return res.end(JSON.stringify(payload));
     } catch(_) {
       res.writeHead(503,{'Content-Type':'application/json','Cache-Control':'no-store'});
       return res.end(JSON.stringify({active:false,error:'Election information temporarily unavailable'}));
