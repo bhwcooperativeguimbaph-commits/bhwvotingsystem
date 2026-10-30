@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "node --check server.js && node --check public/js/app.js && node --check public/js/report-pdf.js && node --check public/js/receipt-pdf.js",
+    "test": "node --check server.js && node --check public/js/app.js && node --check public/js/report-pdf.js && node --check public/js/receipt-pdf.js && node --check database/mongodb.js && node --check scripts/check-mongodb.js",
     "start": "node server.js"
   },
   "keywords": [],
