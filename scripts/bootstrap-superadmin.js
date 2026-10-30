@@ -6,8 +6,9 @@ const {connectMongo,initializeMongoIndexes}=require('../database/mongodb');
 async function main(){
  const password=process.env.INITIAL_SUPERADMIN_PASSWORD;
  const username=process.env.INITIAL_SUPERADMIN_USERNAME;
- if(!password||password.length<16||password.length>256||!username||!/^[a-zA-Z0-9_.-]{3,50}$/.test(username))
-  throw new Error('Set INITIAL_SUPERADMIN_USERNAME (3-50 safe characters) and INITIAL_SUPERADMIN_PASSWORD (16-256 characters)');
+ const email=process.env.INITIAL_SUPERADMIN_EMAIL;
+ if(!password||password.length<16||password.length>256||!username||!/^[a-zA-Z0-9_.-]{3,50}$/.test(username)||!email||!/^\\S+@\\S+\\.\\S+$/.test(email))
+  throw new Error('Set INITIAL_SUPERADMIN_USERNAME, INITIAL_SUPERADMIN_EMAIL, INITIAL_SUPERADMIN_PASSWORD (16-256 characters)');
  const connection=await connectMongo();
  try {
   await initializeMongoIndexes(connection.db);
@@ -19,7 +20,7 @@ async function main(){
   const hash='scrypt$'+salt+'$'+crypto.scryptSync(password,salt,64).toString('hex');
   try {
    await admins.insertOne({adminId:'SUPERADMIN',username,fullName:'Super Administrator',
-    role:'superadmin',status:'Active',passwordHash:hash,createdAt:new Date()});
+    role:'superadmin',status:'Active',email,passwordHash:hash,createdAt:new Date()});
    console.log('Initial administrator provisioned.');
   }catch(e){if(e.code===11000)console.log('Provisioning skipped: administrator already exists.');else throw e}
  }finally{await connection.client.close()}
