@@ -19,9 +19,10 @@ async function beginAdminLogin(db,{username,password,deliverOtp,now=new Date()})
  const challengeHash=sha(challenge);
  const challenges=db.collection('adminMfaChallenges');
  // One live challenge per administrator; atomic cooldown is checked with a conditional update.
+ await db.collection('adminMfaCooldowns').updateOne({adminId:admin.adminId},{$setOnInsert:{adminId:admin.adminId,nextAllowed:new Date(0)}},{upsert:true});
  const reserved=await db.collection('adminMfaCooldowns').findOneAndUpdate(
   {adminId:admin.adminId,$or:[{nextAllowed:{$lte:now}},{nextAllowed:{$exists:false}}]},
-  {$set:{nextAllowed:new Date(now.getTime()+300000)}},{returnDocument:'after'});
+  {$set:{nextAllowed:new Date(now.getTime()+300000)}},{returnDocument:'after',upsert:false});
  if(!reserved)return {ok:false,code:'MFA_COOLDOWN'};
  await challenges.insertOne({challengeHash,adminId:admin.adminId,codeHash:sha(code),
   expiresAt:new Date(now.getTime()+300000),attempts:0,consumed:false});
