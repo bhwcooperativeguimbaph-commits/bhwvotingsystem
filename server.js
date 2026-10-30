@@ -850,25 +850,26 @@ app.get('/api/admin/members', (req, res) => {
 
 // --- LIVE DASHBOARD MONITORING ---
 app.get('/api/admin/monitoring', (req, res) => {
+    // Show turnout for the latest election, even after its voting period closes.
+    // Count distinct submitted ballots, not candidate selections.
     pool.query(`
-        SELECT 
-            (SELECT COUNT(*) FROM VOTER WHERE status = 'Active') as totalMembers,
-            (SELECT COUNT(DISTINCT cv.voter_id) FROM VOTE cv JOIN ELECTION ce ON ce.election_id=cv.election_id
-             WHERE ce.status='Active' AND ce.start_datetime <= DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
-             AND ce.end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)) as totalVoted,
-            (SELECT title FROM ELECTION WHERE status = 'Active' AND end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR) ORDER BY created_at DESC LIMIT 1) as activeTitle,
-            (SELECT DATE_FORMAT(start_datetime, '%Y-%m-%dT%H:%i:%s') FROM ELECTION WHERE status = 'Active' AND end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR) ORDER BY created_at DESC LIMIT 1) as activeStart,
-            (SELECT DATE_FORMAT(end_datetime, '%Y-%m-%dT%H:%i:%s') FROM ELECTION WHERE status = 'Active' AND end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR) ORDER BY created_at DESC LIMIT 1) as activeEnd
-    `, (err, rows) => {
-        if (err) return res.status(500).json({ success: false });
-        res.json({ 
-            success: true, 
-            totalMembers: rows[0] ? rows[0].totalMembers : 0,
-            totalVoted: rows[0] ? rows[0].totalVoted : 0,
-            activeTitle: rows[0] ? rows[0].activeTitle : null,
-            activeStart: rows[0] ? rows[0].activeStart : null,
-            activeEnd: rows[0] ? rows[0].activeEnd : null
-        });
+        SELECT
+          (SELECT COUNT(*) FROM VOTER WHERE status='Active') AS totalMembers,
+          (SELECT COUNT(DISTINCT v.voter_id) FROM VOTE v
+           WHERE v.election_id=(SELECT election_id FROM ELECTION ORDER BY created_at DESC, election_id DESC LIMIT 1)
+             AND v.status='Valid') AS totalVoted,
+          (SELECT title FROM ELECTION WHERE status='Active' AND end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)
+           ORDER BY created_at DESC LIMIT 1) AS activeTitle,
+          (SELECT DATE_FORMAT(start_datetime, '%Y-%m-%dT%H:%i:%s') FROM ELECTION WHERE status='Active'
+            AND end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR) ORDER BY created_at DESC LIMIT 1) AS activeStart,
+          (SELECT DATE_FORMAT(end_datetime, '%Y-%m-%dT%H:%i:%s') FROM ELECTION WHERE status='Active'
+            AND end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR) ORDER BY created_at DESC LIMIT 1) AS activeEnd
+    `,(err,rows)=>{
+        if(err) return res.status(500).json({success:false,message:'Monitoring unavailable.'});
+        const r=rows[0]||{};
+        res.set('Cache-Control','no-store');
+        res.json({success:true,totalMembers:Number(r.totalMembers)||0,totalVoted:Number(r.totalVoted)||0,
+            activeTitle:r.activeTitle||null,activeStart:r.activeStart||null,activeEnd:r.activeEnd||null});
     });
 });
 
