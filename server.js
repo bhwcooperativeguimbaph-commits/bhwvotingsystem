@@ -527,7 +527,17 @@ app.use('/api', async (req,res,next) => {
     } catch (err) { console.error('Authorization error',err); res.status(503).json({success:false,message:'Authentication unavailable.'}); }
 });
 app.get('/api/session', (req,res) => {
-    if (req.auth.role === 'member') return res.json({success:true,role:'member',memberId:req.auth.account_id});
+    if (req.auth.role === 'member') {
+        return pool.query(`SELECT v.full_name, v.status,
+            EXISTS(SELECT 1 FROM VOTE b JOIN ELECTION e ON e.election_id=b.election_id
+              WHERE b.voter_id=v.voter_id AND e.status='Active'
+              AND e.end_datetime > DATE_ADD(UTC_TIMESTAMP(), INTERVAL 8 HOUR)) AS hasVoted
+            FROM VOTER v WHERE v.voter_id=?`,[req.auth.account_id],(err,rows)=>{
+            if(err || !rows?.length) return res.status(503).json({success:false,message:'Member session unavailable.'});
+            res.set('Cache-Control','no-store');
+            res.json({success:true,role:'member',memberId:req.auth.account_id,fullName:rows[0].full_name,hasVoted:Boolean(rows[0].hasVoted)});
+        });
+    }
     pool.query('SELECT full_name FROM ADMIN WHERE admin_id=?',[req.auth.account_id],(err,rows)=>{
         if (err || !rows?.length) return res.status(500).json({success:false});
         res.json({success:true,role:req.auth.role,memberId:req.auth.account_id,fullName:rows[0].full_name});
