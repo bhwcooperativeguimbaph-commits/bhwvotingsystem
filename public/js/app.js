@@ -2175,7 +2175,7 @@ async function resetAddressSelectors() {
     chooseGeo('addr-city','Select province first',[],true);
     chooseGeo('addr-barangay','Select city first',[],true);
     chooseGeo('addr-region','Loading regions...',[],true);
-    try {chooseGeo('addr-region','Select Region',await loadGeo('regions'));geoSelect('address-status').textContent='Select a region to continue.';}
+    try {chooseGeo('addr-region','Select Region',(await loadGeo('regions')).filter(x => /central luzon/i.test(x.name)));geoSelect('address-status').textContent='Select a region to continue.';}
     catch(e){chooseGeo('addr-region','Unable to load regions',[],true);geoSelect('address-status').textContent='Location service unavailable. Reload to retry.';}
 }
 document.addEventListener('DOMContentLoaded',()=>{
@@ -2188,14 +2188,14 @@ document.addEventListener('DOMContentLoaded',()=>{
         try {
             let provinces=await loadGeo('provinces',code);
             if (!provinces.length) provinces=[{code:'NCR-'+code,name:'Not Applicable (NCR)'}];
-            chooseGeo('addr-province','Select Province',provinces);
+            chooseGeo('addr-province','Select Province',provinces.filter(x => /^nueva ecija$/i.test(x.name.trim())));
         } catch(e) {chooseGeo('addr-province','Location service unavailable',[],true);}
     });
     geoSelect('addr-province').addEventListener('change',async function(){
         const code=this.value;
         chooseGeo('addr-city','Loading cities...',[],true);chooseGeo('addr-barangay','Select city first',[],true);
         if (!code) return;
-        try { chooseGeo('addr-city','Select City / Municipality',await loadGeo(code.startsWith('NCR-')?'regioncities':'cities',code.startsWith('NCR-')?code.slice(4):code)); }
+        try { chooseGeo('addr-city','Select City / Municipality',(await loadGeo(code.startsWith('NCR-')?'regioncities':'cities',code.startsWith('NCR-')?code.slice(4):code)).filter(x => /^guimba$/i.test(x.name.trim()))); }
         catch(e) {chooseGeo('addr-city','Location service unavailable',[],true);}
     });
     geoSelect('addr-city').addEventListener('change',async function(){
