@@ -89,7 +89,7 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
   if(typeof password!=='string'||password.length>256)return res.status(400).json({success:false,message:'Invalid credentials'});
   const smtpUser=process.env.SMTP_USER,smtpPassword=process.env.SMTP_APP_PASSWORD;
   if(!smtpUser||!smtpPassword)return res.status(503).json({success:false,message:'Administrator MFA email is unavailable'});
-  const transport=nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword}});
+  const transport=nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword},connectionTimeout:12000,greetingTimeout:12000,socketTimeout:15000});
   try{
     const result=await beginAdminLogin(connection.db,{
       username:typeof username==='string'?username:(process.env.INITIAL_SUPERADMIN_USERNAME||'superadmin'),
@@ -97,10 +97,18 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
       deliverOtp:(email,code)=>transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'})
     });
     if(result.code==='INVALID_CREDENTIALS')return res.status(401).json({success:false,message:'Invalid credentials'});
-    if(!result.ok)return res.status(503).json({success:false,message:'Admin verification temporarily unavailable',code:result.code});
+    if(!result.ok){
+      console.error('Admin MFA failure category:',result.code);
+      return res.status(result.code==='MFA_COOLDOWN'?429:503).json({success:false,message:'Admin verification temporarily unavailable',code:result.code});
+    }
     res.set('Cache-Control','no-store');
     return res.json({success:false,mfaRequired:true,challenge:result.challenge,message:'Enter the verification code emailed to you.'});
-  }catch(_){return res.status(503).json({success:false,message:'Admin verification temporarily unavailable'})}
+  }catch(e){
+    const category=e?.code===11000?'duplicate-key':e?.name==='MongoServerSelectionError'?'database-network':
+      e?.name==='MongoServerError'?'database-server':e?.code==='ETIMEDOUT'?'timeout':'other';
+    console.error('Admin login failure stage: MFA initialization; category:',category);
+    return res.status(503).json({success:false,message:'Admin verification temporarily unavailable',code:'MFA_INITIALIZATION_FAILED'});
+  }
 });
 app.post('/api/admin/login-otp',rateLimit,async(req,res)=>{
   try{
