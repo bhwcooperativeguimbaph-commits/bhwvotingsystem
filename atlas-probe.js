@@ -28,6 +28,20 @@ async function shutdown(){
 process.once('SIGTERM',()=>{shutdown().then(()=>process.exit(0)).catch(()=>process.exit(1));});
 process.once('SIGINT',()=>{shutdown().then(()=>process.exit(0)).catch(()=>process.exit(1));});
 main().catch(e=>{
-  console.error('Atlas probe startup failed:',e.name==='MongoServerSelectionError'?'Database connection unavailable':'Configuration or database failure');
+  // Only report a whitelisted category, never exception.message or the URI.
+  const name=String(e?.name||'');
+  const code=Number(e?.code);
+  let category='Unclassified database initialization error';
+  if (!process.env.MONGODB_URI || !process.env.MONGODB_DB_NAME)
+    category='Missing MONGODB_URI or MONGODB_DB_NAME in Render environment';
+  else if (/MongoParseError|MongoInvalidArgumentError/.test(name))
+    category='Invalid MongoDB connection string or driver configuration';
+  else if (code===18 || /MongoServerError/.test(name))
+    category='MongoDB server rejected the request; check Atlas database user credentials and permissions';
+  else if (/MongoServerSelectionError|MongoNetwork|MongoNetworkTimeout/.test(name))
+    category='Atlas network, DNS, TLS, or IP access-list connection failure';
+  else if (/Mongo/.test(name))
+    category='MongoDB driver error ('+name.replace(/[^a-zA-Z]/g,'')+')';
+  console.error('Atlas probe startup failed:',category);
   process.exitCode=1;
 });
