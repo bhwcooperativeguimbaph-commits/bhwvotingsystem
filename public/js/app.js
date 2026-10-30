@@ -44,11 +44,29 @@ async function restoreSession() {
         if (!data.success) return;
         if (data.role === 'member') {
             currentVoterId = data.memberId;
-            await fetchElectionInfo();
+            memberHasVoted = Boolean(data.hasVoted);
+            const displayName = data.fullName || 'Member';
+            document.getElementById('profile-welcome').textContent = 'Welcome, ' + displayName;
+            document.getElementById('profile-name').textContent = displayName;
+            document.getElementById('profile-id').textContent = data.memberId;
+            document.getElementById('profile-avatar-img').src =
+                'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=1d7642&color=fff';
             document.getElementById('landing-page')?.classList.add('hidden');
             document.getElementById('auth-section')?.classList.add('hidden');
-            document.getElementById('voter-portal')?.classList.remove('hidden');
+            document.getElementById('voting-section')?.classList.add('hidden');
             document.getElementById('voter-profile-section')?.classList.remove('hidden');
+            if (video.srcObject) {
+                video.srcObject.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+            }
+            document.getElementById('voter-camera-slot')?.classList.add('hidden');
+            await fetchElectionInfo();
+            const readyBtn = document.getElementById('btn-proceed-ballot');
+            if (readyBtn && memberHasVoted) {
+                readyBtn.disabled = true;
+                readyBtn.textContent = 'Vote Already Cast';
+            }
+            await loadMemberNotifications();
             return;
         }
         if (!['admin','superadmin'].includes(data.role)) return;
