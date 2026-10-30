@@ -33,6 +33,7 @@ async function main(){
     e?.name==='MongoServerSelectionError'?'network-or-server-selection':
     e?.code===18?'authentication-failed':e?.name==='MongoServerError'?'database-server-error':'other';
   console.error('Provisioning failed at '+stage+': '+type);
+  if(e?.code==='INDEX_SETUP_FAILED')console.error(e.message);
   process.exitCode=1;
  }finally{if(connection)await connection.client.close()}
 }
