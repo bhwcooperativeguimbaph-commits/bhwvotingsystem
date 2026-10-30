@@ -108,7 +108,7 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
           const allowed=new Set(['EAUTH','ECONNECTION','ETIMEDOUT','ESOCKET','EDNS','EENVELOPE','EMESSAGE','NOT_ACCEPTED']);
           const category=allowed.has(e?.code)?e.code:'OTHER_SMTP_ERROR';
           const responseCode=Number.isInteger(e?.responseCode)&&e.responseCode>=400&&e.responseCode<=599?e.responseCode:'none';
-          console.error('Admin MFA email transport failure:',useEmailApi?String(e?.code||'EMAIL_API_ERROR').replace(/[^A-Z_]/g,'').slice(0,40):category,'SMTP status:',useEmailApi?'n/a':responseCode);
+          console.error('Admin MFA email transport failure:',useEmailApi?String(e?.code||'EMAIL_API_ERROR').replace(/[^A-Z_]/g,'').slice(0,40):category, useEmailApi?'HTTP status:':'SMTP status:',useEmailApi?(Number.isInteger(e?.httpStatus)?e.httpStatus:'none'):responseCode);
           throw new Error('SMTP_DELIVERY_FAILED');
         }
       }
