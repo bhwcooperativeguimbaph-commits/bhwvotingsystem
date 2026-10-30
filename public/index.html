@@ -194,7 +194,6 @@
             <h3>Menu</h3>
             <button class="tab-link active" onclick="switchTab('tab-dashboard')">Dashboard</button>
             <button class="tab-link" onclick="switchTab('tab-register')">Registration</button>
-            <button class="tab-link" onclick="switchTab('tab-test')">Test Biometrics</button>
             <button class="tab-link" onclick="switchTab('tab-setup')">Setup Election</button>
             <button class="tab-link" onclick="switchTab('tab-results')">History & Reports</button>
             <button class="tab-link" onclick="switchTab('tab-members')">Members Table</button>
@@ -330,17 +329,6 @@
                     </div>
 
                     <button class="btn btn-success" onclick="registerNewMember()" style="margin-top: 25px; background: var(--primary); color: white;">Capture Biometrics & Create Account</button>
-                </div>
-            </div>
-
-            <div id="tab-test" class="tab-content">
-                <h2>Biometrics Testing</h2><hr style="border: 0; height: 1px; background: #e2e8f0; margin: 15px 0;">
-                <div id="test-camera-slot"><div class="scanner-laser"></div></div>
-                <button class="btn" onclick="testBiometrics()">Scan Face & Calculate Accuracy</button>
-                <div id="test-result-box" class="hidden card" style="margin-top: 20px; text-align: center;">
-                    <h3>Match Results</h3>
-                    <p id="test-name" style="font-size: 1.2rem; font-weight: bold; color: var(--primary);"></p>
-                    <p id="test-accuracy" style="font-size: 1.1rem;"></p>
                 </div>
             </div>
 
