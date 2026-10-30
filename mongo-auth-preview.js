@@ -99,7 +99,11 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
     if(result.code==='INVALID_CREDENTIALS')return res.status(401).json({success:false,message:'Invalid credentials'});
     if(!result.ok){
       console.error('Admin MFA failure category:',result.code);
-      return res.status(result.code==='MFA_COOLDOWN'?429:503).json({success:false,message:'Admin verification temporarily unavailable',code:result.code});
+      if(result.code==='MFA_COOLDOWN'){
+        res.set('Retry-After','300');
+        return res.status(429).json({success:false,code:'MFA_COOLDOWN',message:'Verification code recently requested. Check your email or retry after five minutes.'});
+      }
+      return res.status(503).json({success:false,message:'Admin verification temporarily unavailable',code:result.code});
     }
     res.set('Cache-Control','no-store');
     return res.json({success:false,mfaRequired:true,challenge:result.challenge,message:'Enter the verification code emailed to you.'});
