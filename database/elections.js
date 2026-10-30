@@ -21,8 +21,16 @@ function validateElection(input){
    if(!candidateName||candidateName.length>100||candidateNames.has(candidateName.toLowerCase()))
     throw new TypeError('Invalid or duplicate candidate');
    candidateNames.add(candidateName.toLowerCase());
-   return {candidateId:'CAND-'+crypto.randomUUID(),name:candidateName,
-    photo:typeof candidate.photo==='string'?candidate.photo:null};
+   const photo=candidate.photo;
+   if(photo!=null){
+    const m=typeof photo==='string'&&photo.match(/^data:image\/(jpeg|png);base64,([A-Za-z0-9+/]+={0,2})$/);
+    if(!m||photo.length>700000)throw new TypeError('Candidate photo must be JPG or PNG under 500 KB');
+    const b=Buffer.from(m[2],'base64');
+    const jpg=b.length>3&&b[0]===255&&b[1]===216&&b[2]===255;
+    const png=b.length>8&&b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+    if(b.length>500000||!(m[1]==='jpeg'?jpg:png))throw new TypeError('Invalid candidate photo');
+   }
+   return {candidateId:'CAND-'+crypto.randomUUID(),name:candidateName,photo:photo||null};
   });
   return {title:name,maxVotes,candidates};
  });
