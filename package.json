@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
-    "test": "node --check server.js && node --check public/js/app.js && node --check public/js/report-pdf.js && node --check public/js/receipt-pdf.js && node --check database/mongodb.js && node --check scripts/check-mongodb.js && node --check database/ballots.js && node tests/mongodb-ballots.test.js && node --check atlas-probe.js && node --check database/sessions.js && node tests/mongodb-sessions.test.js && node --check database/members.js && node tests/mongodb-members.test.js && node --check database/elections.js && node tests/mongodb-elections.test.js && node --check database/ballot-validation.js && node tests/mongodb-ballot-validation.test.js && node --check database/election-read.js && node tests/mongodb-election-read.test.js && node --check database/turnout.js && node tests/mongodb-turnout.test.js && node --check database/face-matching.js && node tests/mongodb-face-matching.test.js",
+    "test": "node --check server.js && node --check public/js/app.js && node --check public/js/report-pdf.js && node --check public/js/receipt-pdf.js && node --check database/mongodb.js && node --check scripts/check-mongodb.js && node --check database/ballots.js && node tests/mongodb-ballots.test.js && node --check atlas-probe.js && node --check database/sessions.js && node tests/mongodb-sessions.test.js && node --check database/members.js && node tests/mongodb-members.test.js && node --check database/elections.js && node tests/mongodb-elections.test.js && node --check database/ballot-validation.js && node tests/mongodb-ballot-validation.test.js && node --check database/election-read.js && node tests/mongodb-election-read.test.js && node --check database/turnout.js && node tests/mongodb-turnout.test.js && node --check database/face-matching.js && node tests/mongodb-face-matching.test.js && node --check mongo-auth-preview.js",
     "start": "node server.js",
     "check:mongodb": "node scripts/check-mongodb.js",
-    "start:atlas-probe": "node atlas-probe.js"
+    "start:atlas-probe": "node atlas-probe.js",
+    "start:mongo-auth-preview": "node mongo-auth-preview.js"
   },
   "keywords": [],
   "author": "",
