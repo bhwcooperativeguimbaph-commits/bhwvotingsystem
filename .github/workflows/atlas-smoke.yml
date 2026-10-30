@@ -1,0 +1,28 @@
+name: Verify MongoDB Atlas connection
+on:
+  workflow_dispatch:
+jobs:
+  atlas-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Check required Atlas secrets are configured
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB_NAME: ${{ secrets.MONGODB_DB_NAME }}
+        run: |
+          if [ -z "$MONGODB_URI" ] || [ -z "$MONGODB_DB_NAME" ]; then
+            echo "::error::Configure repository secrets MONGODB_URI and MONGODB_DB_NAME to run this check."
+            exit 1
+          fi
+      - name: Ping MongoDB Atlas without modifying records
+        env:
+          MONGODB_URI: ${{ secrets.MONGODB_URI }}
+          MONGODB_DB_NAME: ${{ secrets.MONGODB_DB_NAME }}
+        run: npm run check:mongodb
