@@ -520,7 +520,6 @@ app.use('/api', async (req,res,next) => {
         req.auth = session;
         if (req.path === '/logout' || req.path === '/session') return next();
         if (req.path === '/vote' || req.path.startsWith('/member/notifications')) return isMember ? next() : res.status(403).json({success:false,message:'Voter access only.'});
-        if (req.path === '/test-face') return ['admin','superadmin'].includes(session.role) ? next() : res.status(403).json({success:false,message:'Admin access only.'});
         if (req.path.startsWith('/superadmin/')) return session.role === 'superadmin' ? next() : res.status(403).json({success:false,message:'Super Admin only.'});
         if (req.path.startsWith('/admin/')) return ['admin','superadmin'].includes(session.role) ? next() : res.status(403).json({success:false,message:'Admin access only.'});
         return res.status(403).json({success:false,message:'Access denied.'});
@@ -773,49 +772,7 @@ function logActivity(userId, action, ip, details = '') {
 
 // --- BIOMETRIC TEST: MATCH BOTH VOTERS AND ADMINISTRATORS ---
 // Protected by the existing /api role middleware; this route never signs anyone in.
-app.post('/api/test-face', (req, res) => {
-    const { descriptor } = req.body || {};
-    if (!Array.isArray(descriptor) || descriptor.length !== 128 || !descriptor.every(Number.isFinite)) {
-        return res.status(400).json({ success: false, message: 'Invalid face descriptor.' });
-    }
 
-    const query = FACE_SELECT_SQL;
-    pool.query(query, (err, records) => {
-        if (err) return res.status(500).json({ success: false, message: 'Database error.' });
-        const {best: bestMatch, distance: lowestDistance, ambiguous} = matchFace(records, descriptor);
-        if (ambiguous) return res.json({success:false,message:"Ambiguous face match. Multiple accounts are too close to distinguish confidently; do not use this scan to authenticate."});
-        if (!bestMatch) {
-            // Authorized administrative diagnostic only. Never reduce the login
-            // threshold or expose account identity through unauthenticated endpoints.
-            let readable = 0, unreadable = 0, inactive = 0, closest = Infinity;
-            for (const record of records) {
-                const stored = getDescriptor(record.facial_encoding);
-                if (!stored) { unreadable++; continue; }
-                readable++;
-                const d = euclideanDistance(stored, descriptor);
-                if (d < closest) closest = d;
-                if ((record.voter_id && record.voter_status !== 'Active') ||
-                    (record.admin_id && record.admin_status !== 'Active') ||
-                    (record.biometric_status && record.biometric_status !== 'Active')) inactive++;
-            }
-            let message = 'No active matching identity. ';
-            if (!records.length) message += 'No linked biometric records found.';
-            else if (!readable) message += 'Stored biometric templates could not be read; verify BIOMETRIC_KEY and migration.';
-            else if (closest < FACE_MATCH_THRESHOLD) message += 'Closest stored face belongs to an inactive account or biometric record.';
-            else message += `Closest descriptor distance: ${closest.toFixed(4)} (required below ${FACE_MATCH_THRESHOLD}). Try even lighting and look straight at the camera.`;
-            return res.json({success:false, message, diagnostic:{records:records.length,readable,unreadable,inactive}});
-        }
-        // A face embedding distance is not a calibrated confidence or accuracy percentage.
-        return res.json({
-            success: true,
-            memberId: bestMatch.admin_id || bestMatch.voter_id,
-            name: bestMatch.admin_id ? bestMatch.admin_name : bestMatch.voter_name,
-            role: bestMatch.admin_id ? 'admin' : 'member',
-            biometricId: bestMatch.biometric_id,
-            distance: Number(lowestDistance.toFixed(4))
-        });
-    });
-});
 
 
 // --- FETCH MEMBERS DIRECTORY ---
