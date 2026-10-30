@@ -12,6 +12,7 @@ const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
 const {beginAdminLogin,completeAdminLogin}=require('./database/admin-auth');
 const {createElection}=require('./database/elections');
 const nodemailer=require('nodemailer');
+const {sendVerificationEmail}=require('./services/email-api');
 const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',1);
@@ -88,21 +89,26 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
   const {password,username}=req.body||{};
   if(typeof password!=='string'||password.length>256)return res.status(400).json({success:false,message:'Invalid credentials'});
   const smtpUser=process.env.SMTP_USER,smtpPassword=process.env.SMTP_APP_PASSWORD;
-  if(!smtpUser||!smtpPassword)return res.status(503).json({success:false,message:'Administrator MFA email is unavailable'});
-  const transport=nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword},connectionTimeout:12000,greetingTimeout:12000,socketTimeout:15000});
+  const useEmailApi=Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL);
+  if(!useEmailApi&&(!smtpUser||!smtpPassword))return res.status(503).json({success:false,message:'Administrator MFA email is unavailable'});
+  const transport=useEmailApi?null:nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword},connectionTimeout:12000,greetingTimeout:12000,socketTimeout:15000});
   try{
     const result=await beginAdminLogin(connection.db,{
       username:typeof username==='string'?username:(process.env.INITIAL_SUPERADMIN_USERNAME||'superadmin'),
       password,
       deliverOtp:async(email,code)=>{
         try {
-          const info=await transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'});
-          if(!Array.isArray(info.accepted)||info.accepted.length===0)throw Object.assign(new Error('Not accepted'),{code:'NOT_ACCEPTED'});
+          if(useEmailApi){
+            await sendVerificationEmail({to:email,code});
+          }else{
+            const info=await transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'});
+            if(!Array.isArray(info.accepted)||info.accepted.length===0)throw Object.assign(new Error('Not accepted'),{code:'NOT_ACCEPTED'});
+          }
         } catch(e) {
           const allowed=new Set(['EAUTH','ECONNECTION','ETIMEDOUT','ESOCKET','EDNS','EENVELOPE','EMESSAGE','NOT_ACCEPTED']);
           const category=allowed.has(e?.code)?e.code:'OTHER_SMTP_ERROR';
           const responseCode=Number.isInteger(e?.responseCode)&&e.responseCode>=400&&e.responseCode<=599?e.responseCode:'none';
-          console.error('Admin MFA SMTP failure:',category,'SMTP status:',responseCode);
+          console.error('Admin MFA email transport failure:',useEmailApi?String(e?.code||'EMAIL_API_ERROR').replace(/[^A-Z_]/g,'').slice(0,40):category,'SMTP status:',useEmailApi?'n/a':responseCode);
           throw new Error('SMTP_DELIVERY_FAILED');
         }
       }
