@@ -13,6 +13,7 @@
   "dependencies": {
     "@simplewebauthn/server": "^13.3.2",
     "express": "^5.2.1",
+    "mongodb": "^6.21.0",
     "mysql2": "^3.24.5",
     "nodemailer": "^9.0.3",
     "secrets.js-grempe": "^2.0.0",
