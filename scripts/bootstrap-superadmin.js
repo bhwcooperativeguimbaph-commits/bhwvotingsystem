@@ -7,7 +7,7 @@ async function main(){
  const password=process.env.INITIAL_SUPERADMIN_PASSWORD;
  const username=process.env.INITIAL_SUPERADMIN_USERNAME;
  const email=process.env.INITIAL_SUPERADMIN_EMAIL;
- if(!password||password.length<16||password.length>256||!username||!/^[a-zA-Z0-9_.-]{3,50}$/.test(username)||!email||!/^\\S+@\\S+\\.\\S+$/.test(email))
+ if(!password||password.length<16||password.length>256||!username||!/^[a-zA-Z0-9_.-]{3,50}$/.test(username)||!email||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
   throw new Error('Set INITIAL_SUPERADMIN_USERNAME, INITIAL_SUPERADMIN_EMAIL, INITIAL_SUPERADMIN_PASSWORD (16-256 characters)');
  const connection=await connectMongo();
  try {
