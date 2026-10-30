@@ -7,25 +7,14 @@ const {connectMongo,initializeMongoIndexes}=require('./database/mongodb');
 const {findFaceMatch,validDescriptor}=require('./database/face-matching');
 const {issueSession,authenticateSession,revokeSession}=require('./database/sessions');
 const {getPublicElectionInfo}=require('./database/election-read');
+const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
 const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',1);
 app.use(express.json({limit:'256kb'}));
 const challenges=new Map(),attempts=new Map();
 const challengeTTL=120000;
-function secretKey(){
- const hex=process.env.BIOMETRIC_KEY||'';
- if(!/^[a-fA-F0-9]{64}$/.test(hex))throw new Error('Missing valid BIOMETRIC_KEY');
- return Buffer.from(hex,'hex');
-}
-function decryptDescriptor(value){
- if(typeof value!=='string'||!value.startsWith('enc:v1:'))throw new Error('Encrypted biometric template required');
- const p=value.split(':');
- if(p.length!==5)throw new Error('Invalid encrypted template');
- const d=crypto.createDecipheriv('aes-256-gcm',secretKey(),Buffer.from(p[2],'base64'));
- d.setAuthTag(Buffer.from(p[3],'base64'));
- return JSON.parse(Buffer.concat([d.update(Buffer.from(p[4],'base64')),d.final()]).toString('utf8'));
-}
+function decodeStoredTemplate(value){return decryptDescriptor(value,keyFromEnv());}
 function token(req){return /(?:^|; )bhw_session=([0-9a-f]{64})(?:;|$)/.exec(req.headers.cookie||'')?.[1]||null}
 function cookie(res,value,maxAge){res.cookie('bhw_session',value,{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge});}
 function rateLimit(req,res,next){
@@ -61,7 +50,7 @@ app.post('/api/face-challenge',rateLimit,(req,res)=>{
 app.post('/api/face-prescan',rateLimit,async(req,res)=>{
  if(!validDescriptor(req.body?.descriptor))return res.status(400).json({success:false,message:'Invalid face data'});
  try{
-  const result=await findFaceMatch(connection.db,req.body.descriptor,decryptDescriptor);
+  const result=await findFaceMatch(connection.db,req.body.descriptor,decodeStoredTemplate);
   res.set('Cache-Control','no-store');
   return res.json({success:true,recognized:!!result.match&&!result.ambiguous,
     message:result.ambiguous?'Face match is ambiguous':result.match?'Face recognized. Continue with the facial challenge.':'Face not recognized'});
@@ -75,7 +64,7 @@ app.post('/api/login-face',rateLimit,async(req,res)=>{
   JSON.stringify(req.body.completedActions)!==JSON.stringify(c.actions))
   return res.status(401).json({success:false,message:'Facial challenge expired or incomplete'});
  try{
-  const found=await findFaceMatch(connection.db,req.body.descriptor,decryptDescriptor);
+  const found=await findFaceMatch(connection.db,req.body.descriptor,decodeStoredTemplate);
   if(found.ambiguous)return res.status(409).json({success:false,message:'Ambiguous face match'});
   if(!found.match)return res.status(401).json({success:false,message:'Face not recognized'});
   if(found.match.role!=='member')return res.status(403).json({success:false,message:'Admin facial login not enabled in preview'});
@@ -107,7 +96,7 @@ app.use('/api',(req,res)=>res.status(403).json({success:false,message:'This API 
 app.use((req,res)=>res.status(404).json({error:'Not found'}));
 async function main(){
  if(process.env.ENABLE_MONGODB_AUTH_PREVIEW!=='true')throw new Error('Explicit ENABLE_MONGODB_AUTH_PREVIEW=true required');
- secretKey();
+ keyFromEnv();
  connection=await connectMongo();
  await initializeMongoIndexes(connection.db);
  app.listen(Number(process.env.PORT)||10000,'0.0.0.0',()=>console.log('MongoDB authentication preview listening; voting disabled'));
