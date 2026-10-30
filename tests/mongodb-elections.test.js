@@ -10,12 +10,12 @@ async function main(){
  assert.throws(()=>validateElection({...base,endTime:base.startTime}),/schedule/);
  const elections=[],candidates=[];
  const session={withTransaction:async fn=>fn(),endSession:async()=>{}};
- const db={client:{startSession:()=>session},collection(name){
+ const db={collection(name){
   if(name==='elections')return {findOne:async()=>null,insertOne:async x=>elections.push(x)};
   if(name==='candidates')return {insertMany:async xs=>candidates.push(...xs)};
   throw Error(name);
  }};
- const result=await createElection(db,base);
+ const result=await createElection({db,client:{startSession:()=>session}},base);
  assert.match(result.electionId,/^ELEC-/);
  assert.equal(elections.length,1);
  assert.equal(candidates.length,4);
