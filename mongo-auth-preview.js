@@ -9,6 +9,7 @@ const {issueSession,authenticateSession,revokeSession}=require('./database/sessi
 const {getPublicElectionInfo}=require('./database/election-read');
 const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
 const {beginAdminLogin,completeAdminLogin}=require('./database/admin-auth');
+const {createElection}=require('./database/elections');
 const nodemailer=require('nodemailer');
 const app=express();
 app.disable('x-powered-by');
@@ -103,6 +104,25 @@ app.post('/api/admin/login-otp',rateLimit,async(req,res)=>{
     res.set('Cache-Control','no-store');
     return res.json({success:true,role:'superadmin'});
   }catch(_){return res.status(503).json({success:false,message:'Admin verification temporarily unavailable'})}
+});
+async function superadminOnly(req,res,next){
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||auth.role!=='superadmin')return res.status(403).json({success:false,message:'Superadmin session required'});
+  next();
+ }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
+}
+app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
+ // Administrative preview only; no voting route is enabled.
+ try{
+  const {electionId}=await createElection(connection,req.body||{});
+  res.set('Cache-Control','no-store');
+  res.status(201).json({success:true,electionId,message:'Election created'});
+ }catch(e){
+  if(e.code==='ACTIVE_ELECTION')return res.status(409).json({success:false,message:'An election is already active'});
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:e.message});
+  return res.status(503).json({success:false,message:'Election creation unavailable'});
+ }
 });
 app.get('/api/session',async(req,res)=>{
  try{
