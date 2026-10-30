@@ -633,6 +633,30 @@ app.post('/api/admin/register-member', async (req, res) => {
     const selectedArea = clean(area);
     const address = typeof req.body.address === 'string' ? req.body.address.trim() : '';
     if (!location || location.country !== 'Philippines' || !['regionCode','provinceCode','cityCode','barangayCode'].every(k => typeof location[k] === 'string' && location[k].length > 0) || address.length > 500 || !address || !/^\d{4}-\d{2}-\d{2}$/.test(birthdate || '') || !['Male','Female'].includes(gender)) return res.status(400).json({success:false,message:'Complete all required address, birthdate, and gender fields.'});
+    // Validate every location level against the local PSGC snapshot; do not trust client labels.
+    try {
+        const readGeo = (folder, code) => {
+            const file = path.join(GEO_ROOT, folder, code + '.json');
+            return JSON.parse(fs.readFileSync(file, 'utf8'));
+        };
+        const region = JSON.parse(fs.readFileSync(path.join(GEO_ROOT,'regions.json'),'utf8'))
+            .find(x => x.code === location.regionCode);
+        const province = readGeo('provinces',location.regionCode)
+            .find(x => x.code === location.provinceCode);
+        const city = readGeo('cities',location.provinceCode)
+            .find(x => x.code === location.cityCode);
+        const barangay = readGeo('barangays',location.cityCode)
+            .find(x => x.code === location.barangayCode);
+        if (!region || !province || !city || !barangay ||
+            province.name.trim().toLowerCase() !== 'nueva ecija' ||
+            city.name.trim().toLowerCase() !== 'guimba' ||
+            ['region','province','city','barangay'].some((key,i) =>
+                String(location[key]||'').trim() !== [region,province,city,barangay][i].name)) {
+            return res.status(400).json({success:false,message:'Only verified Guimba, Nueva Ecija addresses are allowed.'});
+        }
+    } catch(e) {
+        return res.status(503).json({success:false,message:'Location validation unavailable. Install and verify the PSGC geographic cache.'});
+    }
     if (!first || !last || !selectedArea || fullName.length > 100 ||
         !Array.isArray(descriptor) || descriptor.length !== 128 ||
         !descriptor.every(x => typeof x === 'number' && Number.isFinite(x)) ||
