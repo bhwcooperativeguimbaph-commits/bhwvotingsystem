@@ -152,6 +152,29 @@ async function superadminOnly(req,res,next){
   next();
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
+app.post('/api/admin/register-member',superadminOnly,async(req,res)=>{
+  const challengeId=req.body?.challengeId;
+  const ch=typeof challengeId==='string'?challenges.get(challengeId):null;
+  if(ch)challenges.delete(challengeId);
+  if(!ch||ch.expires<=Date.now()||ch.ip!==req.ip||
+     !Array.isArray(req.body?.completedActions)||
+     JSON.stringify(req.body.completedActions)!==JSON.stringify(ch.actions))
+    return res.status(401).json({success:false,message:'Enrollment facial challenge expired or incomplete'});
+  const {registerMemberWithFace}=require('./database/member-enrollment');
+  const {verifyGuimbaLocation}=require('./database/guimba-location');
+  try{
+    const clean=v=>typeof v==='string'?v.trim().replace(/\\s+/g,' '):'';
+    const input={fullName:clean(req.body?.fullName)||[req.body?.firstName,req.body?.middleName,req.body?.lastName].map(clean).filter(Boolean).join(' '),
+      area:req.body?.area,location:req.body?.location,descriptor:req.body?.descriptor};
+    if(req.body?.consent!==true)return res.status(400).json({success:false,message:'Member biometric consent required'});
+    const {memberId}=await registerMemberWithFace(connection,input,{key:keyFromEnv(),validateLocation:verifyGuimbaLocation});
+    res.set('Cache-Control','no-store');
+    return res.status(201).json({success:true,memberId});
+  }catch(e){
+    if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid enrollment data or unverified Guimba address'});
+    return res.status(503).json({success:false,message:'Enrollment unavailable'});
+  }
+});
 app.get('/api/admin/members',superadminOnly,async(req,res)=>{
  try {
   const members=await connection.db.collection('members').find({},{
