@@ -12,7 +12,7 @@ function verifyPassword(password,stored){
 }
 async function beginAdminLogin(db,{username,password,deliverOtp,now=new Date()}){
  if(typeof username!=='string'||typeof deliverOtp!=='function')throw new TypeError('Invalid login request');
- const admin=await db.collection('admins').findOne({username,status:'Active',role:'superadmin'});
+ const admin=await db.collection('admins').findOne({username,status:'Active',role:{$in:['superadmin','admin']}});
  if(!admin||!verifyPassword(password,admin.passwordHash))return {ok:false,code:'INVALID_CREDENTIALS'};
  if(typeof admin.email!=='string'||!admin.email.includes('@'))return {ok:false,code:'MFA_NOT_CONFIGURED'};
  const challenge=crypto.randomBytes(32).toString('hex'),code=String(crypto.randomInt(100000,1000000));
@@ -25,7 +25,7 @@ async function beginAdminLogin(db,{username,password,deliverOtp,now=new Date()})
   {adminId:admin.adminId,$or:[{nextAllowed:{$lte:now}},{nextAllowed:{$exists:false}}]},
   {$set:{nextAllowed:new Date(now.getTime()+300000)}},{returnDocument:'after',upsert:false});
  if(!reserved)return {ok:false,code:'MFA_COOLDOWN'};
- await challenges.insertOne({challengeHash,adminId:admin.adminId,codeHash:sha(code),
+ await challenges.insertOne({challengeHash,adminId:admin.adminId,role:admin.role,codeHash:sha(code),
   expiresAt:new Date(now.getTime()+300000),attempts:0,consumed:false});
  try{await deliverOtp(admin.email,code)}catch(_){
   await challenges.deleteOne({challengeHash});
@@ -46,7 +46,10 @@ async function completeAdminLogin(db,{challenge,code,now=new Date()}){
  if(!crypto.timingSafeEqual(Buffer.from(stored.codeHash,'hex'),Buffer.from(sha(code),'hex')))return {ok:false};
  const consumed=await col.updateOne({challengeHash,consumed:false},{$set:{consumed:true}});
  if(consumed.modifiedCount!==1)return {ok:false};
- const session=await issueSession(db,{accountId:stored.adminId,role:'superadmin'});
- return {ok:true,token:session.token};
+ const role=stored.role||'superadmin';
+ const current=await db.collection('admins').findOne({adminId:stored.adminId,status:'Active',role});
+ if(!current)return {ok:false};
+ const session=await issueSession(db,{accountId:stored.adminId,role});
+ return {ok:true,token:session.token,role};
 }
 module.exports={verifyPassword,beginAdminLogin,completeAdminLogin};
