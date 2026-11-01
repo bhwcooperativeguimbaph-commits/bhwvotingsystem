@@ -22,6 +22,8 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
     status:'Active',startTime:{$lte:now},endTime:{$gt:now}
    },{session,sort:{createdAt:-1}});
    if(!election)throw voteError('VOTING_CLOSED','Voting is not currently open');
+   if(election.keyDeliveryConfirmed!==true||election.keyProvisioningState!=='Ready')
+    throw voteError('ENCRYPTION_UNAVAILABLE','Both election custodians must confirm receipt of their key shares');
    if(typeof election.ballotPublicKeyPem!=='string'||!election.ballotPublicKeyPem)
     throw voteError('ENCRYPTION_UNAVAILABLE','Election encryption key is unavailable');
    const candidates=await db.collection('candidates').find(
