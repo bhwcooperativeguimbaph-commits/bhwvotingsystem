@@ -262,8 +262,11 @@ app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
     const clean=v=>typeof v==='string'?v.trim().replace(/\s+/g,' '):'';
     const input={fullName:clean(req.body?.fullName)||[req.body?.firstName,req.body?.middleName,req.body?.lastName].map(clean).filter(Boolean).join(' '),
       area:req.body?.area,location:req.body?.location,descriptor:req.body?.descriptor,
+      address:req.body?.address,birthdate:req.body?.birthdate,gender:req.body?.gender,
       biometricConsent:req.body?.consent===true};
     if(req.body?.consent!==true)return res.status(400).json({success:false,message:'Member biometric consent required'});
+    if(!req.body?.address||!req.body?.birthdate||!req.body?.gender)
+      return res.status(400).json({success:false,message:'Address, birthdate and gender are required'});
     const {memberId}=await registerMemberWithFace(connection,input,{key:keyFromEnv(),validateLocation:verifyGuimbaLocation,
       operatorId:req.staff?.accountId});
     res.set('Cache-Control','no-store');
