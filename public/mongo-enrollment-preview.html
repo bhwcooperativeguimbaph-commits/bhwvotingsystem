@@ -18,11 +18,14 @@ small{color:#52657a;display:block}
 <header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
 
 <h1>Member registration — Rehearsal</h1>
-<p class="warning">Restricted to authorized Super Admins. Register synthetic test accounts only until privacy and election security reviews are complete.</p>
+<p class="warning">Restricted to authorized administrators. Register synthetic test accounts only until privacy and election security reviews are complete.</p>
 <p><a href="/admin-console">Back to admin console</a></p>
 <form id="register">
 <label>Member full name<input id="name" required maxlength="100" autocomplete="off"></label>
 <label>Membership area<input id="area" required maxlength="100" autocomplete="off"></label>
+<label>Street / house / sitio address<input id="address" required maxlength="500" autocomplete="off"></label>
+<label>Date of birth<input id="birthdate" required type="date"></label>
+<label>Gender<select id="gender" required><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option></select></label>
 <label>Region<select id="region" required></select></label>
 <label>Province<select id="province" required></select></label>
 <label>City / Municipality<select id="city" required></select></label>
@@ -83,6 +86,7 @@ by('enroll').onclick=async()=>{
   const result=await api('/api/admin/register-member',{
    method:'POST',headers:{'Content-Type':'application/json'},
    body:JSON.stringify({fullName:by('name').value,area:by('area').value,
+    address:by('address').value,birthdate:by('birthdate').value,gender:by('gender').value,
     consent:by('consent').checked,
     location:{country:'Philippines',regionCode:by('region').value,
      provinceCode:by('province').value,province:'Nueva Ecija',
@@ -95,6 +99,7 @@ by('enroll').onclick=async()=>{
  finally{busy=false;by('enroll').disabled=!started}
 };
 window.addEventListener('pagehide',()=>video.srcObject?.getTracks().forEach(t=>t.stop()));
+by('birthdate').max=new Date().toISOString().slice(0,10);
 geography().catch(e=>{by('status').textContent=e.message||'Guimba reference data unavailable'});
 </script>
 <footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
