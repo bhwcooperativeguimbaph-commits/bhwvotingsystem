@@ -8,6 +8,7 @@ video{width:100%;max-width:480px;background:#222;min-height:220px;transform:scal
 button{font:inherit;background:#164c83;color:#fff;border:0;border-radius:6px;padding:12px;cursor:pointer;margin:10px 0}
 button:disabled{opacity:.5}.hidden{display:none}
 label{display:block;padding:8px;margin:5px 0}
+fieldset{border:1px solid #d1dfd6;border-radius:12px;padding:14px;margin:17px 0}fieldset legend{font-weight:800;padding:4px 8px}.ballot-choice{display:flex;align-items:center;gap:14px;border:1px solid #d5e3da;border-radius:10px;background:#fff;margin:8px 0;padding:10px 14px}.ballot-choice img{width:64px;height:64px;object-fit:cover;border-radius:9px;background:#e9f3ed}.ballot-choice input{width:18px;height:18px}.ballot-choice span{font-weight:650}
 .warning{color:#99421f;font-weight:bold}
 #face-direction-cue{font-weight:bold;font-size:1.2rem}
 #status{white-space:pre-wrap}
@@ -61,15 +62,19 @@ async function displayBallot(){
   legend.textContent=pos.title+' — choose up to '+pos.maxVotes;field.appendChild(legend);
   for(const c of pos.candidates){
    const label=document.createElement('label'),input=document.createElement('input');
+   label.className='ballot-choice';
    input.type='checkbox';input.value=c.candidateId;input.dataset.position=pos.title;
    input.addEventListener('change',()=>{
     const selected=[...field.querySelectorAll('input:checked')];
     if(selected.length>pos.maxVotes){input.checked=false;by('status').textContent='Selection limit reached for '+pos.title}
    });
-   label.append(input,' '+c.name);field.appendChild(label);
+   if(c.photo){const photo=document.createElement('img');photo.alt='Photo of '+c.name;photo.src=c.photo;label.appendChild(photo)}
+   const name=document.createElement('span');name.textContent=c.name;
+   label.append(input,name);field.appendChild(label);
   }container.appendChild(field);
  }
- by('vote').disabled=Boolean(auth.hasVoted);
+ by('vote').disabled=Boolean(auth.hasVoted)||!info.voteSubmissionEnabled;
+ if(!info.voteSubmissionEnabled)by('electionStatus').textContent+=' — Voting disabled during development.';
  await loadNotifications();
 }
 by('camera').onclick=async()=>{
