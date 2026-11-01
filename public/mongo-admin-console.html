@@ -22,7 +22,16 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <h1>BHW MongoDB — Administration Preview</h1>
 <p class="warning">Development/rehearsal only. Do not create a real election or enroll real members until the full system passes acceptance testing.</p>
 <p>Use the <a href="/admin-auth-preview">administrator login</a> first. All administrative requests require a Super Admin session.</p><p><a href="/member-enrollment-preview">Register a test member with the camera</a> · <a href="/member-preview">Open member voting rehearsal</a> · <a href="/custodian-confirm">Custodian receipt confirmation</a></p>
-<section><h2>Session</h2><button id="check">Check Super Admin session</button><pre id="sessionResult">Not checked</pre></section>
+<section><h2>Session</h2><button id="check">Check current administrator session</button><button id="logoutAdmin" class="ghost" type="button">Log out</button><pre id="sessionResult">Not checked</pre></section>
+<section id="adminManagement" hidden><h2>Super Admin — Staff accounts</h2>
+<p>Register additional election administrators. Administrators log in with their own password and Brevo email OTP. Only the Super Admin may create or deactivate administrator accounts.</p>
+<div class="cols"><label>Username<input id="newAdminUsername" autocomplete="off" maxlength="50"></label>
+<label>Full name<input id="newAdminName" maxlength="100"></label>
+<label>Verified recipient email<input id="newAdminEmail" type="email" autocomplete="off"></label>
+<label>Initial secure password (16+ characters)<input id="newAdminPassword" type="password" minlength="16" autocomplete="new-password"></label></div>
+<button id="createAdmin">Create administrator account</button>
+<button id="refreshAdmins" class="ghost">Refresh staff directory</button>
+<div id="adminDirectory" aria-live="polite"></div><pre id="adminResult">No staff changes.</pre></section>
 <section><h2>Registered members</h2><button id="members">Refresh members</button><p id="memberTotal">No members loaded.</p><div id="memberDirectory" aria-live="polite"></div><pre id="membersResult" hidden></pre></section>
 <section><h2>1. Create rehearsal election</h2>
 <label>Election title<input id="title" value="Rehearsal election" maxlength="150"></label>
@@ -68,7 +77,39 @@ async function action(out,work){
  try{const data=await work();by(out).textContent=JSON.stringify(data,null,2);return data}
  catch(e){by(out).textContent=e.name==='AbortError'?'Request timed out; check Render logs':'Request unavailable'}
 }
-by('check').onclick=()=>action('sessionResult',()=>call('/api/session'));
+by('check').onclick=async()=>{
+ const data=await action('sessionResult',()=>call('/api/session'));
+ if(data?.success&&data.role==='superadmin'){by('adminManagement').hidden=false;await listAdmins()}
+};
+async function listAdmins(){
+ const data=await action('adminResult',()=>call('/api/superadmin/admins'));
+ const container=by('adminDirectory');container.replaceChildren();
+ if(!data?.success)return;
+ for(const a of data.admins){
+  const row=document.createElement('div');row.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px;border-bottom:1px solid #e1ebe5;flex-wrap:wrap';
+  const label=document.createElement('span');label.textContent=a.fullName+' ('+a.username+') — '+a.email+' — '+a.status;
+  const button=document.createElement('button');button.type='button';button.textContent=a.status==='Active'?'Deactivate':'Activate';
+  button.className=a.status==='Active'?'danger':'ghost';
+  button.onclick=async()=>{
+   const status=a.status==='Active'?'Inactive':'Active';
+   if(!confirm('Set '+a.username+' to '+status+'?'))return;
+   const reply=await action('adminResult',()=>call('/api/superadmin/admins/'+encodeURIComponent(a.adminId)+'/status','PATCH',{status}));
+   if(reply?.success)await listAdmins();
+  };
+  row.append(label,button);container.appendChild(row);
+ }
+ if(!data.admins.length)container.textContent='No additional administrators.';
+}
+by('refreshAdmins').onclick=listAdmins;
+by('createAdmin').onclick=async()=>{
+ const payload={username:by('newAdminUsername').value,fullName:by('newAdminName').value,
+  email:by('newAdminEmail').value,password:by('newAdminPassword').value};
+ try{
+  const reply=await action('adminResult',()=>call('/api/superadmin/admins','POST',payload));
+  if(reply?.success){by('newAdminPassword').value='';by('newAdminUsername').value='';by('newAdminName').value='';by('newAdminEmail').value='';await listAdmins()}
+ }finally{payload.password='';by('newAdminPassword').value=''}
+};
+
 async function showMembers(){
  const result=await action('membersResult',()=>call('/api/admin/members'));
  const view=by('memberDirectory');view.replaceChildren();
@@ -94,6 +135,7 @@ async function showMembers(){
  if(!result.members.length)view.textContent='No registered members.';
 }
 by('members').onclick=showMembers;
+by('logoutAdmin').onclick=async()=>{const result=await call('/api/logout','POST',{});if(result.success)window.location.assign('/')};
 const list=id=>by(id).value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(name=>({name}));
 by('create').onclick=async()=>{
  if(!by('start').value||!by('end').value)return by('createResult').textContent='Choose both schedule dates';
@@ -151,4 +193,6 @@ by('disclose').onclick=async()=>{
  await action('discloseResult',()=>call('/api/admin/elections/'+encodeURIComponent(by('reportId').value)+'/disclose-results','POST',{shares}));
  by('share1').value='';by('share2').value='';
 };
+// Identify role and show authorized admin controls on every page load.
+by('check').click();
 </script>
