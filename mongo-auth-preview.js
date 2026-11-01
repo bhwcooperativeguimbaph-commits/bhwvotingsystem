@@ -361,7 +361,7 @@ app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
 app.get('/api/admin/members',staffOnly,async(req,res)=>{
  try {
   const members=await connection.db.collection('members').find({},{
-    projection:{_id:0,memberId:1,fullName:1,area:1,location:1,status:1,createdAt:1},
+    projection:{_id:0,memberId:1,fullName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
     sort:{createdAt:-1},limit:100
   }).toArray();
   res.set('Cache-Control','no-store');
