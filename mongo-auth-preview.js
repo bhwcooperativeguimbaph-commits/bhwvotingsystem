@@ -278,6 +278,38 @@ app.patch('/api/superadmin/admins/:adminId/status',superadminOnly,async(req,res)
   return res.status(503).json({success:false,message:'Administrator status change unavailable'});
  }
 });
+app.get('/api/admin/overview',staffOnly,async(req,res)=>{
+ try{
+  const db=connection.db;
+  const [members,activeMembers,staff,elections,ballots]=await Promise.all([
+   db.collection('members').countDocuments({}),
+   db.collection('members').countDocuments({status:'Active'}),
+   db.collection('admins').countDocuments({role:'admin',status:'Active'}),
+   db.collection('elections').countDocuments({}),
+   db.collection('ballots').countDocuments({status:'Valid'})
+  ]);
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,summary:{members,activeMembers,staff,elections,ballots}});
+ }catch(_){return res.status(503).json({success:false,message:'Dashboard temporarily unavailable'})}
+});
+app.get('/api/admin/history',staffOnly,async(req,res)=>{
+ try{
+  const elections=await connection.db.collection('elections').find({},
+   {projection:{_id:0,electionId:1,title:1,status:1,startTime:1,endTime:1,createdAt:1},
+    sort:{createdAt:-1},limit:30}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,elections});
+ }catch(_){return res.status(503).json({success:false,message:'Election history unavailable'})}
+});
+app.get('/api/admin/logs',staffOnly,async(req,res)=>{
+ try{
+  const logs=await connection.db.collection('auditLogs').find({},
+   {projection:{_id:0,eventId:1,actorRole:1,action:1,electionId:1,createdAt:1},
+    sort:{createdAt:-1},limit:100}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,logs});
+ }catch(_){return res.status(503).json({success:false,message:'Audit logs unavailable'})}
+});
 app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
  const electionId=req.params.electionId;
  if(!/^ELEC-[a-f0-9-]{36}$/i.test(electionId))
