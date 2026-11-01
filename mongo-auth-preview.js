@@ -230,9 +230,11 @@ app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
   try{
     const clean=v=>typeof v==='string'?v.trim().replace(/\s+/g,' '):'';
     const input={fullName:clean(req.body?.fullName)||[req.body?.firstName,req.body?.middleName,req.body?.lastName].map(clean).filter(Boolean).join(' '),
-      area:req.body?.area,location:req.body?.location,descriptor:req.body?.descriptor};
+      area:req.body?.area,location:req.body?.location,descriptor:req.body?.descriptor,
+      biometricConsent:req.body?.consent===true};
     if(req.body?.consent!==true)return res.status(400).json({success:false,message:'Member biometric consent required'});
-    const {memberId}=await registerMemberWithFace(connection,input,{key:keyFromEnv(),validateLocation:verifyGuimbaLocation});
+    const {memberId}=await registerMemberWithFace(connection,input,{key:keyFromEnv(),validateLocation:verifyGuimbaLocation,
+      operatorId:req.staff?.accountId});
     res.set('Cache-Control','no-store');
     return res.status(201).json({success:true,memberId});
   }catch(e){
