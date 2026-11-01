@@ -206,7 +206,7 @@ app.post('/api/admin/register-member',superadminOnly,async(req,res)=>{
   const {registerMemberWithFace}=require('./database/member-enrollment');
   const {verifyGuimbaLocation}=require('./database/guimba-location');
   try{
-    const clean=v=>typeof v==='string'?v.trim().replace(/\\s+/g,' '):'';
+    const clean=v=>typeof v==='string'?v.trim().replace(/\s+/g,' '):'';
     const input={fullName:clean(req.body?.fullName)||[req.body?.firstName,req.body?.middleName,req.body?.lastName].map(clean).filter(Boolean).join(' '),
       area:req.body?.area,location:req.body?.location,descriptor:req.body?.descriptor};
     if(req.body?.consent!==true)return res.status(400).json({success:false,message:'Member biometric consent required'});
