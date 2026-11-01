@@ -219,6 +219,33 @@ app.patch('/api/admin/members/:memberId/status',superadminOnly,async(req,res)=>{
   return res.json({success:true});
  }catch(_){return res.status(503).json({success:false,message:'Member update unavailable'})}
 });
+app.post('/api/admin/elections/:electionId/provision-keys',superadminOnly,async(req,res)=>{
+ try{
+  if(!process.env.BREVO_API_KEY||!process.env.BREVO_FROM_EMAIL)
+   return res.status(503).json({success:false,message:'Brevo is not configured'});
+  const {provisionElectionKeys}=require('./database/key-provisioning');
+  const result=await provisionElectionKeys(connection,{
+   electionId:req.params.electionId,emails:req.body?.emails});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,electionId:result.electionId,
+   custodians:result.custodians,keyFingerprint:result.keyFingerprint,
+   message:'Shares accepted for sending. Both custodians must independently confirm receipt.'});
+ }catch(e){
+  if(e?.code==='INVALID_CUSTODIANS')return res.status(400).json({success:false,message:'Two different valid custodian emails required'});
+  if(e?.code==='KEY_PROVISION_NOT_ALLOWED')return res.status(409).json({success:false,message:'Election must be scheduled, not started, and have no previous key'});
+  return res.status(503).json({success:false,message:'Key provisioning unavailable; do not vote until both custodians confirm'});
+ }
+});
+app.post('/api/key-custody/confirm',rateLimit,async(req,res)=>{
+ try{
+  const {confirmCustodianShare}=require('./database/custodian-confirmation');
+  const ok=await confirmCustodianShare(connection.db,{
+   electionId:req.body?.electionId,shareIndex:req.body?.shareIndex,share:req.body?.share});
+  res.set('Cache-Control','no-store');
+  if(!ok)return res.status(400).json({success:false,message:'Invalid or expired custodian share'});
+  return res.json({success:true,message:'Custodian receipt confirmed'});
+ }catch(_){return res.status(503).json({success:false,message:'Custodian confirmation unavailable'})}
+});
 app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
  // Administrative preview only; no voting route is enabled.
  try{
