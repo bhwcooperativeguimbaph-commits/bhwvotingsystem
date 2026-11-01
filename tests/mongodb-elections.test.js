@@ -14,6 +14,7 @@ async function main(){
  const db={collection(name){
   if(name==='elections')return {findOne:async()=>null,updateMany:async()=>({modifiedCount:0}),insertOne:async x=>elections.push(x)};
   if(name==='candidates')return {insertMany:async xs=>candidates.push(...xs)};
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'ELECTION_CREATED');assert.ok(opts?.session)}};
   throw Error(name);
  }};
  const result=await createElection({db,client:{startSession:()=>session}},base);
