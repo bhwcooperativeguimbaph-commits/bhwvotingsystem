@@ -28,6 +28,14 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Kapitan candidates (one name per line; at least two)<textarea id="kapitan" rows="4" placeholder="Candidate C&#10;Candidate D"></textarea></label></div>
 <small>Kagawad maximum selections: 1; Kapitan maximum selections: 2. Use fictitious names for testing.</small>
 <button id="create">Create rehearsal election</button><pre id="createResult">Not created</pre></section>
+<section><h2>Candidate management (before election starts)</h2>
+<label>Election ID<input id="candidateElection" placeholder="ELEC-..."></label>
+<button id="listCandidates">List individual candidates</button>
+<div id="candidateList" aria-live="polite"></div>
+<div class="cols"><label>Position<select id="candidatePosition"><option>Kagawad</option><option>Kapitan</option></select></label>
+<label>New candidate name<input id="candidateName" maxlength="100"></label></div>
+<small>New candidates can be added or removed individually only before the start time and before any ballot is recorded. JPG/PNG image support is available through the API; this test page adds names only.</small>
+<button id="addCandidate">Add candidate</button><pre id="candidateResult">Not changed</pre></section>
 <section><h2>2. Assign two election key custodians</h2>
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
@@ -67,7 +75,31 @@ by('create').onclick=async()=>{
   endTime:new Date(by('end').value).toISOString(),
   config:[{title:'Kagawad',maxVotes:1,candidates:list('kagawad')},
    {title:'Kapitan',maxVotes:2,candidates:list('kapitan')}] }));
- if(data?.success){for(const id of ['keyElection','turnoutId','reportId'])by(id).value=data.electionId}
+ if(data?.success){for(const id of ['keyElection','turnoutId','reportId','candidateElection'])by(id).value=data.electionId}
+};
+async function showCandidates(){
+ const id=by('candidateElection').value.trim();
+ const data=await action('candidateResult',()=>call('/api/admin/elections/'+encodeURIComponent(id)+'/candidates'));
+ const list=by('candidateList');list.replaceChildren();
+ if(data?.success)for(const c of data.candidates){
+  const item=document.createElement('p'),title=document.createElement('span'),button=document.createElement('button');
+  title.textContent=c.position+' — '+c.name+' ('+c.candidateId+') ';
+  button.textContent='Remove this candidate';
+  button.type='button';
+  button.onclick=async()=>{
+   if(!confirm('Remove '+c.name+' before voting starts?'))return;
+   const result=await action('candidateResult',()=>call('/api/admin/elections/'+encodeURIComponent(id)+'/candidates/'+encodeURIComponent(c.candidateId),'DELETE'));
+   if(result?.success)showCandidates();
+  };
+  item.append(title,button);list.appendChild(item);
+ }
+}
+by('listCandidates').onclick=showCandidates;
+by('addCandidate').onclick=async()=>{
+ const id=by('candidateElection').value.trim();
+ const r=await action('candidateResult',()=>call('/api/admin/elections/'+encodeURIComponent(id)+'/candidates','POST',{
+  position:by('candidatePosition').value,name:by('candidateName').value}));
+ if(r?.success){by('candidateName').value='';showCandidates()}
 };
 by('provision').onclick=()=>action('provisionResult',()=>call('/api/admin/elections/'+encodeURIComponent(by('keyElection').value)+'/provision-keys','POST',{emails:[by('email1').value,by('email2').value]}));
 by('turnout').onclick=()=>action('turnoutResult',()=>call('/api/admin/turnout/'+encodeURIComponent(by('turnoutId').value)));
