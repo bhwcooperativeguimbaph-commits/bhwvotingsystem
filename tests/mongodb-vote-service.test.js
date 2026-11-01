@@ -38,7 +38,8 @@ async function main(){
  const first=await castEncryptedVote(connection,{memberId:'M1',choices});
  assert.match(first.receiptNo,/^BHW-/);
  assert.equal(receiptCount,1);assert.equal(voteCount,1);
- assert.equal(JSON.stringify(savedVote).includes('c1'),false);
+ assert.equal('choices' in savedVote,false);
+ assert.equal('candidateId' in savedVote,false);
  assert.deepEqual(decryptBallot(savedVote.encryptedVote,'E1',privateKey),choices);
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='DUPLICATE_BALLOT');
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices:{Kagawad:['c1','c2'],Kapitan:[]}}),e=>e.code==='INVALID_BALLOT');
