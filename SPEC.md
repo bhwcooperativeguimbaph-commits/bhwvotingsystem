@@ -239,3 +239,18 @@ Status legend: **Verified** = user demonstrated against Render; **Partial** = co
 7. Complete real Atlas integration tests, browser end-to-end checks, privacy/security review and controlled Render cutover.
 
 **No step may be reported as complete solely because its script was committed.** Add links to passing CI runs, relevant staging test logs, and acceptance evidence alongside each checked item.
+
+## 11. MongoDB rehearsal implementation — 2026-11-01
+
+**Code added; not production acceptance evidence.** The Render authentication preview now has protected member enrollment, verified Guimba dropdowns, a camera-based enrollment preview reusing the original facial challenge, member face-login/ballot rehearsal, and administrative election setup, directory, turnout, and key-custodian operations.
+
+- UI: `/admin-auth-preview`, `/admin-console` (superadmin), `/member-enrollment-preview` (superadmin), `/member-preview`, `/custodian-confirm`.
+- APIs: `POST /api/admin/register-member`, `GET /api/geo/:level/:code?`, `GET /api/admin/members`, `PATCH /api/admin/members/:memberId/status`, `POST /api/admin/initialize-election`, `POST /api/admin/elections/:id/provision-keys`, `POST /api/key-custody/confirm`, `POST /api/vote` (disabled unless `ENABLE_MONGODB_VOTE_TEST=true`), `GET /api/receipts/:code`, `GET /api/admin/turnout/:electionId`, `POST /api/admin/elections/:id/disclose-results`, `GET /api/elections/:id/results`.
+- Ballot encryption: AES-256-GCM per ballot with RSA-OAEP-SHA256 wrapping of a new AES key; election private key split into **2-of-2 XOR shares** and emailed individually via Brevo. Store public key and share hashes, not private key or plaintext shares. Both custodians must independently confirm possession before votes are accepted.
+- Transactions: ballot plus receipt committed together; result finalization writes aggregate report only; single-active-election constraint is enforced with a MongoDB partial unique index.
+- New standalone test pages are **rehearsal tools**, not the final original production frontend. The feature-gated vote endpoint remains **OFF** in Render unless deliberately enabled for synthetic tests.
+- Required verification not yet done: complete `npm test` run on latest commit, deployment startup/index creation, enrollment with synthetic biometric participant, two Brevo custodian delivery confirmations, real MongoDB transactions, parallel ballot submissions, PDF receipt download, tally disclosure, production security/privacy review.
+- Browser gesture challenges are still **client reported**. They are not independent anti-spoofing; **never claim certified liveness**.
+- Run `MongoDB Preview Staging Smoke Test` GitHub Action after deploying latest code. It uses no secrets and checks health, PSGC data, and unauthorized vote/admin rejection.
+- Real-user election deployment remains **blocked** pending remaining API/frontend parity, operational audits, key custody review, retention policy, and stakeholder sign-off.
+
