@@ -91,6 +91,11 @@ app.get('/admin-console',superadminOnly,(req,res)=>{
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-admin-console.html'));
 });
+app.get('/results',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ return res.sendFile(path.join(__dirname,'public','mongo-results.html'));
+});
 app.get('/custodian-confirm',(req,res)=>{
  res.set('Cache-Control','no-store');
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
