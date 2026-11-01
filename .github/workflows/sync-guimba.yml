@@ -1,0 +1,33 @@
+name: Sync Guimba PSGC reference data
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'scripts/sync-guimba.js'
+permissions:
+  contents: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: node scripts/sync-guimba.js
+      - name: Verify reference data
+        run: |
+          test -s data/geo-cache/manifest.json
+          node -e "const m=require('./data/geo-cache/manifest.json');if(m.barangays<1)process.exit(1)"
+      - name: Commit verified reference data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/geo-cache/manifest.json data/geo-cache/regions.json data/geo-cache/provinces/*.json data/geo-cache/cities/*.json data/geo-cache/barangays/*.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Sync verified Guimba PSGC reference data"
+            git push
+          fi
