@@ -219,6 +219,42 @@ app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
   return res.status(503).json({success:false,message:'Election creation unavailable'});
  }
 });
+// Voting is disabled by default. Enable only for synthetic staging rehearsals.
+app.post('/api/vote',async(req,res)=>{
+ if(process.env.ENABLE_MONGODB_VOTE_TEST!=='true')
+  return res.status(403).json({success:false,message:'Voting is disabled until the system is approved for launch'});
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||auth.role!=='member')return res.status(403).json({success:false,message:'Voter session required'});
+  const {castEncryptedVote}=require('./database/vote-service');
+  const result=await castEncryptedVote(connection,{memberId:auth.accountId,choices:req.body?.choices});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,receiptNo:result.receiptNo});
+ }catch(e){
+  const responses={NOT_AUTHORIZED:[403,'Voter is not active'],VOTING_CLOSED:[403,'Voting is not open'],
+   INVALID_BALLOT:[400,'Invalid candidate selection'],DUPLICATE_BALLOT:[409,'A vote was already recorded'],
+   ENCRYPTION_UNAVAILABLE:[503,'Election encryption keys are not configured']};
+  const [status,message]=responses[e?.code]||[503,'Secure voting is unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
+app.get('/api/receipts/:code',async(req,res)=>{
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||auth.role!=='member')return res.status(403).json({success:false,message:'Voter session required'});
+  const code=req.params.code;
+  if(!/^BHW-[A-F0-9]{32}$/.test(code))return res.status(400).json({success:false,message:'Invalid receipt number'});
+  const receipt=await connection.db.collection('receiptCodes').findOne({receiptCode:code});
+  if(!receipt)return res.status(404).json({success:false,message:'Receipt not found'});
+  const ballot=await connection.db.collection('ballots').findOne(
+    {ballotId:receipt.ballotId,electionId:receipt.electionId,memberId:auth.accountId,status:'Valid'},
+    {projection:{_id:0,voteHash:1,createdAt:1}});
+  if(!ballot)return res.status(404).json({success:false,message:'Receipt not found'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,receiptNo:code,electionId:receipt.electionId,
+    recordedAt:ballot.createdAt,integrityHash:ballot.voteHash});
+ }catch(_){return res.status(503).json({success:false,message:'Receipt verification unavailable'})}
+});
 app.get('/api/session',async(req,res)=>{
  try{
   const auth=await authenticateSession(connection.db,token(req));
