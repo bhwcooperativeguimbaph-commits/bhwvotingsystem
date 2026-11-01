@@ -11,7 +11,7 @@ async function run(){
  const admin={adminId:'SUPERADMIN',username:'superadmin',role:'superadmin',status:'Active',email:'admin@example.test',passwordHash};
  let reservation={adminId:'SUPERADMIN',nextAllowed:new Date(0)},otp='',entries=[];
  const db={collection(name){
-  if(name==='admins')return {findOne:async q=>q.username==='superadmin'?admin:null};
+  if(name==='admins')return {findOne:async q=>(q.username==='superadmin'||q.adminId==='SUPERADMIN')?admin:null};
   if(name==='adminMfaCooldowns')return {
    updateOne:async()=>({acknowledged:true}),
    findOneAndUpdate:async(q,u)=>{if(reservation.nextAllowed>q.$or[0].nextAllowed.$lte)return null;reservation.nextAllowed=u.$set.nextAllowed;return reservation}
@@ -31,7 +31,7 @@ async function run(){
  assert.equal(second.code,'MFA_COOLDOWN');
  assert.equal((await completeAdminLogin(db,{challenge:first.challenge,code:'000000',now})).ok,false);
  const verified=await completeAdminLogin(db,{challenge:first.challenge,code:otp,now});
- assert.equal(verified.ok,true);assert.match(verified.token,/^[0-9a-f]{64}$/);
+ assert.equal(verified.ok,true);assert.equal(verified.role,'superadmin');assert.match(verified.token,/^[0-9a-f]{64}$/);
  assert.equal((await completeAdminLogin(db,{challenge:first.challenge,code:otp,now})).ok,false);
  console.log('PASS: MongoDB admin MFA password, cooldown, OTP and replay protection');
 }
