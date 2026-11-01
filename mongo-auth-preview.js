@@ -57,6 +57,11 @@ app.get(['/api/geo/:level','/api/geo/:level/:code'],(req,res)=>{
 app.use('/models',express.static(path.join(__dirname,'public','models'),{
  index:false,etag:true,maxAge:'1d'
 }));
+app.get('/js/receipt-pdf.js',(req,res)=>{
+ res.set('Cache-Control','public,max-age=3600');
+ res.type('application/javascript');
+ return res.sendFile(path.join(__dirname,'public','js','receipt-pdf.js'));
+});
 app.get('/js/mongo-face-challenge.js',(req,res)=>{
  res.set('Cache-Control','no-store');
  res.type('application/javascript');
