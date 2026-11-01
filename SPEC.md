@@ -254,3 +254,18 @@ Status legend: **Verified** = user demonstrated against Render; **Partial** = co
 - Run `MongoDB Preview Staging Smoke Test` GitHub Action after deploying latest code. It uses no secrets and checks health, PSGC data, and unauthorized vote/admin rejection.
 - Real-user election deployment remains **blocked** pending remaining API/frontend parity, operational audits, key custody review, retention policy, and stakeholder sign-off.
 
+
+## 12. Changes after first successful staging smoke test
+
+The user confirmed a green **MongoDB Preview Staging Smoke Test #1** on 2026-11-01. This validates only the public health endpoint, Guimba barangay response, and anonymous authorization boundaries; it does not prove secure voting.
+
+Subsequent commits implemented:
+- Pre-start **individual candidate add/remove**, strict Kagawad = 1 / Kapitan = 2 election limits, JPG/PNG validation, and a per-election editing lease. Add/remove is rejected once an election has started or has any ballots.
+- A member inbox notification created in the **same MongoDB transaction** as the encrypted ballot and server-issued receipt, with member-only listing and mark-as-read endpoints and UI.
+- Turnout eligibility snapshot on the first qualifying read after voting starts, preventing subsequent account changes from rewriting previously captured percentages. **Caveat:** without an exact scheduled snapshot trigger, an enrollment/status change between start and first snapshot can affect the denominator; resolve before real elections.
+- CI regressions for candidate edits, the critical MongoDB ballot/receipt/active-election/session indexes, and historical turnout. The GitHub Actions JavaScript workflow now executes a locked dependency installation before tests.
+- New elections must start in the future so key custodians can receive and confirm their shares before voting begins.
+
+**Mandatory remaining evidence:** latest CI results, Render deploy with current commit, synthetic member enrollment and challenge login in a browser, two distinct custodians receiving and confirming their keys, authenticated synthetic voting (only with an explicit rehearsal flag), receipt PDF, atomic duplicate-vote rejection, and finalized aggregate results after the configured close. Additional privacy/security review and complete original frontend/API parity remain open.
+
+**Testing safety:** Never enable `ENABLE_MONGODB_VOTE_TEST=true` for real voters. A passing public smoke test must not be treated as approval to begin a live election.
