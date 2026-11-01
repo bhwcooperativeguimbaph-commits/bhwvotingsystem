@@ -39,9 +39,18 @@ function originCheck(req,res,next){
 app.use(originCheck);
 let connection;
 app.get('/health',(req,res)=>res.json({status:'ok',database:'mongodb',mode:'auth-preview'}));
+app.get('/',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
+ return res.sendFile(path.join(__dirname,'public','mongo-portal.html'));
+});
+app.get('/css/mongo-portal.css',(req,res)=>{
+ res.set('Cache-Control','public,max-age=3600');
+ return res.type('text/css').sendFile(path.join(__dirname,'public','css','mongo-portal.css'));
+});
 app.get('/admin-auth-preview',(req,res)=>{
  res.set('Cache-Control','no-store');
- res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
  res.sendFile(path.join(__dirname,'public','admin-auth-preview.html'));
 });
 app.get(['/api/geo/:level','/api/geo/:level/:code'],(req,res)=>{
@@ -69,22 +78,22 @@ app.get('/js/mongo-face-challenge.js',(req,res)=>{
 });
 app.get('/member-preview',(req,res)=>{
  res.set('Cache-Control','no-store');
- res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-member-preview.html'));
 });
 app.get('/member-enrollment-preview',superadminOnly,(req,res)=>{
  res.set('Cache-Control','no-store');
- res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-enrollment-preview.html'));
 });
 app.get('/admin-console',superadminOnly,(req,res)=>{
  res.set('Cache-Control','no-store');
- res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-admin-console.html'));
 });
 app.get('/custodian-confirm',(req,res)=>{
  res.set('Cache-Control','no-store');
- res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','custodian-confirm.html'));
 });
 app.get('/api/election-info',async(req,res)=>{
