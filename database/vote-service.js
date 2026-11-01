@@ -31,12 +31,18 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
    try{validateBallot(choices,candidates)}
    catch(_){throw voteError('INVALID_BALLOT','Candidate selections or position limits are invalid')}
    const {ciphertext,voteHash}=encryptBallot(choices,election.electionId,election.ballotPublicKeyPem);
+   // Private participation ledger enforces one vote without attaching identity
+   // or receipt code to encrypted ballot contents.
+   await db.collection('voterParticipation').insertOne({
+    electionId:election.electionId,memberId,receiptCode:receiptNo,
+    status:'Valid',createdAt:now
+   },{session});
    await db.collection('ballots').insertOne({
-    ballotId,electionId:election.electionId,memberId,encryptedVote:ciphertext,
-    voteHash,status:'Valid',createdAt:now
+    ballotId,electionId:election.electionId,encryptedVote:ciphertext,
+    voteHash,status:'Valid',receivedTimeBucket:new Date(Math.floor(now.getTime()/900000)*900000)
    },{session});
    await db.collection('receiptCodes').insertOne({
-    receiptCode:receiptNo,ballotId,electionId:election.electionId,createdAt:now
+    receiptCode:receiptNo,memberId,electionId:election.electionId,createdAt:now
    },{session});
    await db.collection('memberInbox').insertOne({
     notificationId:'NOTICE-'+crypto.randomUUID(),memberId,electionId:election.electionId,
@@ -50,7 +56,7 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
    accepted=true;
   },{writeConcern:{w:'majority'}});
   if(!accepted)throw voteError('TRANSACTION_FAILED','Ballot transaction was not committed');
-  return {receiptNo,ballotId};
+  return {receiptNo};
  }catch(e){
   if(e?.code===11000)throw voteError('DUPLICATE_BALLOT','A ballot was already recorded for this election');
   throw e;
