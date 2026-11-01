@@ -15,7 +15,7 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
   let report;
   await session.withTransaction(async()=>{
    const election=await db.collection('elections').findOne({
-    electionId,status:'Active',endTime:{$lte:now},keyProvisioningState:'Ready',keyDeliveryConfirmed:true
+    electionId,status:{$in:['Active','Closed']},endTime:{$lte:now},keyProvisioningState:'Ready',keyDeliveryConfirmed:true
    },{session});
    if(!election)throw Object.assign(new Error('Election cannot be disclosed'),{code:'NOT_DISCLOSABLE'});
    const custodians=await db.collection('keyCustodians').find(
@@ -45,7 +45,7 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
    report.reportHash=crypto.createHash('sha256').update(JSON.stringify(report)).digest('hex');
    await db.collection('finalReports').insertOne({...report,createdAt:now},{session});
    const result=await db.collection('elections').updateOne(
-    {electionId,status:'Active',endTime:{$lte:now}},
+    {electionId,status:{$in:['Active','Closed']},endTime:{$lte:now}},
     {$set:{status:'Finalized',finalizedAt:now}},{session});
    if(result.modifiedCount!==1)throw new Error('Election changed during finalization');
   },{writeConcern:{w:'majority'}});
