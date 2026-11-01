@@ -7,8 +7,10 @@ const required=(collection,keyFields,condition)=>{
  assert.ok(spec,'Missing index '+collection+'('+keyFields.join(',')+')');
  assert.ok(condition(spec[1]),'Index options invalid for '+collection);
 };
-required('ballots',['electionId','memberId'],o=>o.unique===true);
+required('voterParticipation',['electionId','memberId'],o=>o.unique===true);
+assert.equal((indexSpecs.ballots||[]).some(([keys])=>Object.keys(keys).includes('memberId')),false);
 required('receiptCodes',['receiptCode'],o=>o.unique===true);
+required('receiptCodes',['electionId','memberId'],o=>o.unique===true);
 required('authSessions',['tokenHash'],o=>o.unique===true);
 required('authSessions',['expiresAt'],o=>o.expireAfterSeconds===0);
 required('elections',['status'],o=>o.unique===true&&o.partialFilterExpression?.status==='Active');
