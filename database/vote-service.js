@@ -43,6 +43,10 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
     type:'BALLOT_RECEIPT',message:'Your ballot was securely recorded.',
     receiptCode:receiptNo,read:false,createdAt:now
    },{session});
+   await db.collection('auditLogs').insertOne({
+    eventId:'AUD-'+crypto.randomUUID(),actorRole:'member',action:'BALLOT_CAST',
+    electionId:election.electionId,createdAt:now
+   },{session});
    accepted=true;
   },{writeConcern:{w:'majority'}});
   if(!accepted)throw voteError('TRANSACTION_FAILED','Ballot transaction was not committed');
