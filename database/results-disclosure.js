@@ -48,6 +48,10 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
     {electionId,status:{$in:['Active','Closed']},endTime:{$lte:now}},
     {$set:{status:'Finalized',finalizedAt:now}},{session});
    if(result.modifiedCount!==1)throw new Error('Election changed during finalization');
+   await db.collection('auditLogs').insertOne({
+    eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',action:'RESULTS_FINALIZED',
+    electionId,createdAt:now
+   },{session});
   },{writeConcern:{w:'majority'}});
   return report;
  }catch(e){
