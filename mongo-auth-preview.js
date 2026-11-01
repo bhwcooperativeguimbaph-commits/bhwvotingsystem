@@ -97,7 +97,7 @@ app.get('/custodian-confirm',(req,res)=>{
  return res.sendFile(path.join(__dirname,'public','custodian-confirm.html'));
 });
 app.get('/api/election-info',async(req,res)=>{
- try{return res.json(await getPublicElectionInfo(connection.db))}
+ try{const data=await getPublicElectionInfo(connection.db);return res.json({...data,voteSubmissionEnabled:process.env.ENABLE_MONGODB_VOTE_TEST==='true'})}
  catch(_){return res.status(503).json({active:false,error:'Election information unavailable'})}
 });
 app.post('/api/face-challenge',rateLimit,(req,res)=>{
