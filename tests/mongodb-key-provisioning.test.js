@@ -25,6 +25,7 @@ async function main(){
    updateOne:async(q,u)=>{const c=custodians.find(x=>x._id===q._id);if(c){Object.assign(c,u.$set);return {modifiedCount:1}}return {modifiedCount:0}},
    countDocuments:async q=>custodians.filter(c=>c.electionId===q.electionId&&c.status===q.status).length
   };
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'KEY_SHARES_ISSUED');assert.ok(opts?.session)}};
   throw Error(name);
  }};
  const connection={db,client:{startSession:()=>session}};
