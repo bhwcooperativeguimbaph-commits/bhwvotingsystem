@@ -1,10 +1,13 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BHW Election Key Custodian Confirmation</title>
+<link rel="stylesheet" href="/css/mongo-portal.css">
 <style>body{font:16px system-ui;max-width:580px;margin:10vh auto;padding:18px;color:#163355}
 input,textarea,button{box-sizing:border-box;display:block;width:100%;padding:12px;margin:8px 0 15px;border:1px solid #aaa;border-radius:6px;font:inherit}
 button{background:#164b80;color:#fff;cursor:pointer}
 label{display:block;font-weight:600}p{line-height:1.5}
-</style><h1>Confirm election key receipt</h1>
+</style>
+<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true">B</span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
+<h1>Confirm election key receipt</h1>
 <p>Enter only <strong>your own</strong> emailed share. Do not forward your share to another custodian, an administrator, or anyone else.</p>
 <form id="f">
 <label>Election ID<input id="electionId" required autocomplete="off" placeholder="ELEC-..."></label>
@@ -29,4 +32,5 @@ document.getElementById('f').addEventListener('submit',async e=>{
  }catch(_){result.textContent='Network error; please try again later'}
  finally{share.value=''}
 });
-</script></html>
+</script><footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
+</html>
