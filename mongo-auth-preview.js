@@ -308,6 +308,45 @@ app.get('/api/elections/:electionId/results',async(req,res)=>{
   return res.json({success:true,report});
  }catch(_){return res.status(503).json({success:false,message:'Report unavailable'})}
 });
+app.get('/api/admin/elections/:electionId/candidates',superadminOnly,async(req,res)=>{
+ try{
+  const id=req.params.electionId;
+  if(!/^ELEC-[0-9a-f-]{36}$/i.test(id))return res.status(400).json({success:false,message:'Invalid election ID'});
+  const candidates=await connection.db.collection('candidates').find({electionId:id,status:'Active'},
+   {projection:{_id:0,candidateId:1,name:1,position:1,maxVotes:1}}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,candidates});
+ }catch(_){return res.status(503).json({success:false,message:'Candidate list unavailable'})}
+});
+app.post('/api/admin/elections/:electionId/candidates',superadminOnly,async(req,res)=>{
+ try{
+  const {editCandidate}=require('./database/candidate-maintenance');
+  const result=await editCandidate(connection.db,{electionId:req.params.electionId,
+    operation:'add',position:req.body?.position,candidateName:req.body?.name,photo:req.body?.photo});
+  return res.status(201).json({success:true,...result});
+ }catch(e){
+  const errors={INVALID_CANDIDATE:[400,'Invalid candidate or photo'],
+    ELECTION_LOCKED:[409,'Election has started or another administrator is editing'],
+    DUPLICATE_CANDIDATE:[409,'Candidate already exists'],UNKNOWN_POSITION:[400,'Unknown election position']};
+  const [status,message]=errors[e?.code]||[503,'Candidate update unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
+app.delete('/api/admin/elections/:electionId/candidates/:candidateId',superadminOnly,async(req,res)=>{
+ try{
+  const {editCandidate}=require('./database/candidate-maintenance');
+  const result=await editCandidate(connection.db,{electionId:req.params.electionId,
+    candidateId:req.params.candidateId,operation:'remove'});
+  return res.json({success:true,...result});
+ }catch(e){
+  const errors={INVALID_CANDIDATE:[400,'Invalid candidate ID'],
+   ELECTION_LOCKED:[409,'Election has started or another administrator is editing'],
+   CANDIDATE_NOT_FOUND:[404,'Candidate not found'],
+   INSUFFICIENT_CANDIDATES:[409,'Cannot leave fewer candidates than the position limit']};
+  const [status,message]=errors[e?.code]||[503,'Candidate removal unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
 app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
  // Administrative preview only; no voting route is enabled.
  try{
