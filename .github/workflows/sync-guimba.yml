@@ -4,8 +4,13 @@ on:
   push:
     paths:
       - 'scripts/sync-guimba.js'
+      - 'database/guimba-location.js'
+      - '.github/workflows/sync-guimba.yml'
 permissions:
   contents: write
+concurrency:
+  group: guimba-data-main
+  cancel-in-progress: false
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -18,10 +23,20 @@ jobs:
         with:
           node-version: '22'
       - run: node scripts/sync-guimba.js
-      - name: Verify reference data
+      - name: Verify synced data with registration validator
         run: |
           test -s data/geo-cache/manifest.json
-          node -e "const m=require('./data/geo-cache/manifest.json');if(m.barangays<1)process.exit(1)"
+          node - <<'NODE'
+          const manifest = require('./data/geo-cache/manifest.json');
+          const {verifyGuimbaLocation} = require('./database/guimba-location');
+          const barangays = require('./data/geo-cache/barangays/' + manifest.cityCode + '.json');
+          if (!manifest.barangays || !barangays.length) throw new Error('No Guimba barangays returned');
+          const loc = {country:'Philippines',province:'Nueva Ecija',city:'Guimba',
+            regionCode:manifest.regionCode,provinceCode:manifest.provinceCode,
+            cityCode:manifest.cityCode,barangayCode:barangays[0].code};
+          if (!verifyGuimbaLocation(loc)) throw new Error('Guimba reference validation failed');
+          console.log('PASS: Verified Guimba hierarchy and member enrollment validator');
+          NODE
       - name: Commit verified reference data
         run: |
           git config user.name "github-actions[bot]"
@@ -29,5 +44,6 @@ jobs:
           git add -f data/geo-cache/manifest.json data/geo-cache/regions.json data/geo-cache/provinces/*.json data/geo-cache/cities/*.json data/geo-cache/barangays/*.json
           if ! git diff --cached --quiet; then
             git commit -m "Sync verified Guimba PSGC reference data"
-            git push
+            git pull --rebase origin main
+            git push origin HEAD:main
           fi
