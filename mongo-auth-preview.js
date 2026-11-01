@@ -191,6 +191,10 @@ app.post('/api/admin/register-member',superadminOnly,async(req,res)=>{
     res.set('Cache-Control','no-store');
     return res.status(201).json({success:true,memberId});
   }catch(e){
+    if(e.code==='DUPLICATE_BIOMETRIC')
+      return res.status(409).json({success:false,message:'This face is already enrolled'});
+    if(e.code==='ENROLLMENT_BUSY')
+      return res.status(423).json({success:false,message:'Biometric registration is busy; retry later'});
     if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid enrollment data or unverified Guimba address'});
     return res.status(503).json({success:false,message:'Enrollment unavailable'});
   }
