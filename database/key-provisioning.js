@@ -46,6 +46,10 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
      keyProvisioningState:'Ready',updatedAt:new Date()},
      $unset:{keyReservationId:''}},{session});
     if(result.modifiedCount!==1)throw new Error('Election reservation changed');
+    await db.collection('auditLogs').insertOne({
+     eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',action:'KEY_SHARES_ISSUED',
+     electionId,createdAt:new Date()
+    },{session});
    },{writeConcern:{w:'majority'}});
   }finally{await session.endSession()}
   succeeded=true;
