@@ -12,7 +12,7 @@ async function main(){
  const elections=[],candidates=[];
  const session={withTransaction:async fn=>fn(),endSession:async()=>{}};
  const db={collection(name){
-  if(name==='elections')return {findOne:async()=>null,insertOne:async x=>elections.push(x)};
+  if(name==='elections')return {findOne:async()=>null,updateMany:async()=>({modifiedCount:0}),insertOne:async x=>elections.push(x)};
   if(name==='candidates')return {insertMany:async xs=>candidates.push(...xs)};
   throw Error(name);
  }};
