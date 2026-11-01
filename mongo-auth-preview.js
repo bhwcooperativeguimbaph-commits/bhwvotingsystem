@@ -378,6 +378,29 @@ app.post('/api/vote',async(req,res)=>{
   return res.status(status).json({success:false,message});
  }
 });
+app.get('/api/member/notifications',async(req,res)=>{
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||auth.role!=='member')return res.status(403).json({success:false,message:'Member session required'});
+  const notifications=await connection.db.collection('memberInbox').find(
+   {memberId:auth.accountId},{projection:{_id:0,notificationId:1,electionId:1,type:1,message:1,read:1,createdAt:1},
+    sort:{createdAt:-1},limit:100}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,notifications});
+ }catch(_){return res.status(503).json({success:false,message:'Notifications unavailable'})}
+});
+app.post('/api/member/notifications/:notificationId/read',async(req,res)=>{
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||auth.role!=='member')return res.status(403).json({success:false,message:'Member session required'});
+  const id=req.params.notificationId;
+  if(!/^NOTICE-[a-f0-9-]{36}$/i.test(id))return res.status(400).json({success:false,message:'Invalid notification'});
+  const result=await connection.db.collection('memberInbox').updateOne(
+   {memberId:auth.accountId,notificationId:id},{$set:{read:true,readAt:new Date()}});
+  if(!result.matchedCount)return res.status(404).json({success:false,message:'Notification not found'});
+  res.set('Cache-Control','no-store');return res.json({success:true});
+ }catch(_){return res.status(503).json({success:false,message:'Notification update unavailable'})}
+});
 app.get('/api/receipts/:code',async(req,res)=>{
  try{
   const auth=await authenticateSession(connection.db,token(req));
