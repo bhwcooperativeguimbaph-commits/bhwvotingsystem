@@ -1,5 +1,6 @@
 <!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BHW Member Voting — Rehearsal Preview</title>
+<link rel="stylesheet" href="/css/mongo-portal.css">
 <style>
 body{font:16px system-ui;max-width:760px;padding:18px;margin:22px auto;color:#173454}
 h1{font-size:1.7rem}section{background:#f3f7fa;border:1px solid #cddae5;padding:16px;border-radius:8px;margin:18px 0}
@@ -11,6 +12,8 @@ label{display:block;padding:8px;margin:5px 0}
 #face-direction-cue{font-weight:bold;font-size:1.2rem}
 #status{white-space:pre-wrap}
 </style>
+<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true">B</span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
+
 <h1>BHW member voting — rehearsal</h1>
 <p class="warning">Development test only. Do not use for an official election until all safety checks pass. Browser gesture verification is not certified liveness detection.</p>
 <section id="auth"><h2>Face login</h2><video id="webcam" autoplay muted playsinline></video>
@@ -148,4 +151,5 @@ by('session').onclick=()=>request('/api/session').then(d=>by('status').textConte
 by('logout').onclick=()=>request('/api/logout',{}).then(()=>location.reload()).catch(e=>by('status').textContent=e.message);
 window.addEventListener('pagehide',stopCamera);
 request('/api/session').then(d=>{if(d.role==='member')return displayBallot()}).catch(()=>{});
-</script></html>
+</script><footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
+</html>
