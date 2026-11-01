@@ -244,6 +244,40 @@ app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
     return res.status(503).json({success:false,message:'Enrollment unavailable'});
   }
 });
+app.get('/api/superadmin/admins',superadminOnly,async(req,res)=>{
+ try{
+  const admins=await connection.db.collection('admins').find(
+   {role:'admin'},
+   {projection:{_id:0,adminId:1,username:1,fullName:1,email:1,status:1,createdAt:1},
+    sort:{createdAt:-1},limit:100}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,admins});
+ }catch(_){return res.status(503).json({success:false,message:'Administrator directory unavailable'})}
+});
+app.post('/api/superadmin/admins',superadminOnly,async(req,res)=>{
+ try{
+  const {createAdmin}=require('./database/admin-users');
+  const admin=await createAdmin(connection.db,req.body||{});
+  res.set('Cache-Control','no-store');
+  return res.status(201).json({success:true,admin});
+ }catch(e){
+  if(e?.code==='INVALID_ADMIN')return res.status(400).json({success:false,message:'Valid username, full name, email, and 16+ character password are required'});
+  if(e?.code==='ADMIN_EXISTS')return res.status(409).json({success:false,message:'Administrator username already exists'});
+  return res.status(503).json({success:false,message:'Unable to register administrator'});
+ }
+});
+app.patch('/api/superadmin/admins/:adminId/status',superadminOnly,async(req,res)=>{
+ try{
+  const {updateAdminStatus}=require('./database/admin-users');
+  await updateAdminStatus(connection,req.params.adminId,req.body?.status);
+  res.set('Cache-Control','no-store');
+  return res.json({success:true});
+ }catch(e){
+  if(e?.code==='INVALID_ADMIN')return res.status(400).json({success:false,message:'Invalid administrator'});
+  if(e?.code==='ADMIN_NOT_FOUND')return res.status(404).json({success:false,message:'Administrator not found'});
+  return res.status(503).json({success:false,message:'Administrator status change unavailable'});
+ }
+});
 app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
  const electionId=req.params.electionId;
  if(!/^ELEC-[a-f0-9-]{36}$/i.test(electionId))
