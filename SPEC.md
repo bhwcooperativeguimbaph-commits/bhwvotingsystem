@@ -120,10 +120,10 @@ Target database name comes from `MONGODB_DB_NAME=BHWVotingDB`, **never hard-code
 | `adminMfaCooldowns` | `adminId` unique, nextAllowed |
 | `elections` | `electionId` unique, title, state, dates, config version |
 | `candidates` | `candidateId` unique, electionId, position, maxVotes, validated image |
-| `ballots` | `ballotId` unique, `(electionId,memberId)` unique, ciphertext, hash, status |
-| `receiptCodes` | receiptCode unique, ballotId unique; avoid plaintext choices |
+| `ballots` | `ballotId` unique, electionId, ciphertext, hash, status; **no member ID or receipt link** |
+| `receiptCodes` | receiptCode unique, `(electionId,memberId)` unique; confirms acceptance without linking to ballot ciphertext |
 | `keyCustodians` | `(electionId,email)` unique, token/share status, delivery tracking |
-| `memberInbox` | memberId, electionId, notification/read status; index must support multiple distinct notifications as needed |
+| `memberInbox` | notificationId unique, memberId, electionId, notification/read state; supports multiple messages per election |
 | `finalReports` | electionId unique, finalized hash and report metadata |
 | `auditLogs` | timestamp index, actor, action, outcome, no secrets |
 
@@ -183,7 +183,7 @@ Document actual JSON request/response schemas and status codes in an `openapi.ya
 **Known commands today:**
 - `npm run start:atlas-probe`: isolated Atlas probe
 - `npm run start:mongo-auth-preview`: *partial* authentication preview; voting disabled
-- `npm start`: **legacy MySQL** backend; **do not use** on Mongo-only Render
+- `npm start`: default MongoDB portal (requires explicit preview environment guard and MongoDB credentials); `npm run start:legacy-mysql` preserves the legacy MySQL server for reference
 - `npm test`: syntax and mock-backed tests; does **not** prove end-to-end readiness
 - `npm run audit:mongodb`: read-only database readiness check
 - `npm run bootstrap:superadmin`: one-time guarded provisioning
@@ -209,7 +209,7 @@ Status legend: **Verified** = user demonstrated against Render; **Partial** = co
 | Receipts and PDFs | **Partial** | Legacy frontend PDF exists; Mongo API integration absent |
 | Dashboard, history, audits, notifications | **Partial** | Isolated turnout module; full API not integrated |
 | Super Admin management/recovery | **Partial** | OTP login implemented; full account lifecycle incomplete |
-| Complete frontend on MongoDB | **Missing** | Preview page only; legacy MySQL web app separate |
+| Complete frontend on MongoDB | **Partial** | New branded MongoDB portal and connected role-specific pages; full legacy UI parity and browser acceptance still pending |
 | Security and integration tests | **Missing** | Real Atlas/browser election scenarios and security review |
 | Production readiness | **NOT READY** | No live voting approval |
 
@@ -269,3 +269,22 @@ Subsequent commits implemented:
 **Mandatory remaining evidence:** latest CI results, Render deploy with current commit, synthetic member enrollment and challenge login in a browser, two distinct custodians receiving and confirming their keys, authenticated synthetic voting (only with an explicit rehearsal flag), receipt PDF, atomic duplicate-vote rejection, and finalized aggregate results after the configured close. Additional privacy/security review and complete original frontend/API parity remain open.
 
 **Testing safety:** Never enable `ENABLE_MONGODB_VOTE_TEST=true` for real voters. A passing public smoke test must not be treated as approval to begin a live election.
+
+## 13. Unified MongoDB UI and privacy-first ballot architecture
+
+**Implementation committed, not yet end-to-end accepted.**
+
+- The default `npm start` now launches `mongo-auth-preview.js`, with the MySQL server explicitly isolated as `npm run start:legacy-mysql`.
+- Root `/` serves a single branded BHW Guimba portal, with shared styling and the existing Guimba emblem across login, staff administration, member enrollment, member ballot, custodian confirmation, recovery and published-result pages.
+- Ordinary administrator accounts have scrypt password hashes and Brevo email OTP login, with role-based access checks and a Super Admin-only management UI. Deactivation revokes their sessions. Separate password recovery uses emailed expiring codes and revokes sessions after reset.
+- Member directory offers status controls and Guimba-validated profile corrections. Biometric enrollment records consent and enrolling staff identity with encrypted templates.
+- Candidate management includes photo uploads, restrictions to JPG/PNG, and individual pre-start add/remove operations; the voting UI shows candidate photos.
+- Finalized election aggregate results are published through `/results`, with report-hash verification and standalone PDF export. No individual ballot selections or voter IDs appear in public reports.
+- **Ballot privacy change:** the `ballots` collection stores `ballotId`, electionId, encryptedVote, voteHash and a coarse time bucket, **never memberId or receiptCode**. A separate `voterParticipation` collection uniquely indexes `(electionId,memberId)` and stores private acceptance receipts. `receiptCodes` and member inbox relate to participation, not ballot ciphertext.
+- Schema initialization auto-drops obsolete voter-linkage indexes **only if old ballot/receipt collections are empty**. If they contain data, startup must halt for reviewed migration. User explicitly specified fresh `BHWVotingDB` and no MySQL history to migrate.
+- The former `database/ballots.js` voter-linked writer is retired and throws on use. The authoritative vote path is `database/vote-service.js`.
+- Audit events for enrollment, election creation, key issuance, ballot acceptance and result finalization are inserted inside their corresponding MongoDB transactions without copying vote selections or private key shares.
+- Optional `ENABLE_MONGODB_VOTE_TEST` remains **absent/false** in Render; it is not needed for portal/UI development and must not be enabled for a real election without full acceptance.
+- **Remaining mandatory gates:** full automated CI results for latest commit; MongoDB deployment and index migration verification; end-to-end facial enrollment/session workflows; two-recipient Brevo custodian receipts; live Atlas transaction concurrency tests; PDF format/download checks; permissions, privacy/anti-spoofing, accessibility and disaster-recovery reviews; complete original frontend parity; stakeholder rehearsal and approval.
+- **Agreed development sequence:** complete code and UI changes first; user conducts one coordinated browser acceptance test afterward. No intermediate user testing required simply to continue coding.
+
