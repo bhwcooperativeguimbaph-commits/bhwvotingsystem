@@ -38,6 +38,11 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
    await db.collection('receiptCodes').insertOne({
     receiptCode:receiptNo,ballotId,electionId:election.electionId,createdAt:now
    },{session});
+   await db.collection('memberInbox').insertOne({
+    notificationId:'NOTICE-'+crypto.randomUUID(),memberId,electionId:election.electionId,
+    type:'BALLOT_RECEIPT',message:'Your ballot was securely recorded.',
+    receiptCode:receiptNo,read:false,createdAt:now
+   },{session});
    accepted=true;
   },{writeConcern:{w:'majority'}});
   if(!accepted)throw voteError('TRANSACTION_FAILED','Ballot transaction was not committed');
