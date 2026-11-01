@@ -13,7 +13,7 @@ async function fetchRows(route){
 function single(rows,name){const found=rows.filter(x=>x.name.toLowerCase()===name.toLowerCase());if(found.length!==1)throw Error('Expected exactly one '+name);return found[0]}
 async function save(folder,filename,rows){const dir=path.join(ROOT,folder);await fs.mkdir(dir,{recursive:true});await fs.writeFile(path.join(dir,filename),JSON.stringify(rows,null,2)+'\n')}
 async function main(){
- const regions=await fetchRows('/regions'),region=single(regions,'Central Luzon');
+ const regions=await fetchRows('/regions'),region=single(regions,'Region III (Central Luzon)');
  const provinces=await fetchRows('/regions/'+region.code+'/provinces'),province=single(provinces,'Nueva Ecija');
  const cities=await fetchRows('/provinces/'+province.code+'/cities-municipalities'),city=single(cities,'Guimba');
  const barangays=await fetchRows('/cities-municipalities/'+city.code+'/barangays');
