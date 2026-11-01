@@ -7,7 +7,9 @@ const htmlFiles=[
  'public/mongo-admin-console.html',
  'public/custodian-confirm.html',
  'public/mongo-enrollment-preview.html',
- 'public/mongo-member-preview.html'
+ 'public/mongo-member-preview.html',
+ 'public/mongo-portal.html',
+ 'public/mongo-results.html'
 ];
 for(const filename of htmlFiles){
  const html=fs.readFileSync(path.join(__dirname,'..',filename),'utf8');
