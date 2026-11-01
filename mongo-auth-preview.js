@@ -81,12 +81,12 @@ app.get('/member-preview',(req,res)=>{
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-member-preview.html'));
 });
-app.get('/member-enrollment-preview',superadminOnly,(req,res)=>{
+app.get('/member-enrollment-preview',staffOnly,(req,res)=>{
  res.set('Cache-Control','no-store');
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-enrollment-preview.html'));
 });
-app.get('/admin-console',superadminOnly,(req,res)=>{
+app.get('/admin-console',staffOnly,(req,res)=>{
  res.set('Cache-Control','no-store');
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-admin-console.html'));
@@ -199,9 +199,17 @@ app.post('/api/admin/login-otp',rateLimit,async(req,res)=>{
     if(!result.ok)return res.status(401).json({success:false,message:'Invalid or expired verification code'});
     cookie(res,result.token,8*3600000);
     res.set('Cache-Control','no-store');
-    return res.json({success:true,role:'superadmin'});
+    return res.json({success:true,role:result.role});
   }catch(_){return res.status(503).json({success:false,message:'Admin verification temporarily unavailable'})}
 });
+async function staffOnly(req,res,next){
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||!['admin','superadmin'].includes(auth.role))
+   return res.status(403).json({success:false,message:'Administrator session required'});
+  req.staff=auth;next();
+ }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
+}
 async function superadminOnly(req,res,next){
  try{
   const auth=await authenticateSession(connection.db,token(req));
@@ -209,7 +217,7 @@ async function superadminOnly(req,res,next){
   next();
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
-app.post('/api/admin/register-member',superadminOnly,async(req,res)=>{
+app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
   const challengeId=req.body?.challengeId;
   const ch=typeof challengeId==='string'?challenges.get(challengeId):null;
   if(ch)challenges.delete(challengeId);
@@ -236,7 +244,7 @@ app.post('/api/admin/register-member',superadminOnly,async(req,res)=>{
     return res.status(503).json({success:false,message:'Enrollment unavailable'});
   }
 });
-app.get('/api/admin/turnout/:electionId',superadminOnly,async(req,res)=>{
+app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
  const electionId=req.params.electionId;
  if(!/^ELEC-[a-f0-9-]{36}$/i.test(electionId))
   return res.status(400).json({success:false,message:'Invalid election ID'});
@@ -248,7 +256,7 @@ app.get('/api/admin/turnout/:electionId',superadminOnly,async(req,res)=>{
   return res.json({success:true,...stats});
  }catch(_){return res.status(503).json({success:false,message:'Turnout report unavailable'})}
 });
-app.get('/api/admin/members',superadminOnly,async(req,res)=>{
+app.get('/api/admin/members',staffOnly,async(req,res)=>{
  try {
   const members=await connection.db.collection('members').find({},{
     projection:{_id:0,memberId:1,fullName:1,area:1,status:1,createdAt:1},
@@ -258,7 +266,7 @@ app.get('/api/admin/members',superadminOnly,async(req,res)=>{
   return res.json({success:true,members});
  }catch(_){return res.status(503).json({success:false,message:'Member directory unavailable'})}
 });
-app.patch('/api/admin/members/:memberId/status',superadminOnly,async(req,res)=>{
+app.patch('/api/admin/members/:memberId/status',staffOnly,async(req,res)=>{
  const memberId=req.params.memberId,status=req.body?.status;
  if(!/^MEM-[0-9a-f-]{36}$/i.test(memberId)||!['Active','Inactive'].includes(status))
   return res.status(400).json({success:false,message:'Invalid member or status'});
@@ -335,7 +343,7 @@ app.get('/api/elections/:electionId/results',async(req,res)=>{
   return res.json({success:true,report});
  }catch(_){return res.status(503).json({success:false,message:'Report unavailable'})}
 });
-app.get('/api/admin/elections/:electionId/candidates',superadminOnly,async(req,res)=>{
+app.get('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=>{
  try{
   const id=req.params.electionId;
   if(!/^ELEC-[0-9a-f-]{36}$/i.test(id))return res.status(400).json({success:false,message:'Invalid election ID'});
@@ -345,7 +353,7 @@ app.get('/api/admin/elections/:electionId/candidates',superadminOnly,async(req,r
   return res.json({success:true,candidates});
  }catch(_){return res.status(503).json({success:false,message:'Candidate list unavailable'})}
 });
-app.post('/api/admin/elections/:electionId/candidates',superadminOnly,async(req,res)=>{
+app.post('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=>{
  try{
   const {editCandidate}=require('./database/candidate-maintenance');
   const result=await editCandidate(connection.db,{electionId:req.params.electionId,
@@ -359,7 +367,7 @@ app.post('/api/admin/elections/:electionId/candidates',superadminOnly,async(req,
   return res.status(status).json({success:false,message});
  }
 });
-app.delete('/api/admin/elections/:electionId/candidates/:candidateId',superadminOnly,async(req,res)=>{
+app.delete('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,async(req,res)=>{
  try{
   const {editCandidate}=require('./database/candidate-maintenance');
   const result=await editCandidate(connection.db,{electionId:req.params.electionId,
@@ -374,7 +382,7 @@ app.delete('/api/admin/elections/:electionId/candidates/:candidateId',superadmin
   return res.status(status).json({success:false,message});
  }
 });
-app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
+app.post('/api/admin/initialize-election',staffOnly,async(req,res)=>{
  // Administrative preview only; no voting route is enabled.
  try{
   const {electionId}=await createElection(connection,req.body||{});
@@ -449,11 +457,11 @@ app.get('/api/session',async(req,res)=>{
  try{
   const auth=await authenticateSession(connection.db,token(req));
   if(!auth)return res.status(401).json({success:false,message:'Session expired'});
-  if(auth.role==='superadmin'){
+  if(auth.role==='superadmin'||auth.role==='admin'){
     const admin=await connection.db.collection('admins').findOne({adminId:auth.accountId,status:'Active'});
     if(!admin)return res.status(401).json({success:false,message:'Session expired'});
     res.set('Cache-Control','no-store');
-    return res.json({success:true,role:'superadmin',memberId:auth.accountId,fullName:admin.fullName});
+    return res.json({success:true,role:auth.role,memberId:auth.accountId,fullName:admin.fullName});
   }
   const member=await connection.db.collection('members').findOne({memberId:auth.accountId,status:'Active'});
   if(!member)return res.status(401).json({success:false,message:'Session expired'});
