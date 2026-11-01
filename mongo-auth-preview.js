@@ -54,6 +54,16 @@ app.get(['/api/geo/:level','/api/geo/:level/:code'],(req,res)=>{
   res.status(status).json({success:false,message:status===400?'Invalid Guimba location selection':'Geographic reference data unavailable'});
  }
 });
+app.get('/admin-console',superadminOnly,(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ return res.sendFile(path.join(__dirname,'public','mongo-admin-console.html'));
+});
+app.get('/custodian-confirm',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
+ return res.sendFile(path.join(__dirname,'public','custodian-confirm.html'));
+});
 app.get('/api/election-info',async(req,res)=>{
  try{return res.json(await getPublicElectionInfo(connection.db))}
  catch(_){return res.status(503).json({active:false,error:'Election information unavailable'})}
