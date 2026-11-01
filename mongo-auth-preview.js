@@ -44,6 +44,16 @@ app.get('/admin-auth-preview',(req,res)=>{
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
  res.sendFile(path.join(__dirname,'public','admin-auth-preview.html'));
 });
+app.get(['/api/geo/:level','/api/geo/:level/:code'],(req,res)=>{
+ try{
+  const {getGuimbaGeography}=require('./database/guimba-geo-api');
+  res.set('Cache-Control','public, max-age=3600');
+  res.json(getGuimbaGeography(req.params.level,req.params.code));
+ }catch(e){
+  const status=e.status===400?400:503;
+  res.status(status).json({success:false,message:status===400?'Invalid Guimba location selection':'Geographic reference data unavailable'});
+ }
+});
 app.get('/api/election-info',async(req,res)=>{
  try{return res.json(await getPublicElectionInfo(connection.db))}
  catch(_){return res.status(503).json({active:false,error:'Election information unavailable'})}
