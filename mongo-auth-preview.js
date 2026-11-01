@@ -11,8 +11,6 @@ const {getPublicElectionInfo}=require('./database/election-read');
 const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
 const {beginAdminLogin,completeAdminLogin}=require('./database/admin-auth');
 const {createElection}=require('./database/elections');
-const nodemailer=require('nodemailer');
-const {sendVerificationEmail}=require('./services/email-api');
 const {sendBrevoEmail}=require('./services/brevo-email');
 const app=express();
 app.disable('x-powered-by');
@@ -177,34 +175,21 @@ app.post('/api/admin/reset/verify',rateLimit,async(req,res)=>{
 app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
   const {password,username}=req.body||{};
   if(typeof password!=='string'||password.length>256)return res.status(400).json({success:false,message:'Invalid credentials'});
-  const smtpUser=process.env.SMTP_USER,smtpPassword=process.env.SMTP_APP_PASSWORD;
-  const useBrevo=Boolean(process.env.BREVO_API_KEY&&process.env.BREVO_FROM_EMAIL);
-  const useEmailApi=Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL);
-  console.log('Admin MFA email provider selected:',useBrevo?'brevo':useEmailApi?'resend':'smtp');
-  if(!useBrevo&&!useEmailApi&&(!smtpUser||!smtpPassword))return res.status(503).json({success:false,message:'Administrator MFA email is unavailable'});
-  const transport=(useBrevo||useEmailApi)?null:nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword},connectionTimeout:12000,greetingTimeout:12000,socketTimeout:15000});
+  if(!process.env.BREVO_API_KEY||!process.env.BREVO_FROM_EMAIL)
+   return res.status(503).json({success:false,message:'Brevo administrator MFA is not configured'});
   try{
     const result=await beginAdminLogin(connection.db,{
       username:typeof username==='string'?username:(process.env.INITIAL_SUPERADMIN_USERNAME||'superadmin'),
       password,
       deliverOtp:async(email,code)=>{
-        try {
-          if(useBrevo){
-            await sendBrevoEmail({to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'});
-          }else if(useEmailApi){
-            await sendVerificationEmail({to:email,code});
-          }else{
-            const info=await transport.sendMail({from:smtpUser,to:email,subject:'BHW administrator verification',text:'Your verification code is '+code+'. It expires in five minutes.'});
-            if(!Array.isArray(info.accepted)||info.accepted.length===0)throw Object.assign(new Error('Not accepted'),{code:'NOT_ACCEPTED'});
-          }
-        } catch(e) {
-          const allowed=new Set(['EAUTH','ECONNECTION','ETIMEDOUT','ESOCKET','EDNS','EENVELOPE','EMESSAGE','NOT_ACCEPTED']);
-          const category=allowed.has(e?.code)?e.code:'OTHER_SMTP_ERROR';
-          const responseCode=Number.isInteger(e?.responseCode)&&e.responseCode>=400&&e.responseCode<=599?e.responseCode:'none';
-          console.error('Admin MFA email transport failure:',useBrevo?String(e?.code||'BREVO_ERROR').replace(/[^A-Z0-9_]/g,'').slice(0,40):useEmailApi?String(e?.code||'EMAIL_API_ERROR').replace(/[^A-Z_]/g,'').slice(0,40):category, (useBrevo||useEmailApi)?'HTTP status:':'SMTP status:',useBrevo?'see code':useEmailApi?(Number.isInteger(e?.httpStatus)?e.httpStatus:'none'):responseCode);
-          throw new Error('SMTP_DELIVERY_FAILED');
+        try{
+          await sendBrevoEmail({to:email,subject:'BHW administrator verification',
+           text:'Your verification code is '+code+'. It expires in five minutes.'});
+        }catch(e){
+          const category=String(e?.code||'BREVO_ERROR').replace(/[^A-Z0-9_]/g,'').slice(0,40);
+          console.error('Admin MFA email transport failure:',category);
+          throw new Error('BREVO_DELIVERY_FAILED');
         }
-      }
     });
     if(result.code==='INVALID_CREDENTIALS')return res.status(401).json({success:false,message:'Invalid credentials'});
     if(!result.ok){
