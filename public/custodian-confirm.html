@@ -1,0 +1,32 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHW Election Key Custodian Confirmation</title>
+<style>body{font:16px system-ui;max-width:580px;margin:10vh auto;padding:18px;color:#163355}
+input,textarea,button{box-sizing:border-box;display:block;width:100%;padding:12px;margin:8px 0 15px;border:1px solid #aaa;border-radius:6px;font:inherit}
+button{background:#164b80;color:#fff;cursor:pointer}
+label{display:block;font-weight:600}p{line-height:1.5}
+</style><h1>Confirm election key receipt</h1>
+<p>Enter only <strong>your own</strong> emailed share. Do not forward your share to another custodian, an administrator, or anyone else.</p>
+<form id="f">
+<label>Election ID<input id="electionId" required autocomplete="off" placeholder="ELEC-..."></label>
+<label>Which share did you receive?<select id="number"><option value="1">Share 1 of 2</option><option value="2">Share 2 of 2</option></select></label>
+<label>Your private share<textarea id="share" required rows="5" spellcheck="false" autocomplete="off" placeholder="BHW1..."></textarea></label>
+<button>Confirm receipt</button></form>
+<p id="result" role="status" aria-live="polite"></p>
+<script>
+'use strict';
+document.getElementById('f').addEventListener('submit',async e=>{
+ e.preventDefault();const result=document.getElementById('result');result.textContent='Verifying...';
+ const share=document.getElementById('share');
+ try{
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+  try{
+   const r=await fetch('/api/key-custody/confirm',{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},signal:controller.signal,
+    body:JSON.stringify({electionId:document.getElementById('electionId').value.trim(),
+      shareIndex:Number(document.getElementById('number').value),share:share.value.trim()})});
+   const d=await r.json();result.textContent=d.message||'Request unavailable';
+  }finally{clearTimeout(timer)}
+ }catch(_){result.textContent='Network error; please try again later'}
+ finally{share.value=''}
+});
+</script></html>
