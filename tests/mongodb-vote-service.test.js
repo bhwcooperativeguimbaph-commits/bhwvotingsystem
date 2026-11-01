@@ -22,14 +22,19 @@ async function main(){
   if(name==='members')return {findOne:async()=>member};
   if(name==='elections')return {findOne:async()=>election};
   if(name==='candidates')return {find:()=>({toArray:async()=>candidates})};
+  if(name==='voterParticipation')return {insertOne:async(doc,opt)=>{
+   assert.equal(opt.session,session);assert.equal(doc.memberId,'M1');
+   assert.equal('ballotId' in doc,false);
+   if(voteCount)throw Object.assign(new Error('duplicate'),{code:11000});
+  }};
   if(name==='ballots')return {insertOne:async(doc,opt)=>{
    assert.equal(opt.session,session);
-   if(voteCount)throw Object.assign(new Error('duplicate'),{code:11000});
    savedVote=doc;voteCount++;
   }};
   if(name==='receiptCodes')return {insertOne:async(doc,opt)=>{
    assert.equal(opt.session,session);
-   assert.equal(doc.ballotId,savedVote.ballotId);
+   assert.equal(doc.memberId,'M1');
+   assert.equal('ballotId' in doc,false);
    assert.equal(doc.receiptCode.startsWith('BHW-'),true);receiptCount++;
   }};
   if(name==='auditLogs')return {insertOne:async(doc,opt)=>{
@@ -49,6 +54,8 @@ async function main(){
  assert.equal(receiptCount,1);assert.equal(voteCount,1);
  assert.equal('choices' in savedVote,false);
  assert.equal('candidateId' in savedVote,false);
+ assert.equal('memberId' in savedVote,false);
+ assert.equal('receiptCode' in savedVote,false);
  assert.deepEqual(decryptBallot(savedVote.encryptedVote,'E1',privateKey),choices);
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='DUPLICATE_BALLOT');
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices:{Kagawad:['c1','c2'],Kapitan:[]}}),e=>e.code==='INVALID_BALLOT');
