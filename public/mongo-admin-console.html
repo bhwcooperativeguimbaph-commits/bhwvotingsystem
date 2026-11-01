@@ -50,6 +50,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
 <div class="cols"><label>Full name<input id="editMemberName" maxlength="100"></label>
 <label>Area<input id="editMemberArea" maxlength="100"></label></div>
+<div class="cols"><label>Street address<input id="editMemberAddress" maxlength="500"></label>
+<label>Birthdate<input id="editMemberBirthdate" type="date"></label>
+<label>Gender<select id="editMemberGender"><option value="Male">Male</option><option value="Female">Female</option></select></label></div>
 <label>Guimba barangay<select id="editMemberBarangay"></select></label>
 <button id="saveMember">Save member profile</button>
 <button id="cancelMemberEdit" class="ghost">Cancel</button><pre id="editMemberResult"></pre>
@@ -196,6 +199,9 @@ async function editMember(member){
  by('editMemberId').value=member.memberId;
  by('editMemberName').value=member.fullName;
  by('editMemberArea').value=member.area;
+ by('editMemberAddress').value=member.address||'';
+ by('editMemberBirthdate').value=member.birthdate||'';
+ by('editMemberGender').value=member.gender||'Male';
  const response=await call('/api/geo/barangays/0304911000');
  const dropdown=by('editMemberBarangay');dropdown.replaceChildren();
  if(Array.isArray(response))for(const barangay of response){
@@ -212,7 +218,9 @@ by('saveMember').onclick=async()=>{
   regionCode:'0300000000',provinceCode:'0304900000',cityCode:'0304911000',
   barangayCode:by('editMemberBarangay').value};
  const result=await action('editMemberResult',()=>call('/api/admin/members/'+encodeURIComponent(editingMember.memberId),'PATCH',
-  {fullName:by('editMemberName').value,area:by('editMemberArea').value,location}));
+  {fullName:by('editMemberName').value,area:by('editMemberArea').value,
+  address:by('editMemberAddress').value,birthdate:by('editMemberBirthdate').value,
+  gender:by('editMemberGender').value,location}));
  if(result?.success){by('memberEditor').hidden=true;editingMember=null;await showMembers()}
 };
 
