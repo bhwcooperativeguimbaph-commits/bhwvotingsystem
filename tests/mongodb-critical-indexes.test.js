@@ -12,5 +12,6 @@ required('receiptCodes',['receiptCode'],o=>o.unique===true);
 required('authSessions',['tokenHash'],o=>o.unique===true);
 required('authSessions',['expiresAt'],o=>o.expireAfterSeconds===0);
 required('elections',['status'],o=>o.unique===true&&o.partialFilterExpression?.status==='Active');
-required('memberInbox',['electionId','memberId'],o=>o.unique===true);
+required('memberInbox',['notificationId'],o=>o.unique===true);
+required('memberInbox',['memberId','createdAt'],o=>o.unique!==true);
 console.log('PASS: Critical election ballot uniqueness, active-election and session indexes');
