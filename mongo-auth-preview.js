@@ -54,6 +54,19 @@ app.get(['/api/geo/:level','/api/geo/:level/:code'],(req,res)=>{
   res.status(status).json({success:false,message:status===400?'Invalid Guimba location selection':'Geographic reference data unavailable'});
  }
 });
+app.use('/models',express.static(path.join(__dirname,'public','models'),{
+ index:false,etag:true,maxAge:'1d'
+}));
+app.get('/js/mongo-face-challenge.js',superadminOnly,(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.type('application/javascript');
+ return res.sendFile(path.join(__dirname,'public','js','mongo-face-challenge.js'));
+});
+app.get('/member-enrollment-preview',superadminOnly,(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; connect-src 'self'; media-src 'self' blob:; img-src 'self' data:; form-action 'self'; base-uri 'none'");
+ return res.sendFile(path.join(__dirname,'public','mongo-enrollment-preview.html'));
+});
 app.get('/admin-console',superadminOnly,(req,res)=>{
  res.set('Cache-Control','no-store');
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; form-action 'self'; base-uri 'none'");
