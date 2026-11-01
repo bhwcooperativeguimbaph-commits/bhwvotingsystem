@@ -25,6 +25,7 @@ async function main(){
    updateOne:async q=>{const v=mfa.find(x=>x.challengeHash===q.challengeHash);if(v&&!v.consumed){v.consumed=true;return{modifiedCount:1}}return{modifiedCount:0}},
    deleteOne:async()=>({})
   };
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'ADMIN_STATUS_CHANGED');assert.ok(opts?.session)}};
   throw Error(name)
  }};
  assert.throws(()=>validateAdmin({username:'a',email:'invalid',fullName:'Someone',password:'short'}),e=>e.code==='INVALID_ADMIN');
