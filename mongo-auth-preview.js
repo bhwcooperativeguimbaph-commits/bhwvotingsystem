@@ -325,12 +325,26 @@ app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
 app.get('/api/admin/members',staffOnly,async(req,res)=>{
  try {
   const members=await connection.db.collection('members').find({},{
-    projection:{_id:0,memberId:1,fullName:1,area:1,status:1,createdAt:1},
+    projection:{_id:0,memberId:1,fullName:1,area:1,location:1,status:1,createdAt:1},
     sort:{createdAt:-1},limit:100
   }).toArray();
   res.set('Cache-Control','no-store');
   return res.json({success:true,members});
  }catch(_){return res.status(503).json({success:false,message:'Member directory unavailable'})}
+});
+app.patch('/api/admin/members/:memberId',staffOnly,async(req,res)=>{
+ try{
+  const {updateMemberProfile}=require('./database/members');
+  const {verifyGuimbaLocation}=require('./database/guimba-location');
+  const member=await updateMemberProfile(connection.db,req.params.memberId,req.body||{},
+   {validateLocation:verifyGuimbaLocation});
+  if(!member)return res.status(404).json({success:false,message:'Member not found'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,member});
+ }catch(e){
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid name, area, or Guimba barangay'});
+  return res.status(503).json({success:false,message:'Member profile update unavailable'});
+ }
 });
 app.patch('/api/admin/members/:memberId/status',staffOnly,async(req,res)=>{
  const memberId=req.params.memberId,status=req.body?.status;
