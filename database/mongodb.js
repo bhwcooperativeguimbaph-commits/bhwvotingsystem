@@ -6,7 +6,8 @@ const { MongoClient } = require('mongodb');
 const indexSpecs = {
   admins: [[{adminId:1},{unique:true}], [{username:1},{unique:true}]],
   members: [[{memberId:1},{unique:true}]],
-  elections: [[{electionId:1},{unique:true}], [{status:1,createdAt:-1}]],
+  elections: [[{electionId:1},{unique:true}], [{status:1,createdAt:-1}],
+    [{status:1},{unique:true,partialFilterExpression:{status:'Active'},name:'single_active_election'}]],
   candidates: [[{candidateId:1},{unique:true}], [{electionId:1,position:1}]],
   ballots: [
     [{ballotId:1},{unique:true}],
