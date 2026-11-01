@@ -152,6 +152,28 @@ async function superadminOnly(req,res,next){
   next();
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
+app.get('/api/admin/members',superadminOnly,async(req,res)=>{
+ try {
+  const members=await connection.db.collection('members').find({},{
+    projection:{_id:0,memberId:1,fullName:1,area:1,status:1,createdAt:1},
+    sort:{createdAt:-1},limit:100
+  }).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,members});
+ }catch(_){return res.status(503).json({success:false,message:'Member directory unavailable'})}
+});
+app.patch('/api/admin/members/:memberId/status',superadminOnly,async(req,res)=>{
+ const memberId=req.params.memberId,status=req.body?.status;
+ if(!/^MEM-[0-9a-f-]{36}$/i.test(memberId)||!['Active','Inactive'].includes(status))
+  return res.status(400).json({success:false,message:'Invalid member or status'});
+ try {
+  const {setMemberStatus}=require('./database/members');
+  const updated=await setMemberStatus(connection.db,memberId,status);
+  if(!updated)return res.status(404).json({success:false,message:'Member not found'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true});
+ }catch(_){return res.status(503).json({success:false,message:'Member update unavailable'})}
+});
 app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
  // Administrative preview only; no voting route is enabled.
  try{
