@@ -306,6 +306,15 @@ app.post('/api/admin/elections/:electionId/disclose-results',superadminOnly,asyn
   return res.status(503).json({success:false,message:'Result disclosure unavailable; review ballot integrity before retrying'});
  }
 });
+app.get('/api/elections/recent-finalized',async(req,res)=>{
+ try{
+  const elections=await connection.db.collection('elections').find(
+   {status:'Finalized'},
+   {projection:{_id:0,electionId:1,title:1,finalizedAt:1},sort:{finalizedAt:-1},limit:10}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,elections});
+ }catch(_){return res.status(503).json({success:false,message:'Election archive temporarily unavailable'})}
+});
 app.get('/api/elections/:electionId/results',async(req,res)=>{
  const id=req.params.electionId;
  if(!/^ELEC-[0-9a-f-]{36}$/i.test(id))return res.status(400).json({success:false,message:'Invalid election ID'});
@@ -313,6 +322,10 @@ app.get('/api/elections/:electionId/results',async(req,res)=>{
   const report=await connection.db.collection('finalReports').findOne({electionId:id},
    {projection:{_id:0,electionId:1,ballotsCast:1,results:1,publishedAt:1,reportHash:1}});
   if(!report)return res.status(404).json({success:false,message:'Final results are not yet published'});
+  const expected=crypto.createHash('sha256').update(JSON.stringify({electionId:report.electionId,
+    ballotsCast:report.ballotsCast,results:report.results,publishedAt:report.publishedAt})).digest('hex');
+  if(typeof report.reportHash!=='string'||expected!==report.reportHash)
+   return res.status(503).json({success:false,message:'Report integrity verification failed'});
   res.set('Cache-Control','no-store');
   return res.json({success:true,report});
  }catch(_){return res.status(503).json({success:false,message:'Report unavailable'})}
