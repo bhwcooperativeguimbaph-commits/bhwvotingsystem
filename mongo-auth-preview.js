@@ -524,15 +524,16 @@ app.get('/api/receipts/:code',async(req,res)=>{
   if(!auth||auth.role!=='member')return res.status(403).json({success:false,message:'Voter session required'});
   const code=req.params.code;
   if(!/^BHW-[A-F0-9]{32}$/.test(code))return res.status(400).json({success:false,message:'Invalid receipt number'});
-  const receipt=await connection.db.collection('receiptCodes').findOne({receiptCode:code});
+  const receipt=await connection.db.collection('receiptCodes').findOne(
+    {receiptCode:code,memberId:auth.accountId});
   if(!receipt)return res.status(404).json({success:false,message:'Receipt not found'});
-  const ballot=await connection.db.collection('ballots').findOne(
-    {ballotId:receipt.ballotId,electionId:receipt.electionId,memberId:auth.accountId,status:'Valid'},
-    {projection:{_id:0,voteHash:1,createdAt:1}});
-  if(!ballot)return res.status(404).json({success:false,message:'Receipt not found'});
+  const participation=await connection.db.collection('voterParticipation').findOne({
+    electionId:receipt.electionId,memberId:auth.accountId,receiptCode:code,status:'Valid'
+  },{projection:{_id:0,createdAt:1}});
+  if(!participation)return res.status(404).json({success:false,message:'Receipt not found'});
   res.set('Cache-Control','no-store');
   return res.json({success:true,receiptNo:code,electionId:receipt.electionId,
-    recordedAt:ballot.createdAt,integrityHash:ballot.voteHash});
+    recordedAt:participation.createdAt,message:'Participation confirmed. Ballot contents remain anonymous.'});
  }catch(_){return res.status(503).json({success:false,message:'Receipt verification unavailable'})}
 });
 app.get('/api/session',async(req,res)=>{
@@ -548,7 +549,7 @@ app.get('/api/session',async(req,res)=>{
   const member=await connection.db.collection('members').findOne({memberId:auth.accountId,status:'Active'});
   if(!member)return res.status(401).json({success:false,message:'Session expired'});
   const election=await connection.db.collection('elections').findOne({status:'Active',endTime:{$gt:new Date()}},{sort:{createdAt:-1}});
-  const hasVoted=!!(election&&await connection.db.collection('ballots').findOne({electionId:election.electionId,memberId:auth.accountId}));
+  const hasVoted=!!(election&&await connection.db.collection('voterParticipation').findOne({electionId:election.electionId,memberId:auth.accountId,status:'Valid'}));
   res.set('Cache-Control','no-store');
   res.json({success:true,role:'member',memberId:auth.accountId,fullName:member.fullName,hasVoted});
  }catch(_){res.status(503).json({success:false,message:'Session temporarily unavailable'})}
