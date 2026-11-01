@@ -59,6 +59,10 @@ async function createElection(connection,input,{now=new Date()}={}){
     ...c,electionId,position:pos.title,maxVotes:pos.maxVotes,status:'Active'
    })));
    await db.collection('candidates').insertMany(candidates,{session});
+   await db.collection('auditLogs').insertOne({
+    eventId:'AUD-'+crypto.randomUUID(),actorRole:'staff',action:'ELECTION_CREATED',
+    electionId,createdAt:now
+   },{session});
    saved=true;
   },{writeConcern:{w:'majority'}});
   if(!saved)throw new Error('Election transaction not committed');
