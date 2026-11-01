@@ -23,6 +23,7 @@ label{display:block;padding:8px;margin:5px 0}
 <button id="vote" disabled>Submit encrypted rehearsal vote</button>
 <p id="receipt"></p><label>Receipt confirmation number <input id="receiptInput" placeholder="BHW-..." style="width:100%;padding:9px"></label><button id="verifyReceipt">Verify my receipt</button><button id="downloadReceipt" disabled>Download secret-ballot receipt PDF</button><span id="receipt-no" hidden></span><span id="receipt-date" hidden></span>
 </section>
+<section id="notifications" class="hidden"><h2>My election notifications</h2><div id="notificationList"></div><button id="refreshNotifications">Refresh notifications</button></section>
 <button id="session">Check current session</button>
 <button id="logout">Log out</button>
 <p id="status" role="status" aria-live="polite">No active session.</p>
@@ -66,6 +67,7 @@ async function displayBallot(){
   }container.appendChild(field);
  }
  by('vote').disabled=Boolean(auth.hasVoted);
+ await loadNotifications();
 }
 by('camera').onclick=async()=>{
  if(working)return;working=true;by('camera').disabled=true;by('status').textContent='Loading face models...';
@@ -105,6 +107,7 @@ by('vote').onclick=async()=>{
   by('receipt-date').textContent=new Date().toLocaleString();
   by('downloadReceipt').disabled=false;
   by('status').textContent='Encrypted rehearsal ballot committed';
+  await loadNotifications();
  }catch(e){by('status').textContent=e.message;by('vote').disabled=false}
  finally{working=false}
 };
@@ -119,6 +122,28 @@ by('verifyReceipt').onclick=async()=>{
  }catch(e){by('receipt').textContent=e.message;by('downloadReceipt').disabled=true}
 };
 by('downloadReceipt').onclick=()=>window.downloadReceipt?.();
+async function loadNotifications(){
+ try{
+  const result=await request('/api/member/notifications');
+  const section=by('notifications'),list=by('notificationList');
+  section.classList.remove('hidden');list.replaceChildren();
+  for(const note of result.notifications){
+   const p=document.createElement('p'),text=document.createElement('span');
+   text.textContent=new Date(note.createdAt).toLocaleString()+' — '+note.message;
+   p.appendChild(text);
+   if(!note.read){const button=document.createElement('button');button.textContent='Mark as read';
+    button.onclick=async()=>{
+     try{await request('/api/member/notifications/'+encodeURIComponent(note.notificationId)+'/read',{});await loadNotifications()}
+     catch(e){by('status').textContent=e.message}
+    };
+    p.appendChild(button);
+   }
+   list.appendChild(p);
+  }
+  if(!result.notifications.length)list.textContent='No notifications yet';
+ }catch(e){by('status').textContent=e.message}
+}
+by('refreshNotifications').onclick=loadNotifications;
 by('session').onclick=()=>request('/api/session').then(d=>by('status').textContent='Authenticated as '+d.role).catch(e=>by('status').textContent=e.message);
 by('logout').onclick=()=>request('/api/logout',{}).then(()=>location.reload()).catch(e=>by('status').textContent=e.message);
 window.addEventListener('pagehide',stopCamera);
