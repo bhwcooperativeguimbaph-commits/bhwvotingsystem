@@ -1,0 +1,103 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BHW Guimba — Published Election Results</title><link rel="stylesheet" href="/css/mongo-portal.css">
+<style>
+.results-table{width:100%;border-collapse:collapse;margin-top:20px}
+.results-table th,.results-table td{text-align:left;padding:13px;border-bottom:1px solid #d9e6df}
+.results-table th{background:#e9f2ed}
+.results-table td:last-child{text-align:right;font-weight:750;font-variant-numeric:tabular-nums}
+.results-table th:last-child{text-align:right}
+.results-table tr:hover{background:#f3f8f5}
+.code{font:12px ui-monospace,monospace;overflow-wrap:anywhere}
+</style>
+<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem">B</span><span>BHW Guimba Voting System<small>Public results archive</small></span></a>
+<nav class="portal-nav"><a href="/">Overview</a><a href="/member-preview">Members</a><a href="/admin-auth-preview">Administration</a></nav></header>
+<h1>Published election results</h1>
+<p>Only aggregate results from finalized elections are shown. Individual member identities and ballot selections are never included.</p>
+<section><h2>Election archive</h2><label for="election">Select a finalized election</label>
+<select id="election" style="width:100%;max-width:520px"></select>
+<button type="button" id="load">View published report</button><p id="status" role="status">Loading election archive…</p></section>
+<section id="report" hidden><h2 id="reportTitle">Election report</h2>
+<div class="portal-meta" style="margin:0"><div><small>Valid ballots</small><strong id="ballots">0</strong></div>
+<div><small>Published</small><strong id="published">—</strong></div></div>
+<div id="results"></div><p class="code" id="reportHash"></p>
+<button id="download" type="button">Download aggregate results (PDF)</button></section>
+<footer class="portal-footer">Published totals do not reveal voter-to-candidate choices. Verify all results against the election's signed-off finalization record.</footer>
+<script>
+'use strict';
+const by=id=>document.getElementById(id);let current=null,archive=[];
+async function get(url){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),16000);
+ try{const response=await fetch(url,{credentials:'same-origin',signal:controller.signal});
+  const data=await response.json();if(!response.ok||data.success===false)throw Error(data.message||'Request failed');return data}
+ finally{clearTimeout(timer)}
+}
+function printable(s){return String(s).replace(/[^\x20-\x7E]/g,'?').replace(/[\\()]/g,'\\$&')}
+function downloadAggregatePDF(report,title){
+ const lines=['GUIMBA BHW - PUBLISHED ELECTION RESULTS','',
+  'Election: '+title,'Election ID: '+report.electionId,
+  'Finalized: '+new Date(report.publishedAt).toISOString(),
+  'Ballots recorded: '+report.ballotsCast,'',
+  'POSITION / CANDIDATE / VOTES','-'.repeat(82)];
+ for(const item of report.results)lines.push(item.position+' | '+item.name+' | '+item.votes);
+ lines.push('', 'Report integrity SHA-256:',report.reportHash,'',
+  'Aggregate results only. No member identities or private ballots included.');
+ // Simple valid ASCII-only multi-page PDF, no external CDN or remote report service.
+ const chunks=[];for(let i=0;i<lines.length;i+=46)chunks.push(lines.slice(i,i+46));
+ const objects=['<< /Type /Catalog /Pages 2 0 R >>',null,
+   '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>'];
+ const pageIds=[];
+ for(const part of chunks){
+  const pageId=objects.length+1,streamId=pageId+1;pageIds.push(pageId);
+  objects.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents '+streamId+' 0 R >>');
+  const stream='BT /F1 10 Tf 42 756 Td 14 TL '+part.map((x,i)=>'('+printable(x)+') Tj'+(i===part.length-1?'':' T*')).join(' ')+' ET';
+  objects.push('<< /Length '+stream.length+' >>\nstream\n'+stream+'\nendstream');
+ }
+ objects[1]='<< /Type /Pages /Kids ['+pageIds.map(id=>id+' 0 R').join(' ')+'] /Count '+pageIds.length+' >>';
+ let pdf='%PDF-1.4\n';const offsets=[0];
+ for(let i=0;i<objects.length;i++){offsets.push(pdf.length);pdf+=(i+1)+' 0 obj\n'+objects[i]+'\nendobj\n'}
+ const start=pdf.length;pdf+='xref\n0 '+(objects.length+1)+'\n0000000000 65535 f \n';
+ for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+ pdf+='trailer\n<< /Size '+(objects.length+1)+' /Root 1 0 R >>\nstartxref\n'+start+'\n%%EOF';
+ const url=URL.createObjectURL(new Blob([pdf],{type:'application/pdf'}));
+ const a=document.createElement('a');a.href=url;a.download='BHW_Guimba_Final_Results_'+report.electionId+'.pdf';
+ document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);
+}
+async function loadArchive(){
+ try{
+  const data=await get('/api/elections/recent-finalized');archive=data.elections;
+  const select=by('election');select.replaceChildren();
+  for(const item of archive){const option=document.createElement('option');option.value=item.electionId;option.textContent=item.title;select.appendChild(option)}
+  if(!archive.length){by('status').textContent='No finalized elections are published yet.';return}
+  by('status').textContent=archive.length+' finalized election(s) found.';
+  await display();
+ }catch(e){by('status').textContent=e.message}
+}
+async function display(){
+ const id=by('election').value;if(!id)return;
+ current=null;by('report').hidden=true;by('status').textContent='Validating report integrity…';
+ try{
+  const data=await get('/api/elections/'+encodeURIComponent(id)+'/results'),report=data.report;
+  const record=archive.find(x=>x.electionId===id);
+  current={report,title:record?.title||'Election'};
+  by('reportTitle').textContent=current.title;
+  by('ballots').textContent=String(report.ballotsCast);
+  by('published').textContent=new Date(report.publishedAt).toLocaleString();
+  const holder=by('results');holder.replaceChildren();
+  const table=document.createElement('table');table.className='results-table';
+  const head=document.createElement('thead'),hr=document.createElement('tr');
+  for(const label of ['Position','Candidate','Votes']){const th=document.createElement('th');th.textContent=label;hr.appendChild(th)}
+  head.appendChild(hr);table.appendChild(head);
+  const tbody=document.createElement('tbody');
+  for(const row of report.results){
+   const tr=document.createElement('tr');
+   for(const value of [row.position,row.name,row.votes]){const td=document.createElement('td');td.textContent=String(value);tr.appendChild(td)}
+   tbody.appendChild(tr);
+  }table.appendChild(tbody);holder.appendChild(table);
+  by('reportHash').textContent='Integrity hash: '+report.reportHash;
+  by('report').hidden=false;by('status').textContent='Verified published aggregate report.';
+ }catch(e){by('status').textContent=e.message}
+}
+by('load').onclick=display;
+by('download').onclick=()=>{if(current)downloadAggregatePDF(current.report,current.title)};
+loadArchive();
+</script></html>
