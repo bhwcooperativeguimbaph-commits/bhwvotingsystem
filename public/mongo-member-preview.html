@@ -21,13 +21,14 @@ label{display:block;padding:8px;margin:5px 0}
 <section id="voting" class="hidden"><h2 id="welcome">Member ballot</h2>
 <p id="electionStatus"></p><div id="positions"></div>
 <button id="vote" disabled>Submit encrypted rehearsal vote</button>
-<p id="receipt"></p>
+<p id="receipt"></p><label>Receipt confirmation number <input id="receiptInput" placeholder="BHW-..." style="width:100%;padding:9px"></label><button id="verifyReceipt">Verify my receipt</button><button id="downloadReceipt" disabled>Download secret-ballot receipt PDF</button><span id="receipt-no" hidden></span><span id="receipt-date" hidden></span>
 </section>
 <button id="session">Check current session</button>
 <button id="logout">Log out</button>
 <p id="status" role="status" aria-live="polite">No active session.</p>
 <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script defer src="/js/mongo-face-challenge.js"></script>
+<script defer src="/js/receipt-pdf.js"></script>
 <script>
 'use strict';
 const by=id=>document.getElementById(id),video=by('webcam');
@@ -99,10 +100,25 @@ by('vote').onclick=async()=>{
  try{
   const r=await request('/api/vote',{choices});
   by('receipt').textContent='Server-issued receipt number: '+r.receiptNo;
+  by('receiptInput').value=r.receiptNo;
+  by('receipt-no').textContent=r.receiptNo;
+  by('receipt-date').textContent=new Date().toLocaleString();
+  by('downloadReceipt').disabled=false;
   by('status').textContent='Encrypted rehearsal ballot committed';
  }catch(e){by('status').textContent=e.message;by('vote').disabled=false}
  finally{working=false}
 };
+by('verifyReceipt').onclick=async()=>{
+ const code=by('receiptInput').value.trim();
+ try{
+  const data=await request('/api/receipts/'+encodeURIComponent(code));
+  by('receipt-no').textContent=data.receiptNo;
+  by('receipt-date').textContent=new Date(data.recordedAt).toLocaleString();
+  by('downloadReceipt').disabled=false;
+  by('receipt').textContent='Receipt verified for your member account. No candidate selections are disclosed.';
+ }catch(e){by('receipt').textContent=e.message;by('downloadReceipt').disabled=true}
+};
+by('downloadReceipt').onclick=()=>window.downloadReceipt?.();
 by('session').onclick=()=>request('/api/session').then(d=>by('status').textContent='Authenticated as '+d.role).catch(e=>by('status').textContent=e.message);
 by('logout').onclick=()=>request('/api/logout',{}).then(()=>location.reload()).catch(e=>by('status').textContent=e.message);
 window.addEventListener('pagehide',stopCamera);
