@@ -45,6 +45,8 @@ async function createElection(connection,input,{now=new Date()}={}){
  try {
   let saved=false;
   await session.withTransaction(async()=>{
+   await db.collection('elections').updateMany({status:'Active',endTime:{$lte:now}},
+    {$set:{status:'Closed',closedAt:now}},{session});
    const active=await db.collection('elections').findOne(
     {status:'Active',endTime:{$gt:now}},{session});
    if(active)throw Object.assign(new Error('An election is already open'),{code:'ACTIVE_ELECTION'});
@@ -58,6 +60,9 @@ async function createElection(connection,input,{now=new Date()}={}){
   },{writeConcern:{w:'majority'}});
   if(!saved)throw new Error('Election transaction not committed');
   return {electionId};
+ } catch(e){
+  if(e?.code===11000)throw Object.assign(new Error('An election is already active'),{code:'ACTIVE_ELECTION'});
+  throw e;
  } finally {await session.endSession();}
 }
 module.exports={validateElection,createElection};
