@@ -23,6 +23,7 @@ async function run(){
   if(name==='candidates')return {find:()=>({toArray:async()=>candidates})};
   if(name==='ballots')return {find:()=>({toArray:async()=>ballots})};
   if(name==='finalReports')return {insertOne:async doc=>saved.push(doc)};
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'RESULTS_FINALIZED');assert.ok(opts?.session)}};
   throw Error(name);
  }}};
  const now=new Date('2027-02-01T00:00:00Z');
