@@ -1,0 +1,56 @@
+/* BHW Guimba unified preview UI — no remote assets, accessible contrast. */
+:root{--ink:#14263d;--muted:#64748b;--canvas:#f3f7f5;--surface:#ffffff;--line:#dce7e2;--green:#13694c;--deep:#104f3d;--sage:#e4f2e9;--gold:#e3b65b;--red:#ae3942;--shadow:0 18px 44px rgba(18,65,50,.075);font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0!important;max-width:none!important;padding:24px!important;min-height:100vh;background:radial-gradient(circle at 90% 0%,#e0eee7 0,transparent 30%),var(--canvas);color:var(--ink)}
+body>h1,body>.page-head{max-width:1040px;margin:25px auto 8px!important;font-size:clamp(1.7rem,3vw,2.5rem);font-weight:780;letter-spacing:-.042em}
+body>h2,body>p,body>form,body>section,body>button,body>#status,body>#message,body>video,body>#face-direction-cue,body>#face-action-status,body>pre,body>.cols,body>#voting,body>#auth{max-width:1040px;margin-left:auto!important;margin-right:auto!important}
+body>p{line-height:1.65}
+a{color:var(--green);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{color:var(--deep)}
+section,body>form,.panel{background:var(--surface)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:22px!important;box-shadow:var(--shadow);margin-bottom:22px!important}
+section h2{margin:0 0 14px!important;letter-spacing:-.02em;color:var(--ink)}
+label{font-size:.93rem;color:#354b60;font-weight:650}
+input:not([type=checkbox]):not([type=radio]),textarea,select{background:#fff!important;border:1px solid #cbd9d2!important;border-radius:9px!important;min-height:44px;color:var(--ink);font-size:1rem}
+input:focus-visible,textarea:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid #83b5a6!important;outline-offset:2px}
+button{background:var(--green)!important;color:#fff!important;border:1px solid transparent!important;border-radius:9px!important;font-weight:700!important;min-height:43px;transition:background .16s,transform .16s;cursor:pointer}
+button:hover:not(:disabled){background:var(--deep)!important;transform:translateY(-1px)}
+button:disabled{opacity:.5;cursor:not-allowed}
+button.ghost{background:#e9f2ed!important;color:var(--deep)!important;border-color:#bbd7c9!important}
+button.danger{background:var(--red)!important}
+pre{background:#f3f7f5!important;border:1px solid var(--line);color:#28423a!important;border-radius:9px;padding:12px;white-space:pre-wrap;word-break:break-word}
+small{color:var(--muted)}
+.warning{color:#945426!important;background:#fff8e8;border:1px solid #f0daab;border-radius:10px;padding:10px 13px}
+.hidden,[hidden]{display:none!important}
+.portal-top{max-width:1080px;margin:0 auto 24px;display:flex;gap:15px;justify-content:space-between;align-items:center;padding:14px 0;border-bottom:1px solid #ceded6}
+.portal-brand{display:flex;align-items:center;gap:13px;text-decoration:none;color:var(--deep);font-size:1.02rem;font-weight:850;letter-spacing:-.03em}
+.portal-emblem{height:40px;width:40px;border-radius:13px;background:var(--deep);color:white;display:grid;place-items:center;font-size:19px}
+.portal-brand small{display:block;font-size:12px;font-weight:550;letter-spacing:0;color:var(--muted)}
+.portal-nav{display:flex;flex-wrap:wrap;gap:6px}
+.portal-nav a{font-size:13px;padding:9px 12px;border-radius:8px;text-decoration:none;color:#425b4f;font-weight:700}
+.portal-nav a:hover{background:var(--sage);color:var(--deep)}
+.portal-footer{max-width:1040px;margin:44px auto 0;padding:20px 0 35px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.status-chip{font-size:12px;font-weight:750;display:inline-flex;padding:6px 11px;background:var(--sage);color:var(--deep);border-radius:99px}
+.portal-hero{max-width:1040px;margin:34px auto 26px;padding:40px;border-radius:23px;background:linear-gradient(135deg,#0c4f3d 0%,#0d684f 75%,#1e8061 100%);color:white;position:relative;overflow:hidden}
+.portal-hero:after{content:"";position:absolute;right:-80px;top:-150px;width:350px;height:350px;border:2px solid #ffffff22;border-radius:50%;box-shadow:0 0 0 55px #ffffff10,0 0 0 120px #ffffff07;pointer-events:none}
+.portal-hero h1{max-width:610px;margin:15px 0;font-size:clamp(2.15rem,5vw,3.6rem);line-height:1.08;letter-spacing:-.05em}
+.portal-hero p{max-width:570px;font-size:1.04rem;line-height:1.7;color:#d4eee2}
+.portal-hero .status-chip{background:#d9efe3}
+.portal-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:25px}
+.portal-actions a{display:inline-flex;align-items:center;justify-content:center;background:#fff;padding:13px 17px;border-radius:10px;color:var(--deep);font-weight:750;text-decoration:none}
+.portal-actions a.secondary{border:1px solid #8ac0a9;color:white;background:transparent}
+.portal-actions a:hover{opacity:.9}
+.portal-grid{max-width:1040px;margin:22px auto;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.portal-card{display:flex;flex-direction:column;gap:8px;background:#fff;padding:25px;border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow)}
+.portal-card .symbol{font-size:27px}
+.portal-card h2{font-size:1.17rem;margin:5px 0 0}
+.portal-card p{color:var(--muted);line-height:1.6;margin:0 0 5px;flex-grow:1}
+.portal-card a{font-weight:750}
+.portal-meta{max-width:1040px;margin:24px auto;display:flex;gap:15px;flex-wrap:wrap}
+.portal-meta>div{background:#fff;border:1px solid var(--line);padding:14px 18px;border-radius:12px;flex:1;min-width:190px}
+.portal-meta strong{display:block;font-size:22px;margin-top:7px}
+.portal-meta small{font-size:12px}
+.portal-announcement{max-width:1040px;margin:20px auto;background:#fff8e9;border:1px solid #ebd9b2;border-radius:13px;padding:15px 17px;color:#74521c}
+@media (max-width:800px){.portal-grid{grid-template-columns:1fr 1fr}.portal-hero{padding:28px}.portal-nav{justify-content:flex-end}}
+@media (max-width:580px){body{padding:13px!important}.portal-top{align-items:flex-start;flex-direction:column}.portal-nav{justify-content:flex-start}.portal-grid{grid-template-columns:1fr}.portal-hero{padding:24px 20px}section,body>form{padding:16px!important}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
