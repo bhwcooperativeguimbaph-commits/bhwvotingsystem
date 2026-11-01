@@ -246,6 +246,31 @@ app.post('/api/key-custody/confirm',rateLimit,async(req,res)=>{
   return res.json({success:true,message:'Custodian receipt confirmed'});
  }catch(_){return res.status(503).json({success:false,message:'Custodian confirmation unavailable'})}
 });
+app.post('/api/admin/elections/:electionId/disclose-results',superadminOnly,async(req,res)=>{
+ try{
+  const {discloseElectionResults}=require('./database/results-disclosure');
+  const report=await discloseElectionResults(connection,{
+   electionId:req.params.electionId,shares:req.body?.shares});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,report});
+ }catch(e){
+  if(e.code==='INVALID_DISCLOSURE'||e.code==='INVALID_SHARES')return res.status(400).json({success:false,message:'Two valid custodian shares are required'});
+  if(e.code==='NOT_DISCLOSABLE')return res.status(409).json({success:false,message:'Results cannot be disclosed before the election ends'});
+  if(e.code==='ALREADY_FINALIZED')return res.status(409).json({success:false,message:'Results already finalized'});
+  return res.status(503).json({success:false,message:'Result disclosure unavailable; review ballot integrity before retrying'});
+ }
+});
+app.get('/api/elections/:electionId/results',async(req,res)=>{
+ const id=req.params.electionId;
+ if(!/^ELEC-[0-9a-f-]{36}$/i.test(id))return res.status(400).json({success:false,message:'Invalid election ID'});
+ try{
+  const report=await connection.db.collection('finalReports').findOne({electionId:id},
+   {projection:{_id:0,electionId:1,ballotsCast:1,results:1,publishedAt:1,reportHash:1}});
+  if(!report)return res.status(404).json({success:false,message:'Final results are not yet published'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,report});
+ }catch(_){return res.status(503).json({success:false,message:'Report unavailable'})}
+});
 app.post('/api/admin/initialize-election',superadminOnly,async(req,res)=>{
  // Administrative preview only; no voting route is enabled.
  try{
