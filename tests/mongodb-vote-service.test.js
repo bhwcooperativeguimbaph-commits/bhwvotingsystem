@@ -32,6 +32,10 @@ async function main(){
    assert.equal(doc.ballotId,savedVote.ballotId);
    assert.equal(doc.receiptCode.startsWith('BHW-'),true);receiptCount++;
   }};
+  if(name==='auditLogs')return {insertOne:async(doc,opt)=>{
+   assert.equal(opt.session,session);assert.equal(doc.action,'BALLOT_CAST');
+   assert.equal('memberId' in doc,false);
+  }};
   if(name==='memberInbox')return {insertOne:async(doc,opt)=>{
    assert.equal(opt.session,session);assert.equal(doc.memberId,'M1');
    assert.equal(doc.receiptCode.startsWith('BHW-'),true);
