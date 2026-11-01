@@ -147,6 +147,28 @@ app.post('/api/login-face',rateLimit,async(req,res)=>{
   res.json({success:true,role:'member',memberId:found.match.accountId,firstName:parts[0],lastName:parts.slice(1).join(' ')});
  }catch(_){return res.status(503).json({success:false,message:'Login temporarily unavailable'})}
 });
+app.post('/api/admin/reset/request',rateLimit,async(req,res)=>{
+ try{
+  if(!process.env.BREVO_API_KEY||!process.env.BREVO_FROM_EMAIL)
+   return res.status(503).json({success:false,message:'Email recovery unavailable'});
+  const {requestPasswordReset}=require('./database/password-recovery');
+  const result=await requestPasswordReset(connection.db,{username:req.body?.username});
+  res.set('Cache-Control','no-store');
+  return res.json(result);
+ }catch(_){return res.status(503).json({success:false,message:'Password recovery temporarily unavailable'})}
+});
+app.post('/api/admin/reset/verify',rateLimit,async(req,res)=>{
+ try{
+  const {verifyPasswordReset}=require('./database/password-recovery');
+  await verifyPasswordReset(connection,{challenge:req.body?.challenge,code:req.body?.code,
+   newPassword:req.body?.newPassword});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,message:'Password updated. Please sign in again.'});
+ }catch(e){
+  if(e?.code==='INVALID_RESET')return res.status(400).json({success:false,message:'Invalid or expired recovery code or password'});
+  return res.status(503).json({success:false,message:'Password recovery temporarily unavailable'});
+ }
+});
 app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
   const {password,username}=req.body||{};
   if(typeof password!=='string'||password.length>256)return res.status(400).json({success:false,message:'Invalid credentials'});
