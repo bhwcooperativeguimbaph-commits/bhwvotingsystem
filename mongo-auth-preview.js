@@ -92,6 +92,7 @@ app.post('/api/admin/login-password',rateLimit,async(req,res)=>{
   const smtpUser=process.env.SMTP_USER,smtpPassword=process.env.SMTP_APP_PASSWORD;
   const useBrevo=Boolean(process.env.BREVO_API_KEY&&process.env.BREVO_FROM_EMAIL);
   const useEmailApi=Boolean(process.env.RESEND_API_KEY&&process.env.RESEND_FROM_EMAIL);
+  console.log('Admin MFA email provider selected:',useBrevo?'brevo':useEmailApi?'resend':'smtp');
   if(!useBrevo&&!useEmailApi&&(!smtpUser||!smtpPassword))return res.status(503).json({success:false,message:'Administrator MFA email is unavailable'});
   const transport=(useBrevo||useEmailApi)?null:nodemailer.createTransport({service:'gmail',auth:{user:smtpUser,pass:smtpPassword},connectionTimeout:12000,greetingTimeout:12000,socketTimeout:15000});
   try{
