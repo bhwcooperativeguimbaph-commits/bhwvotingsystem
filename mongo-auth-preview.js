@@ -44,6 +44,10 @@ app.get('/',(req,res)=>{
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-portal.html'));
 });
+app.get('/assets/logo.svg',(req,res)=>{
+ res.set('Cache-Control','public,max-age=1d');
+ return res.type('image/svg+xml').sendFile(path.join(__dirname,'public','assets','logo.svg'));
+});
 app.get('/css/mongo-portal.css',(req,res)=>{
  res.set('Cache-Control','public,max-age=3600');
  return res.type('text/css').sendFile(path.join(__dirname,'public','css','mongo-portal.css'));
