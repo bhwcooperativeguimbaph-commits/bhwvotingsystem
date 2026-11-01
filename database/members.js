@@ -31,4 +31,19 @@ async function setMemberStatus(db,memberId,status,{now=new Date()}={}){
  const r=await db.collection('members').updateOne({memberId},{$set:{status,updatedAt:now}});
  return r.matchedCount===1;
 }
-module.exports={validateMember,createMember,getMember,setMemberStatus};
+async function updateMemberProfile(db,memberId,input,{validateLocation,now=new Date()}={}){
+ if(!/^MEM-[0-9a-f-]{36}$/i.test(memberId||'')||typeof validateLocation!=='function')
+  throw new TypeError('Invalid member update request');
+ const existing=await db.collection('members').findOne({memberId});
+ if(!existing)return null;
+ const profile=validateMember({
+  fullName:input?.fullName,area:input?.area,location:input?.location
+ });
+ if(!await validateLocation(profile.location))
+  throw new TypeError('Member address must be verified in Guimba');
+ const changes={fullName:profile.fullName,area:profile.area,location:profile.location,updatedAt:now};
+ const update=await db.collection('members').updateOne({memberId},{$set:changes});
+ if(!update.matchedCount)return null;
+ return {memberId,...changes};
+}
+module.exports={updateMemberProfile,validateMember,createMember,getMember,setMemberStatus};
