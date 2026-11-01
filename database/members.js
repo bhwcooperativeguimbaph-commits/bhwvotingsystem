@@ -54,7 +54,8 @@ async function updateMemberProfile(db,memberId,input,{validateLocation,now=new D
  });
  if(!await validateLocation(profile.location))
   throw new TypeError('Member address must be verified in Guimba');
- const changes={fullName:profile.fullName,area:profile.area,location:profile.location,updatedAt:now};
+ const changes={fullName:profile.fullName,area:profile.area,address:profile.address,
+  birthdate:profile.birthdate,gender:profile.gender,location:profile.location,updatedAt:now};
  const update=await db.collection('members').updateOne({memberId},{$set:changes});
  if(!update.matchedCount)return null;
  return {memberId,...changes};
