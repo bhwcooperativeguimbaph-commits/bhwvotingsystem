@@ -11,5 +11,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Install locked Node dependencies
+        run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check application JavaScript
         run: npm test
