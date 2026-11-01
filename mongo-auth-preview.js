@@ -52,6 +52,11 @@ app.get('/css/mongo-portal.css',(req,res)=>{
  res.set('Cache-Control','public,max-age=3600');
  return res.type('text/css').sendFile(path.join(__dirname,'public','css','mongo-portal.css'));
 });
+app.get('/admin-password-recovery',(req,res)=>{
+ res.set('Cache-Control','no-store');
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
+ return res.sendFile(path.join(__dirname,'public','mongo-password-recovery.html'));
+});
 app.get('/admin-auth-preview',(req,res)=>{
  res.set('Cache-Control','no-store');
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
