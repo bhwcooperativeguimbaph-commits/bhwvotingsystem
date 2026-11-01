@@ -1,0 +1,110 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHW Member Voting — Rehearsal Preview</title>
+<style>
+body{font:16px system-ui;max-width:760px;padding:18px;margin:22px auto;color:#173454}
+h1{font-size:1.7rem}section{background:#f3f7fa;border:1px solid #cddae5;padding:16px;border-radius:8px;margin:18px 0}
+video{width:100%;max-width:480px;background:#222;min-height:220px;transform:scaleX(-1);border-radius:8px}
+button{font:inherit;background:#164c83;color:#fff;border:0;border-radius:6px;padding:12px;cursor:pointer;margin:10px 0}
+button:disabled{opacity:.5}.hidden{display:none}
+label{display:block;padding:8px;margin:5px 0}
+.warning{color:#99421f;font-weight:bold}
+#face-direction-cue{font-weight:bold;font-size:1.2rem}
+#status{white-space:pre-wrap}
+</style>
+<h1>BHW member voting — rehearsal</h1>
+<p class="warning">Development test only. Do not use for an official election until all safety checks pass. Browser gesture verification is not certified liveness detection.</p>
+<section id="auth"><h2>Face login</h2><video id="webcam" autoplay muted playsinline></video>
+<div id="face-direction-cue" class="hidden"></div><div id="face-action-status" class="hidden"></div>
+<button id="camera">Start camera and load face models</button>
+<button id="login" disabled>Complete facial challenge and log in</button>
+</section>
+<section id="voting" class="hidden"><h2 id="welcome">Member ballot</h2>
+<p id="electionStatus"></p><div id="positions"></div>
+<button id="vote" disabled>Submit encrypted rehearsal vote</button>
+<p id="receipt"></p>
+</section>
+<button id="session">Check current session</button>
+<button id="logout">Log out</button>
+<p id="status" role="status" aria-live="polite">No active session.</p>
+<script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<script defer src="/js/mongo-face-challenge.js"></script>
+<script>
+'use strict';
+const by=id=>document.getElementById(id),video=by('webcam');
+let modelsReady=false,working=false,info=null;
+function stopCamera(){video.srcObject?.getTracks().forEach(t=>t.stop());video.srcObject=null}
+async function request(url,body){
+ const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
+ try{const r=await fetch(url,{credentials:'same-origin',method:body===undefined?'GET':'POST',
+  headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
+  const d=await r.json();if(!r.ok||d.success===false)throw Error(d.message||'Request failed');return d}
+ finally{clearTimeout(timeout)}
+}
+async function displayBallot(){
+ const auth=await request('/api/session');
+ if(auth.role!=='member')throw Error('Member login required');
+ stopCamera();by('auth').classList.add('hidden');by('voting').classList.remove('hidden');
+ by('welcome').textContent='Welcome, '+auth.fullName;
+ info=await request('/api/election-info');
+ const container=by('positions');container.replaceChildren();
+ if(!info.active||!info.config?.length){
+  by('electionStatus').textContent='No active election';by('vote').disabled=true;return;
+ }
+ by('electionStatus').textContent=info.title+(auth.hasVoted?' — your vote is already recorded':'');
+ for(const pos of info.config){
+  const field=document.createElement('fieldset'),legend=document.createElement('legend');
+  legend.textContent=pos.title+' — choose up to '+pos.maxVotes;field.appendChild(legend);
+  for(const c of pos.candidates){
+   const label=document.createElement('label'),input=document.createElement('input');
+   input.type='checkbox';input.value=c.candidateId;input.dataset.position=pos.title;
+   input.addEventListener('change',()=>{
+    const selected=[...field.querySelectorAll('input:checked')];
+    if(selected.length>pos.maxVotes){input.checked=false;by('status').textContent='Selection limit reached for '+pos.title}
+   });
+   label.append(input,' '+c.name);field.appendChild(label);
+  }container.appendChild(field);
+ }
+ by('vote').disabled=Boolean(auth.hasVoted);
+}
+by('camera').onclick=async()=>{
+ if(working)return;working=true;by('camera').disabled=true;by('status').textContent='Loading face models...';
+ try{
+  await Promise.all([
+   faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+   faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+   faceapi.nets.faceRecognitionNet.loadFromUri('/models')]);
+  video.srcObject=await navigator.mediaDevices.getUserMedia({audio:false,video:{width:640,height:480,facingMode:'user'}});
+  await video.play();modelsReady=true;by('login').disabled=false;by('status').textContent='Face recognition ready';
+ }catch(e){by('status').textContent=e.message;by('camera').disabled=false}finally{working=false}
+};
+by('login').onclick=async()=>{
+ if(working||!modelsReady)return;working=true;by('login').disabled=true;
+ try{
+  const initial=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+  if(!initial)throw Error('No face detected');
+  const prescan=await request('/api/face-prescan',{descriptor:Array.from(initial.descriptor)});
+  if(!prescan.recognized)throw Error(prescan.message||'Face not recognized');
+  const challenge=await window.runBHWFaceChallenge(video);
+  const final=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+  if(!final)throw Error('Face was lost after challenge');
+  await request('/api/login-face',{descriptor:Array.from(final.descriptor),...challenge});
+  await displayBallot();by('status').textContent='Member session verified';
+ }catch(e){by('status').textContent=e.message}finally{working=false;by('login').disabled=!modelsReady}
+};
+by('vote').onclick=async()=>{
+ if(working||!info?.active)return;
+ const choices={};for(const pos of info.config){choices[pos.title]=
+  [...document.querySelectorAll('input:checked')].filter(i=>i.dataset.position===pos.title).map(i=>i.value)}
+ working=true;by('vote').disabled=true;
+ try{
+  const r=await request('/api/vote',{choices});
+  by('receipt').textContent='Server-issued receipt number: '+r.receiptNo;
+  by('status').textContent='Encrypted rehearsal ballot committed';
+ }catch(e){by('status').textContent=e.message;by('vote').disabled=false}
+ finally{working=false}
+};
+by('session').onclick=()=>request('/api/session').then(d=>by('status').textContent='Authenticated as '+d.role).catch(e=>by('status').textContent=e.message);
+by('logout').onclick=()=>request('/api/logout',{}).then(()=>location.reload()).catch(e=>by('status').textContent=e.message);
+window.addEventListener('pagehide',stopCamera);
+request('/api/session').then(d=>{if(d.role==='member')return displayBallot()}).catch(()=>{});
+</script></html>
