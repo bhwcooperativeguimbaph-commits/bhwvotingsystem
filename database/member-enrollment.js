@@ -47,6 +47,10 @@ async function registerMemberWithFace(connection,input,{key,validateLocation,ope
     await db.collection('biometricRegistrations').insertOne({
      biometricId,memberId,facialEncoding:encrypted,biometricStatus:'Active',createdAt:now,updatedAt:now
     },{session});
+    await db.collection('auditLogs').insertOne({
+     eventId:'AUD-'+crypto.randomUUID(),actorRole:'staff',action:'MEMBER_ENROLLED',
+     memberId,operatorId:typeof operatorId==='string'?operatorId:null,createdAt:now
+    },{session});
    },{writeConcern:{w:'majority'}});
   }finally{await session.endSession()}
   return {memberId};
