@@ -21,7 +21,7 @@ const indexSpecs = {
   biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
   keyCustodians: [[{electionId:1,email:1},{unique:true}]],
   finalReports: [[{electionId:1},{unique:true}]],
-  memberInbox: [[{electionId:1,memberId:1},{unique:true}]],
+  memberInbox: [[{notificationId:1},{unique:true}], [{memberId:1,createdAt:-1},{}]],
   auditLogs: [[{createdAt:-1},{}]],
   receiptCodes: [[{receiptCode:1},{unique:true}],[{ballotId:1},{unique:true}]]
 };
@@ -43,6 +43,15 @@ async function connectMongo(config = process.env) {
 async function initializeMongoIndexes(db) {
   for (const [collection,specs] of Object.entries(indexSpecs)) {
     const col=db.collection(collection);
+    // Safely replace the legacy one-notification-per-election constraint.
+    // Establish notification identity uniqueness before dropping the old limit.
+    if(collection==='memberInbox'){
+      await col.createIndex({notificationId:1},{unique:true});
+      const indexes=await col.listIndexes().toArray();
+      const old=indexes.find(i=>i.unique&&i.key?.electionId===1&&i.key?.memberId===1&&
+        Object.keys(i.key).length===2);
+      if(old)await col.dropIndex(old.name);
+    }
     for (const [keys,opts] of specs) {
       try { await col.createIndex(keys,opts); }
       catch(error) {
