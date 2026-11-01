@@ -15,6 +15,7 @@ async function main(){
    insertOne:async(doc,opts)=>{assert.equal(opts.session,session);biometrics.push(doc);calls.push({name,doc})}
   };
   if(name==='members')return {insertOne:async(doc,opts)=>{assert.equal(opts.session,session);calls.push({name,doc})}};
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'MEMBER_ENROLLED');assert.ok(opts?.session)}};
   throw Error(name);
  }}};
  const input={fullName:'Test Member',area:'Area 1',location:{
