@@ -45,6 +45,15 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <button id="refreshAdmins" class="ghost">Refresh staff directory</button>
 <div id="adminDirectory" aria-live="polite"></div><pre id="adminResult">No staff changes.</pre></section>
 <section><h2>Registered members</h2><button id="members">Refresh members</button><p id="memberTotal">No members loaded.</p><div id="memberDirectory" aria-live="polite"></div><pre id="membersResult" hidden></pre></section>
+<section id="memberEditor" hidden><h2>Edit member profile</h2>
+<small>Member IDs and prior ballots never change. This form only updates the member's name, membership area and verified Guimba address.</small>
+<input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
+<div class="cols"><label>Full name<input id="editMemberName" maxlength="100"></label>
+<label>Area<input id="editMemberArea" maxlength="100"></label></div>
+<label>Guimba barangay<select id="editMemberBarangay"></select></label>
+<button id="saveMember">Save member profile</button>
+<button id="cancelMemberEdit" class="ghost">Cancel</button><pre id="editMemberResult"></pre>
+</section>
 <section><h2>1. Create rehearsal election</h2>
 <label>Election title<input id="title" value="Rehearsal election" maxlength="150"></label>
 <div class="cols"><label>Start date and time<input type="datetime-local" id="start"></label><label>End date and time<input type="datetime-local" id="end"></label></div>
@@ -172,11 +181,41 @@ async function showMembers(){
    const response=await action('membersResult',()=>call('/api/admin/members/'+encodeURIComponent(member.memberId)+'/status','PATCH',{status}));
    if(response?.success)await showMembers();
   };
-  panel.append(title,actionButton);view.appendChild(panel);
+  const editButton=document.createElement('button');
+  editButton.type='button';editButton.textContent='Edit profile';editButton.className='ghost';
+  editButton.onclick=()=>editMember(member);
+  panel.append(title,editButton,actionButton);view.appendChild(panel);
  }
  if(!result.members.length)view.textContent='No registered members.';
 }
 by('members').onclick=showMembers;
+let editingMember=null;
+async function editMember(member){
+ editingMember=member;
+ by('memberEditor').hidden=false;
+ by('editMemberId').value=member.memberId;
+ by('editMemberName').value=member.fullName;
+ by('editMemberArea').value=member.area;
+ const response=await call('/api/geo/barangays/0304911000');
+ const dropdown=by('editMemberBarangay');dropdown.replaceChildren();
+ if(Array.isArray(response))for(const barangay of response){
+  const item=document.createElement('option');item.value=barangay.code;item.textContent=barangay.name;dropdown.appendChild(item);
+ }
+ dropdown.value=member.location?.barangayCode||'';
+ by('memberEditor').scrollIntoView({behavior:'smooth',block:'start'});
+}
+by('cancelMemberEdit').onclick=()=>{by('memberEditor').hidden=true;editingMember=null};
+by('saveMember').onclick=async()=>{
+ if(!editingMember)return;
+ const previous=editingMember.location||{};
+ const location={...previous,country:'Philippines',province:'Nueva Ecija',city:'Guimba',
+  regionCode:'0300000000',provinceCode:'0304900000',cityCode:'0304911000',
+  barangayCode:by('editMemberBarangay').value};
+ const result=await action('editMemberResult',()=>call('/api/admin/members/'+encodeURIComponent(editingMember.memberId),'PATCH',
+  {fullName:by('editMemberName').value,area:by('editMemberArea').value,location}));
+ if(result?.success){by('memberEditor').hidden=true;editingMember=null;await showMembers()}
+};
+
 by('logoutAdmin').onclick=async()=>{const result=await call('/api/logout','POST',{});if(result.success)window.location.assign('/')};
 const list=id=>by(id).value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(name=>({name}));
 by('create').onclick=async()=>{
