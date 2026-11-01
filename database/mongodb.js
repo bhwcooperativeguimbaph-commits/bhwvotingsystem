@@ -11,9 +11,9 @@ const indexSpecs = {
   candidates: [[{candidateId:1},{unique:true}], [{electionId:1,position:1}]],
   ballots: [
     [{ballotId:1},{unique:true}],
-    [{electionId:1,memberId:1},{unique:true}],
     [{electionId:1,status:1}]
   ],
+  voterParticipation: [[{electionId:1,memberId:1},{unique:true}], [{receiptCode:1},{unique:true}]],
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   enrollmentLocks: [[{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaCooldowns: [[{adminId:1},{unique:true}]],
@@ -23,7 +23,7 @@ const indexSpecs = {
   finalReports: [[{electionId:1},{unique:true}]],
   memberInbox: [[{notificationId:1},{unique:true}], [{memberId:1,createdAt:-1},{}]],
   auditLogs: [[{createdAt:-1},{}]],
-  receiptCodes: [[{receiptCode:1},{unique:true}],[{ballotId:1},{unique:true}]]
+  receiptCodes: [[{receiptCode:1},{unique:true}],[{electionId:1,memberId:1},{unique:true}]]
 };
 
 async function connectMongo(config = process.env) {
@@ -43,6 +43,24 @@ async function connectMongo(config = process.env) {
 async function initializeMongoIndexes(db) {
   for (const [collection,specs] of Object.entries(indexSpecs)) {
     const col=db.collection(collection);
+    // Fresh-database privacy upgrade: separate participation from encrypted ballots.
+    // Refuse automatic change if any old ballots/receipts exist; migration must
+    // then be reviewed rather than silently unlinking existing voter receipts.
+    if(collection==='ballots'||collection==='receiptCodes'){
+      const identityIndex=collection==='ballots'?{ballotId:1}:{receiptCode:1};
+      await col.createIndex(identityIndex,{unique:true});
+      const indexes=await col.listIndexes().toArray();
+      const legacy=indexes.find(i=>i.unique&&
+        (collection==='ballots'
+          ? i.key?.electionId===1&&i.key?.memberId===1&&Object.keys(i.key).length===2
+          : i.key?.ballotId===1&&Object.keys(i.key).length===1));
+      if(legacy){
+        if(await col.countDocuments({})>0)throw new Error(
+          'Privacy schema migration blocked: existing '+collection+' require manual reconciliation');
+        await db.collection('voterParticipation').createIndex({electionId:1,memberId:1},{unique:true});
+        await col.dropIndex(legacy.name);
+      }
+    }
     // Safely replace the legacy one-notification-per-election constraint.
     // Establish notification identity uniqueness before dropping the old limit.
     if(collection==='memberInbox'){
