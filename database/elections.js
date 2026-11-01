@@ -42,6 +42,7 @@ async function createElection(connection,input,{now=new Date()}={}){
  const {db,client}=connection;
  if(!db||!client)throw new TypeError('MongoDB connection with db and client is required');
  const prepared=validateElection(input);
+ if(prepared.startTime<=now)throw new TypeError('New elections must start in the future to allow key-custodian provisioning');
  const electionId='ELEC-'+crypto.randomUUID();
  const session=client.startSession();
  try {
