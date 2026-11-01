@@ -185,6 +185,18 @@ app.post('/api/admin/register-member',superadminOnly,async(req,res)=>{
     return res.status(503).json({success:false,message:'Enrollment unavailable'});
   }
 });
+app.get('/api/admin/turnout/:electionId',superadminOnly,async(req,res)=>{
+ const electionId=req.params.electionId;
+ if(!/^ELEC-[a-f0-9-]{36}$/i.test(electionId))
+  return res.status(400).json({success:false,message:'Invalid election ID'});
+ try{
+  const {getElectionTurnout}=require('./database/turnout');
+  const stats=await getElectionTurnout(connection.db,electionId);
+  if(!stats)return res.status(404).json({success:false,message:'Election not found'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...stats});
+ }catch(_){return res.status(503).json({success:false,message:'Turnout report unavailable'})}
+});
 app.get('/api/admin/members',superadminOnly,async(req,res)=>{
  try {
   const members=await connection.db.collection('members').find({},{
