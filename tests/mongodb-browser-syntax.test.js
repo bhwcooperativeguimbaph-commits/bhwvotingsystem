@@ -9,7 +9,8 @@ const htmlFiles=[
  'public/mongo-enrollment-preview.html',
  'public/mongo-member-preview.html',
  'public/mongo-portal.html',
- 'public/mongo-results.html'
+ 'public/mongo-results.html',
+ 'public/mongo-password-recovery.html'
 ];
 for(const filename of htmlFiles){
  const html=fs.readFileSync(path.join(__dirname,'..',filename),'utf8');
