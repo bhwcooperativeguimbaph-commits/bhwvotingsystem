@@ -1,0 +1,18 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {createCustodianPackage,reconstructElectionPrivateKey}=require('../database/key-custody');
+const {encryptBallot,decryptBallot}=require('../database/ballot-crypto');
+const pkg=createCustodianPackage();
+assert.equal(pkg.shares.length,2);
+assert.equal(pkg.shareHashes.length,2);
+assert.notEqual(pkg.shares[0],pkg.shares[1]);
+assert.ok(!pkg.publicKeyPem.includes('PRIVATE KEY'));
+const key=reconstructElectionPrivateKey(pkg.publicKeyPem,pkg.shares,pkg.shareHashes);
+const choices={Kagawad:['candidate1'],Kapitan:[]};
+const encrypted=encryptBallot(choices,'ELECTION',pkg.publicKeyPem);
+assert.deepEqual(decryptBallot(encrypted.ciphertext,'ELECTION',key),choices);
+assert.throws(()=>reconstructElectionPrivateKey(pkg.publicKeyPem,[pkg.shares[1],pkg.shares[0]],pkg.shareHashes),/Invalid/);
+assert.throws(()=>reconstructElectionPrivateKey(pkg.publicKeyPem,[pkg.shares[0],pkg.shares[0]],pkg.shareHashes),/Invalid/);
+const changed=pkg.shares[0].slice(0,-1)+(pkg.shares[0].endsWith('a')?'b':'a');
+assert.throws(()=>reconstructElectionPrivateKey(pkg.publicKeyPem,[changed,pkg.shares[1]],pkg.shareHashes),/Invalid/);
+console.log('PASS: 2-of-2 custodian shares, public-key vote encryption and tamper rejection');
