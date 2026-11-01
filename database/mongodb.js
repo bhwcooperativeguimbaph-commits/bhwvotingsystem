@@ -4,7 +4,7 @@
 const { MongoClient } = require('mongodb');
 
 const indexSpecs = {
-  admins: [[{adminId:1},{unique:true}], [{username:1},{unique:true}]],
+  admins: [[{adminId:1},{unique:true}], [{username:1},{unique:true}], [{email:1},{unique:true}]],
   members: [[{memberId:1},{unique:true}]],
   elections: [[{electionId:1},{unique:true}], [{status:1,createdAt:-1}],
     [{status:1},{unique:true,partialFilterExpression:{status:'Active'},name:'single_active_election'}]],
@@ -17,6 +17,8 @@ const indexSpecs = {
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   enrollmentLocks: [[{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaCooldowns: [[{adminId:1},{unique:true}]],
+  passwordResetCooldowns: [[{adminId:1},{unique:true}]],
+  passwordResetChallenges: [[{challengeHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaChallenges: [[{challengeHash:1},{unique:true}],[{expiresAt:1},{expireAfterSeconds:0}]],
   biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
   keyCustodians: [[{electionId:1,email:1},{unique:true}]],
