@@ -14,6 +14,7 @@ const indexSpecs = {
     [{electionId:1,status:1}]
   ],
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
+  enrollmentLocks: [[{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaCooldowns: [[{adminId:1},{unique:true}]],
   adminMfaChallenges: [[{challengeHash:1},{unique:true}],[{expiresAt:1},{expireAfterSeconds:0}]],
   biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
