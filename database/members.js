@@ -12,8 +12,21 @@ function validateMember(input){
     !/^guimba$/i.test(String(loc.city||'').trim())||!loc.barangayCode||!loc.cityCode||
     !loc.provinceCode||!loc.regionCode)
    throw new TypeError('Member address must be in Guimba, Nueva Ecija');
+ const address=normalizeName(input?.address);
+ const birthdate=input?.birthdate||null,gender=input?.gender||null;
+ if(input?.address!==undefined&&(!address||address.length>500))
+  throw new TypeError('Valid member street address required');
+ if(input?.birthdate!==undefined){
+  if(typeof birthdate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(birthdate)||
+    !Number.isFinite(Date.parse(birthdate+'T00:00:00Z'))||
+    new Date(birthdate+'T00:00:00Z').toISOString().slice(0,10)!==birthdate||
+    new Date(birthdate+'T00:00:00Z')>new Date())
+   throw new TypeError('Invalid member birthdate');
+ }
+ if(input?.gender!==undefined&&!['Male','Female'].includes(gender))
+  throw new TypeError('Invalid member gender');
  // Geographic code relationships must be rechecked against trusted PSGC data by the API.
- return {fullName:name,area,location:{...loc},status:'Active'};
+ return {fullName:name,area,address:address||null,birthdate,gender,location:{...loc},status:'Active'};
 }
 async function createMember(db,input,{now=new Date()}={}){
  const member=validateMember(input);
@@ -37,7 +50,7 @@ async function updateMemberProfile(db,memberId,input,{validateLocation,now=new D
  const existing=await db.collection('members').findOne({memberId});
  if(!existing)return null;
  const profile=validateMember({
-  fullName:input?.fullName,area:input?.area,location:input?.location
+  ...existing,...input,fullName:input?.fullName,area:input?.area,location:input?.location
  });
  if(!await validateLocation(profile.location))
   throw new TypeError('Member address must be verified in Guimba');
