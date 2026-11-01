@@ -19,7 +19,7 @@ function verifyGuimbaLocation(loc){
   if(typeof loc[key]!=='string'||!/^[0-9]{6,12}$/.test(loc[key]))return false;
  }
  try{
-  if(!matches(list('','regions.json'),loc.regionCode,'Central Luzon'))return false;
+  if(!matches(list('','regions.json'),loc.regionCode,'Region III (Central Luzon)'))return false;
   if(!matches(list('provinces',loc.regionCode+'.json'),loc.provinceCode,'Nueva Ecija'))return false;
   if(!matches(list('cities',loc.provinceCode+'.json'),loc.cityCode,'Guimba'))return false;
   const barangays=list('barangays',loc.cityCode+'.json');
