@@ -40,6 +40,10 @@ async function updateAdminStatus(connection,adminId,status,{now=new Date()}={}){
    if(result.matchedCount!==1)throw invalid('ADMIN_NOT_FOUND');
    if(status==='Inactive')await connection.db.collection('authSessions').deleteMany(
     {accountId:adminId},{session});
+   await connection.db.collection('auditLogs').insertOne({
+    eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',action:'ADMIN_STATUS_CHANGED',
+    targetAdminId:adminId,newStatus:status,createdAt:now
+   },{session});
    updated=true;
   },{writeConcern:{w:'majority'}});
   return updated;
