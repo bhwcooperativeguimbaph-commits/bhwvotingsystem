@@ -15,11 +15,11 @@ function validatePhoto(photo){
  if(bytes.length>500000||!(match[1]==='jpeg'?jpeg:png))throw error('INVALID_CANDIDATE');
  return photo;
 }
-async function editCandidate(db,{electionId,candidateId,name,photo,operation,now=new Date()}){
+async function editCandidate(db,{electionId,candidateId,position,candidateName,photo,operation,now=new Date()}){
  if(!/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||!['add','remove'].includes(operation))
   throw error('INVALID_CANDIDATE');
  if(operation==='remove'&&!/^CAND-[0-9a-f-]{36}$/i.test(candidateId||''))throw error('INVALID_CANDIDATE');
- if(operation==='add'&&(!clean(name)||clean(name).length>100))throw error('INVALID_CANDIDATE');
+ if(operation==='add'&&(!clean(position)||clean(position).length>50||!clean(candidateName)||clean(candidateName).length>100))throw error('INVALID_CANDIDATE');
  const owner=crypto.randomUUID(),expiresAt=new Date(now.getTime()+120000);
  const election=await db.collection('elections').findOneAndUpdate({
   electionId,status:'Active',startTime:{$gt:now},$or:[
@@ -41,7 +41,7 @@ async function editCandidate(db,{electionId,candidateId,name,photo,operation,now
    if(result.modifiedCount!==1)throw error('CANDIDATE_NOT_FOUND');
    return {candidateId,status:'Removed'};
   }
-  const position=clean(name),candidateName=clean(arguments[1].candidateName);
+  position=clean(position);candidateName=clean(candidateName);
   if(!candidateName||candidateName.length>100)throw error('INVALID_CANDIDATE');
   const pos=candidates.filter(c=>c.position.toLowerCase()===position.toLowerCase());
   if(!pos.length)throw error('UNKNOWN_POSITION');
