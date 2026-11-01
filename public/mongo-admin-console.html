@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BHW MongoDB Administration Preview</title>
+<style>
+:root{font:16px system-ui;color:#172d46;background:#f3f6fa}
+body{max-width:920px;margin:28px auto;padding:0 16px}
+h1{font-size:1.7rem}h2{font-size:1.2rem}
+section{background:#fff;border:1px solid #d7e0e9;border-radius:10px;padding:18px;margin:18px 0}
+label{display:block;font-weight:600;margin:11px 0}
+input,textarea,button{box-sizing:border-box;font:inherit;padding:10px;width:100%;border-radius:6px}
+input,textarea{border:1px solid #9aabc0;margin-top:5px}
+button{background:#154b82;border:0;color:white;cursor:pointer;margin-top:10px}
+button:disabled{opacity:.5}
+small{display:block;color:#4e6177}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius:5px;padding:12px;max-height:280px;overflow:auto}
+.warning{color:#9a3d19;font-weight:700}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
+</style>
+<h1>BHW MongoDB — Administration Preview</h1>
+<p class="warning">Development/rehearsal only. Do not create a real election or enroll real members until the full system passes acceptance testing.</p>
+<p>Use the <a href="/admin-auth-preview">administrator login</a> first. All administrative requests require a Super Admin session.</p>
+<section><h2>Session</h2><button id="check">Check Super Admin session</button><pre id="sessionResult">Not checked</pre></section>
+<section><h2>Registered members</h2><button id="members">Load protected member directory</button><pre id="membersResult">Not loaded</pre></section>
+<section><h2>1. Create rehearsal election</h2>
+<label>Election title<input id="title" value="Rehearsal election" maxlength="150"></label>
+<div class="cols"><label>Start date and time<input type="datetime-local" id="start"></label><label>End date and time<input type="datetime-local" id="end"></label></div>
+<div class="cols"><label>Kagawad candidates (one name per line)<textarea id="kagawad" rows="4" placeholder="Candidate A&#10;Candidate B"></textarea></label>
+<label>Kapitan candidates (one name per line; at least two)<textarea id="kapitan" rows="4" placeholder="Candidate C&#10;Candidate D"></textarea></label></div>
+<small>Kagawad maximum selections: 1; Kapitan maximum selections: 2. Use fictitious names for testing.</small>
+<button id="create">Create rehearsal election</button><pre id="createResult">Not created</pre></section>
+<section><h2>2. Assign two election key custodians</h2>
+<label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
+<div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
+<small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
+<button id="provision">Send separate custodian shares (test only)</button><pre id="provisionResult">Not provisioned</pre></section>
+<section><h2>3. Check protected turnout</h2>
+<label>Election ID<input id="turnoutId" placeholder="ELEC-..."></label>
+<button id="turnout">Load turnout</button><pre id="turnoutResult">Not loaded</pre></section>
+<section><h2>4. Disclose rehearsal results (after close)</h2>
+<label>Election ID<input id="reportId" placeholder="ELEC-..."></label>
+<div class="cols"><label>Custodian 1 share<textarea id="share1" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
+<label>Custodian 2 share<textarea id="share2" rows="2" autocomplete="off" spellcheck="false"></textarea></label></div>
+<small>Requires both valid shares and a closed election. Shares are transmitted via HTTPS but are never shown in the report. Clear them from this browser afterward.</small>
+<button id="disclose">Finalize aggregate results (test only)</button><pre id="discloseResult">Not finalized</pre></section>
+<script>
+'use strict';
+const by=id=>document.getElementById(id);
+async function call(url,method='GET',body){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),20000);
+ try{const res=await fetch(url,{method,credentials:'same-origin',headers:{'Content-Type':'application/json'},
+  body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
+  const data=await res.json();return {status:res.status,...data}}
+ finally{clearTimeout(timer)}
+}
+async function action(out,work){
+ by(out).textContent='Processing...';
+ try{const data=await work();by(out).textContent=JSON.stringify(data,null,2);return data}
+ catch(e){by(out).textContent=e.name==='AbortError'?'Request timed out; check Render logs':'Request unavailable'}
+}
+by('check').onclick=()=>action('sessionResult',()=>call('/api/session'));
+by('members').onclick=()=>action('membersResult',()=>call('/api/admin/members'));
+const list=id=>by(id).value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(name=>({name}));
+by('create').onclick=async()=>{
+ if(!by('start').value||!by('end').value)return by('createResult').textContent='Choose both schedule dates';
+ const data=await action('createResult',()=>call('/api/admin/initialize-election','POST',{
+  title:by('title').value,startTime:new Date(by('start').value).toISOString(),
+  endTime:new Date(by('end').value).toISOString(),
+  config:[{title:'Kagawad',maxVotes:1,candidates:list('kagawad')},
+   {title:'Kapitan',maxVotes:2,candidates:list('kapitan')}] }));
+ if(data?.success){for(const id of ['keyElection','turnoutId','reportId'])by(id).value=data.electionId}
+};
+by('provision').onclick=()=>action('provisionResult',()=>call('/api/admin/elections/'+encodeURIComponent(by('keyElection').value)+'/provision-keys','POST',{emails:[by('email1').value,by('email2').value]}));
+by('turnout').onclick=()=>action('turnoutResult',()=>call('/api/admin/turnout/'+encodeURIComponent(by('turnoutId').value)));
+by('disclose').onclick=async()=>{
+ const shares=[by('share1').value.trim(),by('share2').value.trim()];
+ await action('discloseResult',()=>call('/api/admin/elections/'+encodeURIComponent(by('reportId').value)+'/disclose-results','POST',{shares}));
+ by('share1').value='';by('share2').value='';
+};
+</script>
