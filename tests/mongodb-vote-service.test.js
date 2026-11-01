@@ -32,6 +32,11 @@ async function main(){
    assert.equal(doc.ballotId,savedVote.ballotId);
    assert.equal(doc.receiptCode.startsWith('BHW-'),true);receiptCount++;
   }};
+  if(name==='memberInbox')return {insertOne:async(doc,opt)=>{
+   assert.equal(opt.session,session);assert.equal(doc.memberId,'M1');
+   assert.equal(doc.receiptCode.startsWith('BHW-'),true);
+   assert.equal(doc.message,'Your ballot was securely recorded.');
+  }};
   throw Error(name);
  }};
  const connection={db,client:{startSession:()=>session}};
