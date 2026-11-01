@@ -6,9 +6,10 @@ const {validateMember}=require('./members');
 const {encryptDescriptor,decryptDescriptor}=require('./biometrics');
 const {validDescriptor}=require('./face-matching');
 function enrollmentError(code){return Object.assign(new Error(code),{code})}
-async function registerMemberWithFace(connection,input,{key,validateLocation,now=new Date()}={}){
+async function registerMemberWithFace(connection,input,{key,validateLocation,operatorId,now=new Date()}={}){
  if(!connection?.client||!connection?.db||typeof validateLocation!=='function')
   throw new TypeError('Missing MongoDB session or trusted geography validator');
+ if(input?.biometricConsent!==true)throw new TypeError('Explicit biometric consent required');
  const member=validateMember(input);
  if(!await validateLocation(member.location))throw new TypeError('Geographic codes are not verified as Guimba');
  const encrypted=encryptDescriptor(input.descriptor,key),db=connection.db;
@@ -40,7 +41,9 @@ async function registerMemberWithFace(connection,input,{key,validateLocation,now
   const session=connection.client.startSession();
   try{
    await session.withTransaction(async()=>{
-    await db.collection('members').insertOne({memberId,...member,createdAt:now,updatedAt:now},{session});
+    await db.collection('members').insertOne({memberId,...member,
+     biometricConsent:{granted:true,version:'BHW-BIOMETRIC-CONSENT-v1',grantedAt:now,
+      recordedBy:typeof operatorId==='string'?operatorId:null},createdAt:now,updatedAt:now},{session});
     await db.collection('biometricRegistrations').insertOne({
      biometricId,memberId,facialEncoding:encrypted,biometricStatus:'Active',createdAt:now,updatedAt:now
     },{session});
