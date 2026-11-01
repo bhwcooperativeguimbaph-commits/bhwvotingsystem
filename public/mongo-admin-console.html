@@ -22,6 +22,18 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <h1>BHW MongoDB — Administration Preview</h1>
 <p class="warning">Development/rehearsal only. Do not create a real election or enroll real members until the full system passes acceptance testing.</p>
 <p>Use the <a href="/admin-auth-preview">administrator login</a> first. All administrative requests require a Super Admin session.</p><p><a href="/member-enrollment-preview">Register a test member with the camera</a> · <a href="/member-preview">Open member voting rehearsal</a> · <a href="/custodian-confirm">Custodian receipt confirmation</a></p>
+<section><h2>Election overview</h2>
+<div class="portal-meta" style="margin:0">
+<div><small>Registered members</small><strong id="summaryMembers">—</strong></div>
+<div><small>Active members</small><strong id="summaryActive">—</strong></div>
+<div><small>Accepted ballots</small><strong id="summaryBallots">—</strong></div>
+<div><small>Elections</small><strong id="summaryElections">—</strong></div>
+</div>
+<button id="refreshOverview" class="ghost">Refresh overview</button>
+<h2 style="margin-top:22px!important">Election history</h2>
+<div id="historyList">Loading…</div>
+<h2 style="margin-top:22px!important">Audit activity</h2>
+<div id="auditList">Loading…</div></section>
 <section><h2>Session</h2><button id="check">Check current administrator session</button><button id="logoutAdmin" class="ghost" type="button">Log out</button><pre id="sessionResult">Not checked</pre></section>
 <section id="adminManagement" hidden><h2>Super Admin — Staff accounts</h2>
 <p>Register additional election administrators. Administrators log in with their own password and Brevo email OTP. Only the Super Admin may create or deactivate administrator accounts.</p>
@@ -77,9 +89,39 @@ async function action(out,work){
  try{const data=await work();by(out).textContent=JSON.stringify(data,null,2);return data}
  catch(e){by(out).textContent=e.name==='AbortError'?'Request timed out; check Render logs':'Request unavailable'}
 }
+async function refreshOverview(){
+ const [summary,history,logs]=await Promise.all([
+  call('/api/admin/overview'),call('/api/admin/history'),call('/api/admin/logs')
+ ]);
+ if(summary.success){
+  for(const [id,key] of [['summaryMembers','members'],['summaryActive','activeMembers'],
+    ['summaryBallots','ballots'],['summaryElections','elections']])
+   by(id).textContent=String(summary.summary[key]);
+ }
+ const holder=by('historyList');holder.replaceChildren();
+ if(history.success){
+  for(const e of history.elections){
+   const p=document.createElement('p'),button=document.createElement('button');
+   p.textContent=e.title+' — '+e.status+' · '+new Date(e.startTime).toLocaleString()+' to '+new Date(e.endTime).toLocaleString()+' ';
+   button.type='button';button.textContent='Use this election';button.className='ghost';
+   button.onclick=()=>{for(const field of ['candidateElection','keyElection','turnoutId','reportId'])by(field).value=e.electionId;window.scrollTo({top:0,behavior:'smooth'})};
+   p.appendChild(button);holder.appendChild(p);
+  }
+  if(!history.elections.length)holder.textContent='No elections created yet.';
+ }else holder.textContent=history.message||'History unavailable';
+ const audit=by('auditList');audit.replaceChildren();
+ if(logs.success){
+  for(const entry of logs.logs.slice(0,30)){
+   const p=document.createElement('p');
+   p.textContent=new Date(entry.createdAt).toLocaleString()+' — '+entry.action+' ('+entry.actorRole+')';
+   audit.appendChild(p);
+  }if(!logs.logs.length)audit.textContent='No recorded events yet.';
+ }else audit.textContent=logs.message||'Audit history unavailable';
+}
+by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
- if(data?.success&&data.role==='superadmin'){by('adminManagement').hidden=false;await listAdmins()}
+ if(data?.success){await refreshOverview();if(data.role==='superadmin'){by('adminManagement').hidden=false;await listAdmins()}}
 };
 async function listAdmins(){
  const data=await action('adminResult',()=>call('/api/superadmin/admins'));
