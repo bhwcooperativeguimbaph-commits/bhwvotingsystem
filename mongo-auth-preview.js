@@ -577,6 +577,9 @@ app.post('/api/logout',async(req,res)=>{
 app.use('/api',(req,res)=>res.status(403).json({success:false,message:'This API is not available in authentication preview'}));
 app.use((req,res)=>res.status(404).json({error:'Not found'}));
 async function main(){
+ if(process.env.ENABLE_MONGODB_VOTE_TEST==='true'&&
+   !/_(?:Staging|Test)$/i.test(process.env.MONGODB_DB_NAME||''))
+  throw new Error('Synthetic vote testing requires a separate _Staging or _Test MongoDB database');
  if(process.env.ENABLE_MONGODB_AUTH_PREVIEW!=='true')throw new Error('Explicit ENABLE_MONGODB_AUTH_PREVIEW=true required');
  keyFromEnv();
  connection=await connectMongo();
