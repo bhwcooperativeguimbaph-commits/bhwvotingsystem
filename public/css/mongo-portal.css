@@ -165,3 +165,13 @@ small{color:var(--muted)}
 .admin-announcements{display:grid;gap:7px;margin:10px 0 18px}
 .admin-announcement{display:block;border:1px solid #a9d9bd;background:#e9f8ed;color:#115b41;text-decoration:none;padding:11px 15px;border-radius:10px;font-size:12px;font-weight:750}
 .admin-announcement:hover{background:#daf1e2;color:#0a5139}
+
+/* Election-scoped participation: distinct from lifetime totals */
+.election-snapshot{background:#f1f8f4;border:1px solid #cfe5d8;border-radius:14px;padding:18px 20px;margin:20px 0}
+.snapshot-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.snapshot-heading small{display:block;font-size:12px;color:#5f756b;font-weight:700}
+.snapshot-heading h3{font-size:1.12rem;margin:5px 0 0;overflow-wrap:anywhere}
+.snapshot-metrics{max-width:none;margin:15px 0 0}
+.snapshot-metrics>div{min-width:155px;border-color:#d6e8de}
+.snapshot-metrics strong{font-variant-numeric:tabular-nums}
+.snapshot-note{font-size:13px;line-height:1.6;color:#446c5a;margin:12px 0 0}
