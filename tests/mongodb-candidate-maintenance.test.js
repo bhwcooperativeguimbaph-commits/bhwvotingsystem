@@ -21,7 +21,7 @@ async function main(){
   if(n==='ballots')return {findOne:async()=>ballotsExist?{}:null};
   if(n==='candidates')return {
    find:()=>({toArray:async()=>base.filter(c=>c.status==='Active')}),
-   updateOne:async q=>{const c=base.find(c=>c.candidateId===q.candidateId&&c.status==='Active');if(!c)return {modifiedCount:0};c.status='Removed';return {modifiedCount:1}},
+   updateOne:async (q,payload)=>{const c=base.find(c=>c.candidateId===q.candidateId&&c.status==='Active');if(!c)return {matchedCount:0,modifiedCount:0};Object.assign(c,payload.$set);return {matchedCount:1,modifiedCount:1}},
    insertOne:async c=>base.push(c)
   };
   throw Error(n);
@@ -34,6 +34,13 @@ async function main(){
  assert.equal(base[2].status,'Active');
  const added=await editCandidate(db,{...args,operation:'add',position:'Kapitan',candidateName:'Epsilon'});
  assert.match(added.candidateId,/^CAND-/);
+ const changed=await editCandidate(db,{...args,operation:'update',candidateId:base[1].candidateId,candidateName:'Beta Renamed'});
+ assert.equal(changed.name,'Beta Renamed');assert.equal(base[1].name,'Beta Renamed');
+ assert.equal(changed.status,'Active');
+ await assert.rejects(editCandidate(db,{...args,operation:'update',candidateId:base[1].candidateId,candidateName:'alpha'}),e=>e.code==='DUPLICATE_CANDIDATE');
+ assert.equal(base[1].name,'Beta Renamed');
+ await assert.rejects(editCandidate(db,{...args,operation:'update',candidateId:base[1].candidateId,candidateName:'New',photo:'data:image/png;base64,YmFk'}),e=>e.code==='INVALID_CANDIDATE');
+ assert.equal(base[1].name,'Beta Renamed');
  const gone=await editCandidate(db,{...args,operation:'remove',candidateId:base[2].candidateId});
  assert.equal(gone.status,'Removed');assert.equal(base[2].status,'Removed');
  ballotsExist=true;
@@ -43,6 +50,6 @@ async function main(){
   candidateName:'Added after custodian key start'}),e=>e.code==='ELECTION_LOCKED');
  keysStarted=false;canEdit=false;
  await assert.rejects(editCandidate(db,{...args,operation:'add',position:'Kagawad',candidateName:'Eta'}),e=>e.code==='ELECTION_LOCKED');
- console.log('PASS: individual candidate add/remove, photo rejection and election edit guards');
+ console.log('PASS: individual candidate add/update/remove, duplicate-name/photo rejection and election edit guards');
 }
 main().catch(e=>{console.error(e);process.exitCode=1});
