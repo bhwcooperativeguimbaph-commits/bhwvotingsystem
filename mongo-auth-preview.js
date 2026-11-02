@@ -618,6 +618,26 @@ app.post('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=
   return res.status(status).json({success:false,message});
  }
 });
+app.patch('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,async(req,res)=>{
+ try{
+  const {editCandidate}=require('./database/candidate-maintenance');
+  const result=await editCandidate(connection.db,{
+   electionId:req.params.electionId,candidateId:req.params.candidateId,
+   operation:'update',candidateName:req.body?.name,photo:req.body?.photo
+  });
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...result});
+ }catch(e){
+  const errors={
+   INVALID_CANDIDATE:[400,'Invalid candidate details or JPG/PNG photo'],
+   ELECTION_LOCKED:[409,'Candidate changes are locked once key provisioning starts, voting begins, or another edit is underway'],
+   CANDIDATE_NOT_FOUND:[404,'Candidate not found'],
+   DUPLICATE_CANDIDATE:[409,'Another candidate in this position already has that name']
+  };
+  const [status,message]=errors[e?.code]||[503,'Candidate update unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
 app.delete('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,async(req,res)=>{
  try{
   const {editCandidate}=require('./database/candidate-maintenance');
