@@ -130,6 +130,7 @@ async function startCamera(){
   await video.play();modelsReady=true;by('login').disabled=false;by('status').textContent='Camera ready. Select Login.';
  }catch(e){
   by('status').textContent='Camera unavailable. Select Login to retry.';
+  by('login').disabled=false;
   feedback(e?.name==='NotAllowedError'?'Allow camera access in your browser to log in.':
    'Unable to start the camera. Check camera permissions and try again.');
  }finally{working=false}
