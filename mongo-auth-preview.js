@@ -240,6 +240,25 @@ async function superadminOnly(req,res,next){
   req.staff=auth;next();
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
+app.get('/api/admin/areas',staffOnly,async(req,res)=>{
+ try{
+  const {listAreas}=require('./database/member-areas');
+  const areas=await listAreas(connection.db);res.set('Cache-Control','no-store');
+  return res.json({success:true,areas});
+ }catch(_){return res.status(503).json({success:false,message:'Areas unavailable'})}
+});
+app.post('/api/admin/areas',staffOnly,async(req,res)=>{
+ try{
+  const {createArea}=require('./database/member-areas');
+  const area=await createArea(connection.db,req.body?.name,
+   {operatorId:req.staff.accountId,actorRole:req.staff.role});
+  res.set('Cache-Control','no-store');return res.status(201).json({success:true,area});
+ }catch(e){
+  if(e?.code==='AREA_EXISTS')return res.status(409).json({success:false,message:'Area already exists'});
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:e.message});
+  return res.status(503).json({success:false,message:'Could not save area'});
+ }
+});
 app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
  const {registerMemberWithFace}=require('./database/member-enrollment');
  const {validateMember}=require('./database/members');
