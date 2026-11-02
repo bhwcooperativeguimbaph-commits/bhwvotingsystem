@@ -19,7 +19,7 @@ async function main(){
  let savedVote;
  const session={endSession:async()=>{},withTransaction:async fn=>fn()};
  const db={collection:name=>{
-  if(name==='members')return {findOne:async()=>member};
+  if(name==='members')return {findOne:async q=>member&&member.memberId===q.memberId&&member.createdAt<=q.createdAt.$lte?member:null};
   if(name==='elections')return {findOne:async()=>election};
   if(name==='candidates')return {find:()=>({toArray:async()=>candidates})};
   if(name==='voterParticipation')return {insertOne:async(doc,opt)=>{
