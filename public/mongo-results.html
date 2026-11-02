@@ -68,6 +68,8 @@ async function loadArchive(){
   const select=by('election');select.replaceChildren();
   for(const item of archive){const option=document.createElement('option');option.value=item.electionId;option.textContent=item.title;select.appendChild(option)}
   if(!archive.length){by('status').textContent='No finalized elections are published yet.';return}
+  const preferred=new URLSearchParams(location.search).get('electionId');
+  if(preferred&&archive.some(item=>item.electionId===preferred))select.value=preferred;
   by('status').textContent=archive.length+' finalized election(s) found.';
   await display();
  }catch(e){by('status').textContent=e.message}
