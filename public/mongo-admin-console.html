@@ -133,7 +133,7 @@ async function refreshOverview(){
 by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
- if(data?.success){await refreshOverview();if(data.role==='superadmin'){by('adminManagement').hidden=false;by('keyProvisionSection').hidden=false;by('resultFinalizationSection').hidden=false;await listAdmins()}}
+ if(data?.success){stagingCleanupAllowed=data.role==='superadmin'&&data.staging===true;await refreshOverview();if(data.role==='superadmin'){by('adminManagement').hidden=false;by('keyProvisionSection').hidden=false;by('resultFinalizationSection').hidden=false;await listAdmins()}}
 };
 async function listAdmins(){
  const data=await action('adminResult',()=>call('/api/superadmin/admins'));
@@ -164,6 +164,7 @@ by('createAdmin').onclick=async()=>{
  }finally{payload.password='';by('newAdminPassword').value=''}
 };
 
+let stagingCleanupAllowed=false;
 let memberPage=1,memberPages=1;
 async function showMembers(){
  const result=await action('membersResult',()=>call('/api/admin/members?page='+memberPage));
@@ -192,7 +193,19 @@ async function showMembers(){
   const editButton=document.createElement('button');
   editButton.type='button';editButton.textContent='Edit profile';editButton.className='ghost';
   editButton.onclick=()=>editMember(member);
-  panel.append(title,editButton,actionButton);view.appendChild(panel);
+  panel.append(title,editButton,actionButton);
+  if(stagingCleanupAllowed){
+   const purge=document.createElement('button');
+   purge.type='button';purge.className='danger';
+   purge.textContent='Purge unused test member';
+   purge.onclick=async()=>{
+    if(!confirm('Permanently remove the unused staging member and encrypted face enrollment? This cannot be undone.'))return;
+    const result=await action('membersResult',()=>call('/api/superadmin/staging-members/'+encodeURIComponent(member.memberId),'DELETE'));
+    if(result?.success)await showMembers();
+   };
+   panel.appendChild(purge);
+  }
+  view.appendChild(panel);
  }
  if(!result.members.length)view.textContent='No registered members.';
 }
