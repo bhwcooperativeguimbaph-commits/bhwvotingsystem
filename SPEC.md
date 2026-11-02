@@ -329,7 +329,7 @@ This section documents code committed after the first persistent facial challeng
 
 ### UX-02 — Administrative navigation and analytics dashboard
 - Desktop: persistent dark navy left sidebar, emerald active item, account/role badge, sign-out action. Mobile: collapsible/accessible navigation with no content obscured.
-- Sections: Dashboard, Registration, Test Biometrics (controlled diagnostics), Setup Election, History & Reports, Members Table, Audit Logs, Users & Roles. Users & Roles is **Super Admin only**.
+- Sections: Dashboard, Registration, Setup Election, History & Reports, Members Table, Audit Logs, Users & Roles. The obsolete Test Biometrics navigation alias is removed in accordance with F08; biometric capture remains inside authorized registration and replacement. Users & Roles is **Super Admin only**.
 - Dashboard: summary cards for registered/active voters, ballots cast, turnout %, election/key status, and safe aggregate charts (live participation trend and turnout by area). No individual vote selections or biometric identifiers in analytics. Handle missing election and zero-denominator states honestly.
 
 ### UX-03 — Registration and biometric camera modal
