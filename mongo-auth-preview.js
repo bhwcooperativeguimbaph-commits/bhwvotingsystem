@@ -346,6 +346,21 @@ app.get('/api/admin/members',staffOnly,async(req,res)=>{
   return res.json({success:true,members,page,perPage,total,pages:Math.ceil(total/perPage)});
  }catch(_){return res.status(503).json({success:false,message:'Member directory unavailable'})}
 });
+app.delete('/api/superadmin/staging-members/:memberId',superadminOnly,async(req,res)=>{
+ try{
+  const {deleteUnusedStagingMember}=require('./database/staging-member-cleanup');
+  const result=await deleteUnusedStagingMember(connection,req.params.memberId);
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...result});
+ }catch(e){
+  const known={STAGING_ONLY:[403,'Available only in isolated staging'],
+   INVALID_MEMBER:[400,'Invalid member ID'],NOT_FOUND:[404,'Member not found'],
+   MEMBER_HAS_VOTED:[409,'Cannot delete member with a recorded ballot'],
+   ELECTORATE_FROZEN:[409,'Member is part of an already frozen electorate']};
+  const [status,message]=known[e?.code]||[503,'Staging member cleanup unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
 app.patch('/api/admin/members/:memberId',staffOnly,async(req,res)=>{
  try{
   const {updateMemberProfile}=require('./database/members');
