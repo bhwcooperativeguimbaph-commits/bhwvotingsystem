@@ -9,7 +9,10 @@ async function main(){
  assert.throws(()=>validateElection({...base,startTime:'2027-01-01T08:00'}),/timezone/);
  assert.throws(()=>validateElection({...base,endTime:'2027-01-02T08:00'}),/timezone/);
  assert.equal(validateElection({...base,startTime:'2027-01-01T08:00:00+08:00'}).startTime.toISOString(),'2027-01-01T00:00:00.000Z');
- assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:2,candidates:[{name:'A'}]}]}),/Kagawad allows 1/);
+ assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:2,candidates:[{name:'A'}]}]}),/Insufficient candidates/);
+ assert.equal(validateElection({...base,config:[{title:'Kagawad',maxVotes:2,candidates:[{name:'A'},{name:'B'}]}]}).config[0].maxVotes,2);
+ assert.equal(validateElection({...base,config:[{title:'Kapitan',maxVotes:1,candidates:[{name:'A'},{name:'B'}]}]}).config[0].maxVotes,1);
+ assert.equal(validateElection({...base,config:[{title:'Secretary',maxVotes:3,candidates:[{name:'A'},{name:'B'},{name:'C'}]}]}).config[0].maxVotes,3);
  assert.throws(()=>validateElection({...base,config:[{title:'Kapitan',maxVotes:2,candidates:[{name:'A'}]}]}),/Insufficient candidates/);
  assert.throws(()=>validateElection({...base,endTime:base.startTime}),/schedule/);
  assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:1,candidates:[{name:'A',photo:'data:image/svg+xml;base64,AAAA'}]}]}),/photo/);
