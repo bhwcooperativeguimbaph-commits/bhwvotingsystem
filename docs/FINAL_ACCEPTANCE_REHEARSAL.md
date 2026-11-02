@@ -9,6 +9,8 @@
 - Staging uses distinct encryption and superadmin secrets, synthetic member identities, and **only two consenting custodian email recipients controlled by the testers**.
 - In staging only, set `ENABLE_MONGODB_AUTH_PREVIEW=true` and `ENABLE_MONGODB_VOTE_TEST=true`. The server refuses the vote-test flag on a database without `_Staging` or `_Test` suffix.
 - Do not copy real biometric samples, passwords, personal addresses, member rosters or election ballots into staging. Do not send key shares to real election officials until approved.
+- **Biometric caveat:** Using the camera creates a real facial descriptor even if the profile name is fictitious. Only proceed with explicit informed consent from an adult test participant. Do not use another person's photograph or a real member's data. If the participant is not comfortable, skip the camera test and report it as *Not Run*.
+- A Super Admin in an isolated staging database can purge an **unused** test member (including encrypted biometric data) from the member directory. The cleanup intentionally rejects members whose vote was recorded or who are included in a frozen electorate. Plan biometric testing before key provisioning and purge any unused account before freezing eligibility.
 
 ## Coordinated test script
 
