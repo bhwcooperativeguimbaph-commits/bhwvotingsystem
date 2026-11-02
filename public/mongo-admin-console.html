@@ -34,6 +34,18 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div id="historyList">Loading…</div>
 <h2 style="margin-top:22px!important">Audit activity</h2>
 <div id="auditList">Loading…</div></section>
+<section aria-labelledby="lifecycleTitle"><h2 id="lifecycleTitle">Election readiness</h2>
+<p>Select an election from History or paste its ID to see whether the ballot is editable, custodians are ready, and results can be finalized.</p>
+<label>Election ID <input id="lifecycleId" placeholder="ELEC-..." autocomplete="off"></label>
+<button id="checkLifecycle" class="ghost" type="button">Check election readiness</button>
+<p id="lifecycleStatus" role="status" aria-live="polite">No election selected.</p>
+<div class="portal-meta" style="margin:0">
+<div><small>Key custody</small><strong id="lifeCustody">—</strong></div>
+<div><small>Eligible voters (frozen)</small><strong id="lifeEligible">—</strong></div>
+<div><small>Recorded ballots</small><strong id="lifeBallots">—</strong></div>
+</div>
+<p id="lifecycleAction" class="warning"></p>
+</section>
 <section><h2>Session</h2><button id="check">Check current administrator session</button><button id="logoutAdmin" class="ghost" type="button">Log out</button><pre id="sessionResult">Not checked</pre></section>
 <section id="adminManagement" hidden><h2>Super Admin — Staff accounts</h2>
 <p>Register additional election administrators. Administrators log in with their own password and Brevo email OTP. Only the Super Admin may create or deactivate administrator accounts.</p>
@@ -118,7 +130,7 @@ async function refreshOverview(){
    const p=document.createElement('p'),button=document.createElement('button');
    p.textContent=e.title+' — '+e.status+' · '+new Date(e.startTime).toLocaleString()+' to '+new Date(e.endTime).toLocaleString()+' ';
    button.type='button';button.textContent='Use this election';button.className='ghost';
-   button.onclick=()=>{for(const field of ['candidateElection','keyElection','turnoutId','reportId'])by(field).value=e.electionId;window.scrollTo({top:0,behavior:'smooth'})};
+   button.onclick=()=>{for(const field of ['candidateElection','keyElection','turnoutId','reportId','lifecycleId'])by(field).value=e.electionId;showLifecycle();by('lifecycleId').scrollIntoView({behavior:'smooth',block:'center'})};
    p.appendChild(button);holder.appendChild(p);
   }
   if(!history.elections.length)holder.textContent='No elections created yet.';
@@ -132,6 +144,27 @@ async function refreshOverview(){
   }if(!logs.logs.length)audit.textContent='No recorded events yet.';
  }else audit.textContent=logs.message||'Audit history unavailable';
 }
+async function showLifecycle(){
+ const id=by('lifecycleId').value.trim();
+ if(!id){by('lifecycleStatus').textContent='Select an election first.';return}
+ by('lifecycleStatus').textContent='Checking lifecycle status…';
+ const result=await call('/api/admin/elections/'+encodeURIComponent(id)+'/lifecycle');
+ if(!result.success){by('lifecycleStatus').textContent=result.message||'Status unavailable';return}
+ const election=result.election;
+ by('lifecycleStatus').textContent=election.title+' — '+election.phase;
+ by('lifeCustody').textContent=election.confirmedCustodians+' / '+election.custodiansRequired;
+ by('lifeEligible').textContent=election.eligibilityFrozen?String(election.eligibleMembers):'Not frozen';
+ by('lifeBallots').textContent=String(election.ballotsCast);
+ const next=election.canFinalize?'Voting closed; Super Admin may finalize results with both custodians.':
+  election.canProvision?'Complete all candidate edits before issuing custodian keys.':
+  election.canEditCandidates?'Candidate configuration may still be edited.':
+  election.phase==='Awaiting custodians'?'Waiting for two independent custodians to confirm their shares.':
+  election.phase==='Open'?'Election voting window is open. Candidate editing is locked.':
+  election.phase==='Finalized'?'Finalized results can be viewed in the public archive.':
+  'Candidate editing and key provisioning are locked.';
+ by('lifecycleAction').textContent=next;
+}
+by('checkLifecycle').onclick=showLifecycle;
 by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
