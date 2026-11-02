@@ -4,9 +4,13 @@
 function directoryFilter(search){
  if(search==null||search==='')return {};
  if(typeof search!=='string')throw new TypeError('Invalid member search term');
+ // Reject control characters before collapsing whitespace; otherwise newlines
+ // can be silently converted into seemingly legitimate search text.
+ if(/[\x00-\x1f\x7f]/.test(search))
+  throw new TypeError('Member search must contain 1-80 printable characters');
  const q=search.trim().replace(/\s+/g,' ');
  if(!q)return {};
- if(q.length>80||/[\x00-\x1f\x7f]/.test(q))
+ if(q.length>80)
   throw new TypeError('Member search must contain 1-80 printable characters');
  const literal=q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
  return {$or:[
