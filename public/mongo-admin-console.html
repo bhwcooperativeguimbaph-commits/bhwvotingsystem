@@ -588,6 +588,22 @@ by('saveMember').onclick=async()=>{
 
 by('logoutAdmin').onclick=async()=>{const result=await call('/api/logout','POST',{});if(result.success)window.location.assign('/')};
 const list=id=>by(id).value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(name=>({name}));
+function manilaNowInput(){
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Manila',
+  year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',
+  hourCycle:'h23'}).formatToParts(new Date(Date.now()+60000))
+  .filter(x=>x.type!=='literal').map(x=>[x.type,x.value]));
+ return parts.year+'-'+parts.month+'-'+parts.day+'T'+parts.hour+':'+parts.minute;
+}
+function refreshElectionDateLimits(){
+ const minimum=manilaNowInput(),start=by('start'),end=by('end');
+ start.min=minimum;end.min=start.value&&start.value>minimum?start.value:minimum;
+ start.setCustomValidity(start.value&&start.value<minimum?'Election start must be in the future.':'');
+ end.setCustomValidity(end.value&&end.value<=start.value?'Election end must follow the start.':'');
+}
+by('start').addEventListener('change',refreshElectionDateLimits);
+by('end').addEventListener('change',refreshElectionDateLimits);
+refreshElectionDateLimits();
 function guimbaLocalToUtcIso(value){
  const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
  if(!match)throw Error('Choose a valid Philippine start and end date');
@@ -706,7 +722,7 @@ function renderWizardReview(){
  }
 }
 function showWizardStep(n){
- wizardStep=n;
+ wizardStep=n;if(n===1)refreshElectionDateLimits();
  for(let k=1;k<=4;k++){
   by('setupStep'+k).hidden=k!==n;
   const label=document.querySelector('.wizard-progress [data-step="'+k+'"]');
@@ -719,22 +735,24 @@ function showWizardStep(n){
  by('wizardError').textContent='';
 }
 by('wizardBack').onclick=()=>{
- if(wizardStep===3){
-  // Preserve candidate inputs before changing stage, but avoid requiring valid
-  // data merely to navigate backward.
-  readWizardCandidates().catch(()=>{});
- }
+ // Candidate form controls remain mounted while navigating Back.
  showWizardStep(Math.max(1,wizardStep-1));
 };
 by('wizardNext').onclick=async()=>{
  try{
   if(wizardStep===1){
+   refreshElectionDateLimits();
    if(!by('title').value.trim())throw Error('Election title is required');
+   if(!by('start').reportValidity()||!by('end').reportValidity())throw Error('Choose valid future dates.');
    const start=guimbaLocalToUtcIso(by('start').value),end=guimbaLocalToUtcIso(by('end').value);
+   if(new Date(start)<=new Date())throw Error('Election start must be in the future.');
    if(new Date(end)<=new Date(start))throw Error('Election end must follow election start');
   }else if(wizardStep===2){
    readWizardPositions();
-   renderWizardCandidates();
+   const current=[...document.querySelectorAll('#wizardCandidates .wizard-position')].map(x=>x.dataset.positionId);
+   const next=electionDraft.positions.map(x=>x.id);
+   if(current.length!==next.length||current.some((id,i)=>id!==next[i]))
+    renderWizardCandidates();
   }else if(wizardStep===3){
    await readWizardCandidates();
    renderWizardReview();
