@@ -1,6 +1,6 @@
 'use strict';
 // Pre-start candidate edits. Uses a per-election lease to serialize concurrent
-// changes. Once an election starts, no additions or removals are permitted.
+// changes. Once key provisioning begins, all add/update/remove operations lock.
 const crypto=require('node:crypto');
 const clean=x=>typeof x==='string'?x.trim().replace(/\s+/g,' '):'';
 function error(code){return Object.assign(new Error(code),{code})}
@@ -16,9 +16,11 @@ function validatePhoto(photo){
  return photo;
 }
 async function editCandidate(db,{electionId,candidateId,position,candidateName,photo,operation,now=new Date()}){
- if(!/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||!['add','remove'].includes(operation))
+ if(!/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||!['add','update','remove'].includes(operation))
   throw error('INVALID_CANDIDATE');
- if(operation==='remove'&&!/^CAND-[0-9a-f-]{36}$/i.test(candidateId||''))throw error('INVALID_CANDIDATE');
+ if(operation!=='add'&&!/^CAND-[0-9a-f-]{36}$/i.test(candidateId||''))throw error('INVALID_CANDIDATE');
+ if(operation==='update'&&(candidateName===undefined||!clean(candidateName)||clean(candidateName).length>100))
+  throw error('INVALID_CANDIDATE');
  if(operation==='add'&&(!clean(position)||clean(position).length>50||!clean(candidateName)||clean(candidateName).length>100))throw error('INVALID_CANDIDATE');
  const owner=crypto.randomUUID(),expiresAt=new Date(now.getTime()+120000);
  const election=await db.collection('elections').findOneAndUpdate({
@@ -32,6 +34,21 @@ async function editCandidate(db,{electionId,candidateId,position,candidateName,p
   if(await db.collection('ballots').findOne({electionId},{projection:{_id:1}}))
    throw error('ELECTION_LOCKED');
   const candidates=await db.collection('candidates').find({electionId,status:'Active'}).toArray();
+  if(operation==='update'){
+   const candidate=candidates.find(c=>c.candidateId===candidateId);
+   if(!candidate)throw error('CANDIDATE_NOT_FOUND');
+   candidateName=clean(candidateName);
+   if(candidates.some(c=>c.candidateId!==candidateId&&
+      c.position.toLowerCase()===candidate.position.toLowerCase()&&
+      c.name.toLowerCase()===candidateName.toLowerCase()))throw error('DUPLICATE_CANDIDATE');
+   const changes={name:candidateName,updatedAt:now};
+   // Absent photo preserves the existing JPG/PNG. Explicit null removes it.
+   if(photo!==undefined)changes.photo=validatePhoto(photo);
+   const result=await db.collection('candidates').updateOne(
+    {electionId,candidateId,status:'Active'},{$set:changes});
+   if(result.matchedCount!==1)throw error('CANDIDATE_NOT_FOUND');
+   return {candidateId,status:'Active',name:candidateName};
+  }
   if(operation==='remove'){
    const candidate=candidates.find(c=>c.candidateId===candidateId);
    if(!candidate)throw error('CANDIDATE_NOT_FOUND');
