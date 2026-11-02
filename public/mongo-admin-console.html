@@ -85,7 +85,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <button id="refreshAdmins" class="ghost">Refresh staff directory</button>
 <div id="adminDirectory" aria-live="polite"></div><pre id="adminResult">No staff changes.</pre></section>
 <section id="membersSection"><h2>Registered members</h2><label>Search name, member ID, or membership area<input id="memberSearch" maxlength="80" placeholder="Type to search registered members" autocomplete="off"></label><button id="members">Search / refresh members</button><p id="memberTotal">No members loaded.</p><div id="memberDirectory" aria-live="polite"></div><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
-<section id="memberEditor" hidden><h2>Edit member profile</h2>
+<dialog id="memberEditor" aria-labelledby="memberEditorTitle"><h2 id="memberEditorTitle">Edit member information</h2>
 <small>Member IDs and prior ballots never change. This form only updates the member's name, membership area and verified Guimba address.</small>
 <input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
 <div class="cols"><label>First name (required)<input id="editMemberFirst" maxlength="60" required></label>
@@ -98,7 +98,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Guimba barangay<select id="editMemberBarangay"></select></label>
 <button id="saveMember">Save member profile</button>
 <button id="cancelMemberEdit" class="ghost">Cancel</button><pre id="editMemberResult"></pre>
-</section>
+</dialog>
 <section id="electionSetupSection" class="wizard-panel">
 <h2>Configure election</h2>
 <p>Build a new election in four steps. Positions and vote limits are fully configurable.</p>
@@ -374,7 +374,7 @@ by('nextMembers').onclick=()=>{if(memberPage<memberPages){memberPage++;showMembe
 let editingMember=null;
 async function editMember(member){
  editingMember=member;
- by('memberEditor').hidden=false;
+ by('memberEditor').showModal();
  by('editMemberId').value=member.memberId;
  const tokens=(member.fullName||'').trim().split(/\s+/).filter(Boolean);
  by('editMemberFirst').value=member.firstName||tokens[0]||'';
@@ -390,9 +390,9 @@ async function editMember(member){
   const item=document.createElement('option');item.value=barangay.code;item.textContent=barangay.name;dropdown.appendChild(item);
  }
  dropdown.value=member.location?.barangayCode||'';
- by('memberEditor').scrollIntoView({behavior:'smooth',block:'start'});
+
 }
-by('cancelMemberEdit').onclick=()=>{by('memberEditor').hidden=true;editingMember=null};
+by('cancelMemberEdit').onclick=()=>{by('memberEditor').close();editingMember=null};
 by('saveMember').onclick=async()=>{
  if(!editingMember)return;
  const required=['editMemberFirst','editMemberLast','editMemberArea','editMemberAddress'];
@@ -416,7 +416,7 @@ by('saveMember').onclick=async()=>{
    lastName:by('editMemberLast').value.trim(),area:by('editMemberArea').value.trim(),
   address:by('editMemberAddress').value,birthdate:by('editMemberBirthdate').value,
   gender:by('editMemberGender').value,location}));
- if(result?.success){by('memberEditor').hidden=true;editingMember=null;await showMembers()}
+ if(result?.success){by('memberEditor').close();editingMember=null;await showMembers()}
 };
 
 by('logoutAdmin').onclick=async()=>{const result=await call('/api/logout','POST',{});if(result.success)window.location.assign('/')};
