@@ -10,7 +10,7 @@ const pages=['mongo-portal.html','mongo-admin-console.html','mongo-member-previe
 const allowedRoutes=new Set([
  '/','/admin-console','/admin-auth-preview','/member-enrollment-preview',
  '/member-preview','/custodian-confirm','/admin-password-recovery','/results',
- '/assets/logo.svg','/css/mongo-portal.css','/js/mongo-face-challenge.js','/js/receipt-pdf.js','/js/report-integrity.js'
+ '/assets/logo.svg','/css/mongo-portal.css','/js/mongo-face-challenge.js','/js/receipt-pdf.js','/js/report-integrity.js','/js/admin-workspace.js'
 ]);
 for(const page of pages){
  const html=fs.readFileSync(path.join(root,'public',page),'utf8');
