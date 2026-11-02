@@ -15,6 +15,7 @@ const indexSpecs = {
   ],
   voterParticipation: [[{electionId:1,memberId:1},{unique:true}], [{receiptCode:1},{unique:true}]],
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
+  faceChallenges: [[{challengeHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   enrollmentLocks: [[{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaCooldowns: [[{adminId:1},{unique:true}]],
   passwordResetCooldowns: [[{adminId:1},{unique:true}]],
