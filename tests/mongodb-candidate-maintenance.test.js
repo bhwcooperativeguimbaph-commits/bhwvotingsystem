@@ -8,11 +8,13 @@ async function main(){
   {candidateId:'CAND-00000000-0000-4000-8000-000000000002',name:'Beta',position:'Kagawad',maxVotes:1,status:'Active'},
   {candidateId:'CAND-00000000-0000-4000-8000-000000000003',name:'Gamma',position:'Kapitan',maxVotes:2,status:'Active'},
   {candidateId:'CAND-00000000-0000-4000-8000-000000000004',name:'Delta',position:'Kapitan',maxVotes:2,status:'Active'}];
- let electionLock=false,canEdit=true,ballotsExist=false;
+ let electionLock=false,canEdit=true,ballotsExist=false,keysStarted=false;
  const db={collection(n){
   if(n==='elections')return {
    findOneAndUpdate:async q=>{
-    if(!canEdit||electionLock)return null;
+    assert.equal(q.keyProvisioningState.$exists,false);
+    assert.equal(q.ballotPublicKeyPem.$exists,false);
+    if(!canEdit||electionLock||keysStarted)return null;
     electionLock=true;return {electionId,status:'Active'};
    },updateOne:async()=>{electionLock=false;return {modifiedCount:1}}
   };
@@ -36,7 +38,10 @@ async function main(){
  assert.equal(gone.status,'Removed');assert.equal(base[2].status,'Removed');
  ballotsExist=true;
  await assert.rejects(editCandidate(db,{...args,operation:'add',position:'Kagawad',candidateName:'Zeta'}),e=>e.code==='ELECTION_LOCKED');
- ballotsExist=false;canEdit=false;
+ ballotsExist=false;keysStarted=true;
+ await assert.rejects(editCandidate(db,{...args,operation:'add',position:'Kagawad',
+  candidateName:'Added after custodian key start'}),e=>e.code==='ELECTION_LOCKED');
+ keysStarted=false;canEdit=false;
  await assert.rejects(editCandidate(db,{...args,operation:'add',position:'Kagawad',candidateName:'Eta'}),e=>e.code==='ELECTION_LOCKED');
  console.log('PASS: individual candidate add/remove, photo rejection and election edit guards');
 }
