@@ -500,10 +500,10 @@ app.delete('/api/superadmin/staging-members/:memberId',superadminOnly,async(req,
 });
 app.patch('/api/admin/members/:memberId',staffOnly,async(req,res)=>{
  try{
-  const {updateMemberProfile}=require('./database/members');
+  const {updateMemberProfileWithAudit}=require('./database/members');
   const {verifyGuimbaLocation}=require('./database/guimba-location');
-  const member=await updateMemberProfile(connection.db,req.params.memberId,req.body||{},
-   {validateLocation:verifyGuimbaLocation});
+  const member=await updateMemberProfileWithAudit(connection,req.params.memberId,req.body||{},
+   {validateLocation:verifyGuimbaLocation,operatorId:req.staff.accountId,actorRole:req.staff.role});
   if(!member)return res.status(404).json({success:false,message:'Member not found'});
   res.set('Cache-Control','no-store');
   return res.json({success:true,member});
