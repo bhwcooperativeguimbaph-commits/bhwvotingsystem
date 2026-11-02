@@ -378,7 +378,7 @@ app.get('/api/admin/members',staffOnly,async(req,res)=>{
   const perPage=25;
   const [members,total]=await Promise.all([
     connection.db.collection('members').find({},{
-      projection:{_id:0,memberId:1,fullName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
+      projection:{_id:0,memberId:1,fullName:1,firstName:1,middleName:1,lastName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
       sort:{createdAt:-1,memberId:1},skip:(page-1)*perPage,limit:perPage
     }).toArray(),
     connection.db.collection('members').countDocuments({})
