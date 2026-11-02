@@ -342,6 +342,14 @@ app.get('/api/admin/overview',staffOnly,async(req,res)=>{
   return res.json({success:true,summary:{members,activeMembers,staff,elections,ballots}});
  }catch(_){return res.status(503).json({success:false,message:'Dashboard temporarily unavailable'})}
 });
+app.get('/api/admin/analytics',staffOnly,async(req,res)=>{
+ try{
+  const {getAdminAnalytics}=require('./database/admin-analytics');
+  const data=await getAdminAnalytics(connection.db);
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...data});
+ }catch(_){return res.status(503).json({success:false,message:'Election analytics unavailable'})}
+});
 app.get('/api/admin/elections/:electionId/lifecycle',staffOnly,async(req,res)=>{
  try{
   const {getElectionLifecycle}=require('./database/election-lifecycle');
