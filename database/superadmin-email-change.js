@@ -30,7 +30,7 @@ async function requestSuperadminEmailChange(db,{adminId,newEmail,deliver=sendBre
  const newCode=String(crypto.randomInt(100000,1000000));
  const challengeHash=digest(challenge);
  const collection=db.collection('adminEmailChangeChallenges');
- await collection.insertOne({challengeHash,adminId,oldEmail:safeEmail(admin.email),newEmail:email,
+ await collection.insertOne({challengeHash,adminId,oldEmail:admin.email,newEmail:email,
   oldCodeHash:digest(oldCode),newCodeHash:digest(newCode),
   attempts:0,consumed:false,createdAt:now,expiresAt:new Date(now.getTime()+300000)});
  try{
