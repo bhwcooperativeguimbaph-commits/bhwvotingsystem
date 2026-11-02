@@ -284,6 +284,7 @@ app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
    throw new TypeError('Select a valid barangay in Guimba, Nueva Ecija');
   if(!validDescriptor(input.descriptor))
    throw new TypeError('A valid facial descriptor is required');
+  if(input.profilePhoto)require('./database/member-portrait').decodePhoto(input.profilePhoto);
  }catch(e){
   return res.status(400).json({success:false,message:e instanceof TypeError?
    e.message:'Invalid member registration form'});
