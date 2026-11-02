@@ -5,6 +5,7 @@ const crypto=require('node:crypto');
 const {validateMember}=require('./members');
 const {encryptDescriptor,decryptDescriptor}=require('./biometrics');
 const {validDescriptor}=require('./face-matching');
+const {encryptPortrait}=require('./member-portrait');
 function enrollmentError(code){return Object.assign(new Error(code),{code})}
 async function registerMemberWithFace(connection,input,{key,validateLocation,operatorId,now=new Date()}={}){
  if(!connection?.client||!connection?.db||typeof validateLocation!=='function')
@@ -17,6 +18,7 @@ async function registerMemberWithFace(connection,input,{key,validateLocation,ope
   throw new TypeError('Complete first/last names, address, adult birthdate and gender are required');
  if(!await validateLocation(member.location))throw new TypeError('Geographic codes are not verified as Guimba');
  const encrypted=encryptDescriptor(input.descriptor,key),db=connection.db;
+ const portrait=input.profilePhoto?encryptPortrait(input.profilePhoto,key):null;
  const memberId='MEM-'+crypto.randomUUID(),biometricId='BIO-'+crypto.randomUUID();
  const lockId='member-biometric-enrollment',owner=crypto.randomUUID();
  let locked=false;
@@ -46,6 +48,7 @@ async function registerMemberWithFace(connection,input,{key,validateLocation,ope
   try{
    await session.withTransaction(async()=>{
     await db.collection('members').insertOne({memberId,...member,
+     ...(portrait?{portraitEncrypted:portrait}:{}),
      biometricConsent:{granted:true,version:'BHW-BIOMETRIC-CONSENT-v1',grantedAt:now,
       recordedBy:typeof operatorId==='string'?operatorId:null},createdAt:now,updatedAt:now},{session});
     await db.collection('biometricRegistrations').insertOne({
