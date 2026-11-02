@@ -82,6 +82,11 @@ app.get(['/api/geo/:level','/api/geo/:level/:code'],(req,res)=>{
 app.use('/models',express.static(path.join(__dirname,'public','models'),{
  index:false,etag:true,maxAge:'1d'
 }));
+app.get('/js/report-integrity.js',(req,res)=>{
+ res.set('Cache-Control','public,max-age=3600');
+ return res.type('application/javascript').sendFile(
+  path.join(__dirname,'public','js','report-integrity.js'));
+});
 app.get('/js/receipt-pdf.js',(req,res)=>{
  res.set('Cache-Control','public,max-age=3600');
  res.type('application/javascript');
