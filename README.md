@@ -13,6 +13,8 @@ This repository replaces the old MySQL entry point with a MongoDB-backed electio
 - Atlas readiness diagnostic: `npm run audit:mongodb`.
 - Render public smoke checks: GitHub Actions → **MongoDB Preview Staging Smoke Test** (manual run).
 - Full specifications and launch criteria: [SPEC.md](SPEC.md).
+- Cross-chat development continuation and verified/pending work: [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md).
+- Staged HTTP endpoint inventory and selected JSON contracts: [openapi.yaml](openapi.yaml) (not yet complete production API parity).
 
 ## Render configuration
 
@@ -52,6 +54,9 @@ Resend and Gmail SMTP keys are not required by the MongoDB application's email-O
 - Member biometric descriptors are encrypted with AES-256-GCM. Two distinct enrolled faces cannot use the same biometric enrollment identity in the guarded workflow.
 - Facial challenges are generated and atomically consumed from MongoDB using short expiry and network binding. **Client-reported blinks and head turns are not certified presentation-attack detection.**
 - The Super Admin alone provisions custodian shares, creates/deactivates staff accounts, and finalizes results with both custodian shares.
+- Super Admin recovery/OTP address changes require a logged-in Super Admin plus separate email codes from both the current and proposed address; successful changes revoke sessions.
+- Candidate names and JPG/PNG photos may be edited, added or removed only before key provisioning; the database enforces the editing lease.
+- State-changing browser requests require an exact same-origin `Origin` header and reject cross-site Fetch Metadata.
 - All database results shown publicly are finalized **aggregate** candidate totals, not member selections.
 - A green smoke workflow is a connectivity and access-control check, **not** a security audit or permission to open voting.
 
