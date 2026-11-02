@@ -14,6 +14,7 @@ This repository replaces the old MySQL entry point with a MongoDB-backed electio
 - Render public smoke checks: GitHub Actions → **MongoDB Preview Staging Smoke Test** (manual run).
 - Full specifications and launch criteria: [SPEC.md](SPEC.md).
 - Cross-chat development continuation and verified/pending work: [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md).
+- Staging UI walkthrough and sanitized feedback checklist: [docs/RENDER_FLOW_REVIEW.md](docs/RENDER_FLOW_REVIEW.md).
 - Staged HTTP endpoint inventory and selected JSON contracts: [openapi.yaml](openapi.yaml) (not yet complete production API parity).
 
 ## Render configuration
