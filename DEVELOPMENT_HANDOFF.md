@@ -48,6 +48,28 @@ _Last updated: 2026-11-02 (Asia/Manila)_
 4. Update the dated session log below **on main** with changed files, commit identifiers, verification results, current blockers and next concrete step.
 
 ## Dated session log
+### 2026-11-02 — Render flow-preparation development (continued)
+**User direction:** Finish code features against `SPEC.md` on `main`; user will personally review the deployed Render flow and provide feedback. All changes in this log are committed directly to `main`. Use `docs/RENDER_FLOW_REVIEW.md` to guide that review.
+
+**Completed source-code increments:**
+- **Results integrity:** Browser-side SHA-256 of the canonical published aggregate report, fail-closed before displaying/downloading if the report differs from the server-stored fingerprint. `public/js/report-integrity.js`; protected route to serve script; `tests/mongodb-report-integrity-browser.test.js`. This is a content-integrity check, NOT independent election-tally certification.
+- **Candidate editing/audit:** All candidate add/update/remove mutations now use the MongoDB `connection` and transaction-bound sanitized `auditLogs` entries. Expanded both mock tests and disposable replica-set integration to exercise add/update/remove and key-provisioning locks. `database/candidate-maintenance.js`, `mongo-auth-preview.js`, `tests/mongodb-candidate-maintenance.test.js`, `tests/mongodb-replica-integration.test.js`.
+- **Super Admin flow:** Key-provisioning now has an explicit freeze/delivery confirmation; supervised delivery status screen and Super Admin-only `GET /api/superadmin/elections/:electionId/custodians` show provider-accepted timestamps and independent custodian confirmation without revealing shares. `database/custodian-status.js`, `services/brevo-email.js`, `database/key-provisioning.js`, admin console, OpenAPI and tests. No automatic resend of lost secret shares; policy/recovery design remains pending.
+- **Additional atomic audit:** `createAdmin`, member-status activation/deactivation and member-profile correction use MongoDB transactions with sanitized audit events and authorized operator IDs. Added/updated tests in `tests/mongodb-admin-users.test.js`, `tests/mongodb-member-status-audit.test.js`, `tests/mongodb-member-profile-audit.test.js`. Member status activation continues to be blocked after electorate freeze; the strongest concurrent roster-freeze race still needs an independent review.
+- **Audit UI:** Safe outcome, candidate ID and admin target references are included in protected staff audit filters; no private ballot selections or biometric templates.
+- **User review preparation:** `docs/RENDER_FLOW_REVIEW.md` and README link; `SPEC.md` implementation checkpoint. User can report PASS/FAIL/NOT RUN by step without sharing passwords, face data, OTPs or key shares.
+
+**Verification method:** `npm test` includes all added regressions; the `ci-diagnostics-report` GitHub Actions workflow runs a disposable local MongoDB replica set and credential-free public staging smoke probe. Check the latest `ci-reports/LATEST_TEST_REPORT.json` **for the exact `main` commit** before assuming a green result. Do not confuse CI tests and public HTTP probes with an authenticated end-to-end browser trial.
+
+**Known incomplete acceptance and independent gates:**
+1. Full authenticated real-browser Render staging walkthrough from `docs/RENDER_FLOW_REVIEW.md`, including consented face enrollment/login, role-based profile edits, candidate photos, and PDF downloads.
+2. Brevo real two-recipient key deliveries, delivery/bounce status and approved lost-key/revocation/recovery process. Provider API acceptance is not guaranteed inbox receipt.
+3. Actual MongoDB Atlas role-bound election lifecycle transactions, simultaneous roster changes and concurrent vote/receipt proof on an isolated synthetic staging database (not on the live cooperative data).
+4. Independent security review of ballot secrecy, spoof-resistant identity, accessibility alternative, retention/deletion, encryption-key rotation and disaster recovery/backup/restore; official go-live signoff.
+5. OpenAPI response schemas are a baseline; refine against actual response bodies and HTTP status codes.
+
+**Next:** wait until Render reflects latest green `main`, have user follow `docs/RENDER_FLOW_REVIEW.md` with consenting synthetic test participants, triage their sanitized feedback and fix issues directly on `main`. **Never enable actual cooperative voting without all acceptance and formal approval.**
+
 ### 2026-11-02 — direct-main implementation and security increment
 **Current development policy:** use `main` for future changes, update this handoff after every development session, and treat `SPEC.md` as the authoritative acceptance criteria. Do not invent finished status.
 
