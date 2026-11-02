@@ -151,6 +151,20 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>New candidate name<input id="candidateName" maxlength="100"></label></div><label>Candidate image (optional JPG/PNG; resized in browser)<input id="candidatePhoto" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label>
 <small>Candidate editing locks when custodians begin key provisioning. JPG/PNG photo uploads are available before that point.</small>
 <button id="addCandidate">Add candidate</button><pre id="candidateResult">Not changed</pre></section>
+<dialog id="candidateEditDialog" aria-labelledby="candidateEditTitle">
+ <h2 id="candidateEditTitle">Edit candidate</h2>
+ <p>Only allowed before election key provisioning begins. An existing photo is preserved unless replaced.</p>
+ <p id="candidateEditContext"></p>
+ <label>Candidate name<input id="editCandidateName" required maxlength="100" autocomplete="off"></label>
+ <label>Replace photo (optional JPG or PNG, under 500 KB after resizing)
+  <input id="editCandidatePhoto" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png">
+ </label>
+ <p id="candidateEditError" role="alert" aria-live="polite"></p>
+ <div class="wizard-controls">
+  <button id="cancelCandidateEdit" class="ghost" type="button">Cancel</button>
+  <button id="saveCandidateEdit" type="button">Save candidate</button>
+ </div>
+</dialog>
 <section id="keyProvisionSection" hidden><h2>Assign two election key custodians</h2>
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
@@ -693,6 +707,9 @@ async function showCandidates(){
   for(const c of data.candidates){
   const item=document.createElement('p'),title=document.createElement('span'),button=document.createElement('button');
   title.textContent=c.position+' — '+c.name+' ('+c.candidateId+') ';
+  const editButton=document.createElement('button');
+  editButton.type='button';editButton.className='ghost';editButton.textContent='Edit candidate';
+  editButton.onclick=()=>openCandidateEditor(id,c);
   button.textContent='Remove this candidate';
   button.type='button';
   button.onclick=async()=>{
@@ -700,13 +717,49 @@ async function showCandidates(){
    const result=await action('candidateResult',()=>call('/api/admin/elections/'+encodeURIComponent(id)+'/candidates/'+encodeURIComponent(c.candidateId),'DELETE'));
    if(result?.success)showCandidates();
   };
-  item.append(title,button);list.appendChild(item);
+  item.append(title,editButton,button);list.appendChild(item);
   }
  }
 }
 by('listCandidates').onclick=showCandidates;
-async function encodeCandidatePhoto(){
- const file=by('candidatePhoto').files[0];if(!file)return null;
+let editingCandidate=null;
+function openCandidateEditor(electionId,candidate){
+ editingCandidate={electionId,candidateId:candidate.candidateId};
+ by('candidateEditContext').textContent=candidate.position+' · '+candidate.candidateId;
+ by('editCandidateName').value=candidate.name;
+ by('editCandidatePhoto').value='';
+ by('candidateEditError').textContent='';
+ by('candidateEditDialog').showModal();
+}
+function closeCandidateEditor(){
+ editingCandidate=null;by('editCandidatePhoto').value='';
+ by('candidateEditDialog').close();
+}
+by('cancelCandidateEdit').onclick=closeCandidateEditor;
+by('candidateEditDialog').addEventListener('close',()=>{editingCandidate=null});
+by('saveCandidateEdit').onclick=async()=>{
+ if(!editingCandidate)return;
+ const name=by('editCandidateName').value.trim().replace(/\\s+/g,' ');
+ if(!name||name.length>100){
+  by('candidateEditError').textContent='Candidate name must contain 1–100 characters.';return;
+ }
+ const target={...editingCandidate},save=by('saveCandidateEdit');
+ save.disabled=true;by('candidateEditError').textContent='Saving…';
+ try{
+  const photo=by('editCandidatePhoto').files.length?
+   await encodeCandidatePhoto(by('editCandidatePhoto')):undefined;
+  const response=await call('/api/admin/elections/'+encodeURIComponent(target.electionId)+
+   '/candidates/'+encodeURIComponent(target.candidateId),'PATCH',{name,photo});
+  if(!response.success)throw Error(response.message||'Candidate update failed');
+  closeCandidateEditor();
+  by('candidateResult').textContent='Candidate updated. Changes are locked after key provisioning.';
+  await showCandidates();
+ }catch(error){
+  by('candidateEditError').textContent=error.message||'Candidate update unavailable';
+ }finally{save.disabled=false}
+};
+async function encodeCandidatePhoto(input=by('candidatePhoto')){
+ const file=input.files[0];if(!file)return null;
  if(!['image/jpeg','image/png'].includes(file.type)||!/\.(jpg|jpeg|png)$/i.test(file.name)||file.size>5*1024*1024)
   throw Error('Use a JPG or PNG photo smaller than 5 MB');
  const url=URL.createObjectURL(file);
