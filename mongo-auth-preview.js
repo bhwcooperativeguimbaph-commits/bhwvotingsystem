@@ -591,18 +591,10 @@ app.get('/api/member/receipts',async(req,res)=>{
   const auth=await authenticateSession(connection.db,token(req));
   if(!auth||auth.role!=='member')
    return res.status(403).json({success:false,message:'Member session required'});
-  // Receipts are tied to participation only. Encrypted ballots never carry a
-  // member ID, receipt ID, candidate choice, or vote confirmation code.
-  const entries=await connection.db.collection('voterParticipation').find({
-   memberId:auth.accountId,status:'Valid'
-  },{
-   projection:{_id:0,electionId:1,receiptCode:1,createdAt:1},
-   sort:{createdAt:-1},limit:25
-  }).toArray();
+  const {listMemberReceipts}=require('./database/member-receipts');
+  const receipts=await listMemberReceipts(connection.db,auth.accountId);
   res.set('Cache-Control','no-store');
-  return res.json({success:true,receipts:entries.map(r=>({
-   electionId:r.electionId,receiptNo:r.receiptCode,recordedAt:r.createdAt
-  }))});
+  return res.json({success:true,receipts});
  }catch(_){return res.status(503).json({success:false,message:'Receipt history unavailable'})}
 });
 app.get('/api/member/my-receipt',async(req,res)=>{
