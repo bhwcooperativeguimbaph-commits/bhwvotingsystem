@@ -92,6 +92,7 @@ app.get('/js/receipt-pdf.js',(req,res)=>{
  res.type('application/javascript');
  return res.sendFile(path.join(__dirname,'public','js','receipt-pdf.js'));
 });
+app.get('/js/admin-workspace.js',staffOnly,(req,res)=>{res.set('Cache-Control','no-store');return res.type('application/javascript').sendFile(path.join(__dirname,'public','js','admin-workspace.js'))});
 app.get('/js/mongo-face-challenge.js',(req,res)=>{
  res.set('Cache-Control','no-store');
  res.type('application/javascript');
@@ -109,7 +110,7 @@ app.get('/member-enrollment-preview',staffOnly,(req,res)=>{
 });
 app.get('/admin-console',staffOnly,(req,res)=>{
  res.set('Cache-Control','no-store');
- res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
+ res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; frame-src 'self'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
  return res.sendFile(path.join(__dirname,'public','mongo-admin-console.html'));
 });
 app.get('/results',(req,res)=>{
