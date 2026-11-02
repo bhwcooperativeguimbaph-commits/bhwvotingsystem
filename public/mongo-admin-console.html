@@ -72,7 +72,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>New candidate name<input id="candidateName" maxlength="100"></label></div><label>Candidate image (optional JPG/PNG; resized in browser)<input id="candidatePhoto" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label>
 <small>New candidates can be added or removed individually only before the start time and before any ballot is recorded. JPG/PNG image support is available through the API; this test page adds names only.</small>
 <button id="addCandidate">Add candidate</button><pre id="candidateResult">Not changed</pre></section>
-<section><h2>Assign two election key custodians</h2>
+<section id="keyProvisionSection" hidden><h2>Assign two election key custodians</h2>
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
 <small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
@@ -80,7 +80,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <section><h2>Election turnout</h2>
 <label>Election ID<input id="turnoutId" placeholder="ELEC-..."></label>
 <button id="turnout">Load turnout</button><pre id="turnoutResult">Not loaded</pre></section>
-<section><h2>Finalize election results (after close)</h2>
+<section id="resultFinalizationSection" hidden><h2>Finalize election results (after close)</h2>
 <label>Election ID<input id="reportId" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 share<textarea id="share1" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
 <label>Custodian 2 share<textarea id="share2" rows="2" autocomplete="off" spellcheck="false"></textarea></label></div>
@@ -133,7 +133,7 @@ async function refreshOverview(){
 by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
- if(data?.success){await refreshOverview();if(data.role==='superadmin'){by('adminManagement').hidden=false;await listAdmins()}}
+ if(data?.success){await refreshOverview();if(data.role==='superadmin'){by('adminManagement').hidden=false;by('keyProvisionSection').hidden=false;by('resultFinalizationSection').hidden=false;await listAdmins()}}
 };
 async function listAdmins(){
  const data=await action('adminResult',()=>call('/api/superadmin/admins'));
