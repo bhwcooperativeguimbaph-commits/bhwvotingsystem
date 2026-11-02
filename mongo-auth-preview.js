@@ -642,7 +642,7 @@ app.get('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=>
 app.post('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=>{
  try{
   const {editCandidate}=require('./database/candidate-maintenance');
-  const result=await editCandidate(connection.db,{electionId:req.params.electionId,
+  const result=await editCandidate(connection,{operatorId:req.staff.accountId,actorRole:req.staff.role,electionId:req.params.electionId,
     operation:'add',position:req.body?.position,candidateName:req.body?.name,photo:req.body?.photo});
   return res.status(201).json({success:true,...result});
  }catch(e){
@@ -656,7 +656,7 @@ app.post('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=
 app.patch('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,async(req,res)=>{
  try{
   const {editCandidate}=require('./database/candidate-maintenance');
-  const result=await editCandidate(connection.db,{
+  const result=await editCandidate(connection,{operatorId:req.staff.accountId,actorRole:req.staff.role,
    electionId:req.params.electionId,candidateId:req.params.candidateId,
    operation:'update',candidateName:req.body?.name,photo:req.body?.photo
   });
@@ -676,7 +676,7 @@ app.patch('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,a
 app.delete('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,async(req,res)=>{
  try{
   const {editCandidate}=require('./database/candidate-maintenance');
-  const result=await editCandidate(connection.db,{electionId:req.params.electionId,
+  const result=await editCandidate(connection,{operatorId:req.staff.accountId,actorRole:req.staff.role,electionId:req.params.electionId,
     candidateId:req.params.candidateId,operation:'remove'});
   return res.json({success:true,...result});
  }catch(e){
