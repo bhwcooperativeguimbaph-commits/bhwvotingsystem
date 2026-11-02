@@ -120,15 +120,6 @@ app.post('/api/face-challenge',rateLimit,async(req,res)=>{
   return res.json({success:true,...challenge});
  }catch(_){return res.status(503).json({success:false,message:'Facial challenge temporarily unavailable'})}
 });
-app.post('/api/face-prescan',rateLimit,async(req,res)=>{
- if(!validDescriptor(req.body?.descriptor))return res.status(400).json({success:false,message:'Invalid face data'});
- try{
-  const result=await findFaceMatch(connection.db,req.body.descriptor,decodeStoredTemplate);
-  res.set('Cache-Control','no-store');
-  return res.json({success:true,recognized:!!result.match&&!result.ambiguous,
-    message:result.ambiguous?'Face match is ambiguous':result.match?'Face recognized. Continue with the facial challenge.':'Face not recognized'});
- }catch(_){return res.status(503).json({success:false,message:'Face verification unavailable'})}
-});
 app.post('/api/login-face',rateLimit,async(req,res)=>{
  if(!validDescriptor(req.body?.descriptor))return res.status(400).json({success:false,message:'Invalid face data'});
  let verified=false;
