@@ -48,6 +48,24 @@ _Last updated: 2026-11-02 (Asia/Manila)_
 4. Update the dated session log below **on main** with changed files, commit identifiers, verification results, current blockers and next concrete step.
 
 ## Dated session log
+### 2026-11-02 — Second Render review: registration, members, wizard, custody
+
+**Evidence:** User shared five Chrome screenshots of `/admin-console#view-registration`, `#view-users` and several `#view-setup` steps. Problems observed: embedded enrollment rendered as a tiny scrolling frame, staff JSON response in Users & Roles, long scrolling and native hash anchor jumps, "Purge unused test member" action instead of icons, past date-picker values, candidate JPG decode exception, discarded draft fields during Back/Continue, visible "No election created" placeholder, and missing last-step custodian recipient fields.
+
+**Changes on `main`:**
+- `public/js/admin-workspace.js` explicit full-width registration iframe, same-origin height measurement with ResizeObserver and no inner scrollbar; prevented native hash anchor jumps via pushState, ensuring every sidebar view starts at top.
+- Removed dynamically appended Election operations tab. Renamed History & reports to **Election results & reports**, moved election readiness, turnout, key delivery/confirmation and result finalization panels into that view; candidate maintenance grouped with Setup election.
+- `public/mongo-admin-console.html` member table now has icon-only **Edit**, **Delete**, and **Disable/Enable** actions, accessible aria labels, confirmation before destructive action. Edit modal also offers a biometric-replacement control. Delete maps to existing Super Admin-only isolated staging cleanup; refuses any voted/frozen voter and remains disabled outside authorized staging. Never claim general production deletion is implemented. Member status remains reversible through existing server rule.
+- Staff account action results are now readable status messages rather than JSON; no `<pre>` response dump on Users & Roles.
+- Native `datetime-local` start/end fields now have Philippine-time minimum values in the future and explicit client validation; the server already independently rejects past starts. Setup controls have improved focus/size styles. Wizard keeps candidate DOM and stores draft names/converted photos across Back/Continue.
+- Candidate image uploads now check genuine JPG/PNG signatures, use `createImageBitmap` with a browser `Image` fallback, shrink and convert to standard JPG, display a local preview, preserve approved photo data in wizard draft and show actionable conversion errors for invalid/unreadable images. Truly corrupt files still cannot be decoded.
+- Step 4 **Review & custodians** collects TWO different custodian email addresses. The single guarded final action creates the election and then invokes the preexisting Super Admin-only `provision-keys` endpoint, with explicit confirmation. If creation succeeds but delivery fails, the created election ID is retained and the action attempts a controlled retry without creating duplicate elections. The former "No election created" text is hidden. Brevo acceptance is not inbox confirmation.
+- Added `tests/mongodb-review-fixes-ui.test.js` to `npm test`. The user still needs to review live Chrome screenshots, especially embedded camera capture, candidate upload and the two-mail final step.
+
+**Privacy / security:** Raw API results removed from Users & Roles; deletion restricted to unused staging account cleanup. Real voting not enabled. No live biometric or key shares used in automated checks. Test current exact `main` SHA via `ci-reports/LATEST_TEST_REPORT.json` and GitHub Actions before claiming the final commit passed.
+
+**Next:** user retests Registration, Member table icons, Users & Roles, future dates and JPG/PNG preview, Back retention, last-step emails, and Election results & reports after Render deploys the latest green commit. Real-browser success and independent election/privacy acceptance are still outstanding.
+
 ### 2026-11-02 — UI/UX overhaul requested after Render review preparation
 
 **User requested:** Access-only public landing; streamlined centered automatic-camera member login and popup feedback; authenticated profile hub with consented portrait and collapsible notification bell; separate configurable ballot, named-selection confirmation, automatic PDF receipt and return to profile; clean OTP-only admin verification after credentials; full-width admin dashboard with separate sidebar views and per-day/per-area graphs/tables; embedded member registration with expandable Area dropdown. Remove top navigation and visible rehearsal/testing warnings from user-facing pages without weakening backend vote safety.
