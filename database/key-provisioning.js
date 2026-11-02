@@ -24,11 +24,14 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
   const pkg=createCustodianPackage();
   // Once issued, only the recipients possess individual shares. Provider
   // acceptance is NOT proof of inbox delivery; verify both before voting.
+  const deliveries=[];
   for(let i=0;i<2;i++){
-   await deliver({to:emails[i],subject:'BHW election key share '+(i+1)+' of 2',
+   const receipt=await deliver({to:emails[i],subject:'BHW election key share '+(i+1)+' of 2',
     text:'Election: '+electionId+'\nKey fingerprint: '+pkg.fingerprint+
      '\nYour confidential share ('+(i+1)+' of 2):\n'+pkg.shares[i]+
      '\nKeep this share private. Two distinct custodian shares are required to disclose results.'});
+   deliveries.push({providerMessageId:typeof receipt?.messageId==='string'?
+    receipt.messageId:null,deliveryAcceptedAt:new Date()});
   }
   const session=client.startSession();
   try{
@@ -42,7 +45,9 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
     const eligibleMembersSnapshot=await db.collection('members').countDocuments(
       {status:'Active',createdAt:{$lte:now}},{session});
     const custodians=emails.map((email,i)=>({electionId,email,shareIndex:i+1,
-     shareHash:pkg.shareHashes[i],fingerprint:pkg.fingerprint,status:'Sent',createdAt:now}));
+     shareHash:pkg.shareHashes[i],fingerprint:pkg.fingerprint,status:'Sent',
+     deliveryAcceptedAt:deliveries[i].deliveryAcceptedAt,
+     providerMessageId:deliveries[i].providerMessageId,createdAt:now}));
     await db.collection('keyCustodians').insertMany(custodians,{session});
     const result=await db.collection('elections').updateOne({
      electionId,keyReservationId:reservationId,keyProvisioningState:'Initializing',
