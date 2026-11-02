@@ -45,13 +45,23 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div class="portal-meta" style="margin:0">
 <div><small>Registered members</small><strong id="summaryMembers">—</strong></div>
 <div><small>Active members</small><strong id="summaryActive">—</strong></div>
-<div><small>Accepted ballots</small><strong id="summaryBallots">—</strong></div>
+<div><small>Total accepted ballots · all elections</small><strong id="summaryBallots">—</strong></div>
 <div><small>Elections</small><strong id="summaryElections">—</strong></div>
 </div>
-<div class="analytics-grid">
+<div class="election-snapshot" aria-label="Latest election participation">
+ <div class="snapshot-heading"><div><small>Latest configured election</small><h3 id="currentElectionTitle">Checking election…</h3></div>
+ <span id="currentElectionStatus" class="status-chip">Checking</span></div>
+ <div class="portal-meta snapshot-metrics">
+  <div><small>Accepted ballots · latest election</small><strong id="currentBallots">—</strong></div>
+  <div><small>Eligible voters · frozen roster</small><strong id="currentEligible">—</strong></div>
+  <div><small>Turnout · latest election</small><strong id="currentTurnout">—</strong></div>
+ </div>
+ <p id="turnoutExplanation" class="snapshot-note" role="status" aria-live="polite">Checking the election's recorded participation and eligibility snapshot.</p>
+</div>
+<div class="analytics-grid>
  <article class="analytics-card"><div class="analytics-card-title"><h3>Live participation overview</h3><small>Accepted ballots by day • Philippine time</small></div>
  <div id="participationChart" class="chart-bars" role="img" aria-label="Accepted ballots by day">No election data yet.</div></article>
- <article class="analytics-card"><div class="analytics-card-title"><h3>Turnout by area</h3><small>Groups with at least three voters only</small></div>
+ <article class="analytics-card"><div class="analytics-card-title"><h3>Accepted ballots by area</h3><small>Recorded participation; areas with three or more ballots only</small></div>
  <div id="areaChart" class="area-chart" role="img" aria-label="Area turnout">Awaiting eligible turnout.</div></article>
 </div>
 <button id="refreshOverview" class="ghost">Refresh overview</button>
@@ -189,6 +199,25 @@ async function refreshAnalytics(){
  try{
   const result=await call('/api/admin/analytics');
   if(!result.success)throw Error(result.message||'Analytics unavailable');
+  const election=result.election;
+  const eligible=election?.eligibleMembers;
+  by('currentElectionTitle').textContent=election?.title||'No election configured';
+  by('currentElectionStatus').textContent=election?.status||'No election';
+  by('currentBallots').textContent=election?String(result.ballotsCast??0):'—';
+  by('currentEligible').textContent=Number.isInteger(eligible)&&eligible>=0?String(eligible):'Not frozen';
+  if(!election){
+   by('currentTurnout').textContent='—';
+   by('turnoutExplanation').textContent='Create a test election to begin observing participation.';
+  }else if(!Number.isInteger(eligible)||eligible<0){
+   by('currentTurnout').textContent='Pending';
+   by('turnoutExplanation').textContent='Turnout is unavailable until the electorate is frozen during key provisioning.';
+  }else if(eligible===0){
+   by('currentTurnout').textContent='N/A';
+   by('turnoutExplanation').textContent='The frozen roster contains no eligible voters; a percentage would be misleading.';
+  }else{
+   by('currentTurnout').textContent=Number(result.turnoutPercent).toFixed(2)+'%';
+   by('turnoutExplanation').textContent='Based on '+String(result.ballotsCast??0)+' accepted ballots out of '+eligible+' frozen eligible voters.';
+  }
   renderBarChart('participationChart',result.daily||[],'date');
   const area=by('areaChart');area.replaceChildren();
   if(!(result.areas||[]).length){
@@ -205,6 +234,12 @@ async function refreshAnalytics(){
    }
   }
  }catch(_){
+  by('currentElectionTitle').textContent='Election data unavailable';
+  by('currentElectionStatus').textContent='Unavailable';
+  by('currentBallots').textContent='—';
+  by('currentEligible').textContent='—';
+  by('currentTurnout').textContent='—';
+  by('turnoutExplanation').textContent='Could not retrieve the latest election metrics. Try refreshing the dashboard.';
   by('participationChart').textContent='Analytics temporarily unavailable';
   by('areaChart').textContent='Area analytics temporarily unavailable';
  }
@@ -248,12 +283,45 @@ async function refreshOverview(){
  }
  const holder=by('historyList');holder.replaceChildren();
  if(history.success){
+  const phTime=value=>{
+   const dt=new Date(value);
+   return Number.isFinite(dt.getTime())?
+    new Intl.DateTimeFormat('en-PH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Manila'}).format(dt):
+    'Date unavailable';
+  };
   for(const e of history.elections){
-   const p=document.createElement('p'),button=document.createElement('button');
-   p.textContent=e.title+' — '+e.status+' · '+new Date(e.startTime).toLocaleString()+' to '+new Date(e.endTime).toLocaleString()+' ';
-   button.type='button';button.textContent='Use this election';button.className='ghost';
-   button.onclick=()=>{for(const field of ['candidateElection','keyElection','turnoutId','reportId','lifecycleId'])by(field).value=e.electionId;showLifecycle();by('lifecycleId').scrollIntoView({behavior:'smooth',block:'center'})};
-   p.appendChild(button);holder.appendChild(p);
+   const entry=document.createElement('article');entry.className='history-entry';
+   const heading=document.createElement('div');heading.className='history-heading';
+   const title=document.createElement('strong');title.textContent=e.title;
+   const chip=document.createElement('span');chip.className='status-chip';
+   chip.textContent=e.published?'Published':'Not published';
+   heading.append(title,chip);
+   const dates=document.createElement('small');
+   dates.textContent='Voting: '+phTime(e.startTime)+' – '+phTime(e.endTime)+' (Philippine time)';
+   const stats=document.createElement('p');stats.className='history-stats';
+   const eligible=Number.isInteger(e.eligibleMembers)?e.eligibleMembers:null;
+   const pct=eligible===null?'Pending roster freeze':eligible===0?'N/A (no eligible voters)':
+    Number(e.turnoutPercent).toFixed(2)+'%';
+   stats.textContent='Status: '+e.status+' · Accepted ballots: '+e.ballotsCast+
+    ' · Frozen eligible: '+(eligible===null?'Not frozen':eligible)+' · Turnout: '+pct;
+   const actions=document.createElement('div');actions.className='history-actions';
+   const button=document.createElement('button');
+   button.type='button';button.textContent='Inspect / manage';button.className='ghost';
+   button.onclick=()=>{
+    for(const field of ['candidateElection','keyElection','turnoutId','reportId','lifecycleId'])by(field).value=e.electionId;
+    showLifecycle();by('lifecycleId').scrollIntoView({behavior:'smooth',block:'center'});
+   };
+   actions.appendChild(button);
+   if(e.published&&/^ELEC-[0-9a-f-]{36}$/i.test(e.electionId)){
+    const link=document.createElement('a');link.className='history-report-link';
+    link.href='/results?electionId='+encodeURIComponent(e.electionId);
+    link.textContent='View report & verify integrity';actions.appendChild(link);
+   }else{
+    const locked=document.createElement('small');
+    locked.textContent='Report locked until authorized two-custodian finalization.';
+    actions.appendChild(locked);
+   }
+   entry.append(heading,dates,stats,actions);holder.appendChild(entry);
   }
   if(!history.elections.length)holder.textContent='No elections created yet.';
  }else holder.textContent=history.message||'History unavailable';

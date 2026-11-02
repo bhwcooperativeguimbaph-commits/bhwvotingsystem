@@ -373,9 +373,8 @@ app.get('/api/admin/elections/:electionId/lifecycle',staffOnly,async(req,res)=>{
 });
 app.get('/api/admin/history',staffOnly,async(req,res)=>{
  try{
-  const elections=await connection.db.collection('elections').find({},
-   {projection:{_id:0,electionId:1,title:1,status:1,startTime:1,endTime:1,createdAt:1},
-    sort:{createdAt:-1},limit:30}).toArray();
+  const {listElectionHistory}=require('./database/election-history');
+  const elections=await listElectionHistory(connection.db);
   res.set('Cache-Control','no-store');
   return res.json({success:true,elections});
  }catch(_){return res.status(503).json({success:false,message:'Election history unavailable'})}
