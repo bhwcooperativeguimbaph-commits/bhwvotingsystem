@@ -14,20 +14,20 @@
 
 | Step | Screen / route | What should work |
 | --- | --- | --- |
-| 1 | `/` | Branded landing page, modest animation, separate Member/Admin buttons, responsive navigation, clearly labeled rehearsal state |
-| 2 | `/admin-auth-preview` | Wrong password rejected; correct password prompts for emailed Brevo OTP; login and refresh preserve staff session |
-| 3 | `/admin-console` → Dashboard | Counts, accepted ballots, latest election frozen-eligible turnout, charts and safe empty states |
-| 4 | Registration → `/member-enrollment-preview` | Required first/last name and address, optional middle name, 18+ Philippine calendar, fixed Guimba chain and blank barangay choice |
-| 5 | Capture biometrics | Camera opens in dialog only after valid form, left/right/blink challenge, cancel stops camera, success shows member ID; test only with consent |
-| 6 | Members Table | Search/pagination, profile-edit modal, activate/deactivate safeguards, biometric replacement with written reason; view protected audit entries |
-| 7 | Setup Election | Four wizard steps; create arbitrary position names and maximum selections, upload JPG/PNG candidate photos, review schedule in Philippine time |
+| 1 | `/` | Branded access-only landing, Member/Admin buttons, no top tabs, session status, election metadata, portal cards or rehearsal messages |
+| 2 | `/admin-auth-preview` | Wrong password rejected; correct password hides username/password fields, shows only emailed OTP input; login/refresh preserve staff session |
+| 3 | `/admin-console` → Dashboard | Separate Dashboard view with election totals, timeline/day and area charts plus turnout tables; privacy-suppressed small area counts |
+| 4 | Registration → `/member-enrollment-preview` | Registration opens within admin sidebar; required names/address, optional middle name, 18+ Philippine date, Area dropdown with Add area action, Guimba barangay required |
+| 5 | Capture biometrics | Camera opens only after valid form, captures encrypted facial descriptor and compact encrypted profile portrait with informed consent; cancel stops camera; success shows member ID |
+| 6 | Members Table | Separate Members view with search/pagination, profile edits, status changes and biometric update reason; separate Audit view with filters |
+| 7 | Setup Election | Separate Setup election view with four wizard steps, configurable positions and maxima, valid candidate photos and Philippine-local schedule |
 | 8 | Candidate management | Add, edit name/photo, remove a single candidate before key provisioning; reject duplicates, invalid photo and over-removal |
 | 9 | Super Admin → Users & Roles | Create ordinary admin, change its status; regular admin must not see Super Admin-only functions |
 | 10 | Super Admin recovery settings | Two separate verification codes sent to old/new recipient addresses; successful change revokes sessions |
 | 11 | Key custody | Final freeze warning shows both independent recipients, freezes roster/candidates; view provider-accepted vs independently confirmed states without seeing shares |
 | 12 | `/custodian-confirm` | Two different custodians privately confirm separate shares; first alone does not unlock voting |
-| 13 | `/member-preview` | Consented enrolled member logs in with face challenge; refresh keeps session; ballot respects configurable per-position limits |
-| 14 | Synthetic vote + receipt | Staging-only: explicit ballot confirmation, exactly one vote, owner-only receipt/history and PDF without candidate selections |
+| 13 | `/member-preview` | Member login camera starts automatically; only Login button, face errors/success dialog; profile landing shows name, ID, enrollment portrait (or initials for older records), bell notifications and Logout; Ready to vote opens separate ballot |
+| 14 | Synthetic vote + receipt | Staging-only: select photographed candidates, review a list of names with Confirm vote or Cancel to change, exactly one accepted ballot, automatically download a receipt, offer a manual retry button, then return to member profile |
 | 15 | Finalize and `/results` | After election end, both valid custodian shares unlock results once; public report verifies SHA-256 and exports aggregate PDF |
 | 16 | Audit and logout | Member/Admin actions distinguishable in the protected log; deactivated users and logged-out sessions lose access |
 
@@ -60,3 +60,13 @@ Record the result as **PASS / FAIL / NOT RUN**. A blocked or skipped test must s
 - Full staging transaction flow on actual Atlas + Brevo and real-browser PDF export checks.
 - Independent review of face-spoofing resistance, accessibility and an alternative identity method, privacy/retention/deletion practices, ballot secrecy, recovery/backup and official election procedures.
 - Explicit authorized election-official signoff and release process. Never turn on real voting solely because screenshots or automated tests look correct.
+
+## Updated interface review (2026-11-02)
+
+The public landing screen is **access only**. No election name, current session, schedule, candidate list, or registered voter information should appear there. Members authenticate first, then see their own profile and eligibility.
+
+The Admin interface now uses discrete hash-routed sidebar views (`#view-dashboard`, `#view-registration`, `#view-setup`, `#view-history`, `#view-members`, `#view-audit`, `#view-operations`, and Super Admin-only `#view-users`). Registration appears in a protected same-origin embedded form so the sidebar stays visible. Confirm no duplicate top tabs or giant all-sections scroll on desktop/mobile.
+
+The member login attempts to start the camera on page access. If browser camera permission is refused, an error dialog appears and **Login** remains available to retry. On success, expect the personal profile hub, a collapsible notification bell with Mark as read, and a disabled **Ready to vote** control until an authorized eligible election is actually open. Existing accounts registered before photo storage was introduced may show initials until a consented new photo is captured through an approved future profile workflow.
+
+**Safety distinction:** UI wording is final-style, but real voting remains blocked in the backend unless its isolated staging testing condition is explicitly met. A polished page is not approval to use real members or ballots. Never disclose actual voter data or private custodian shares in screenshots.
