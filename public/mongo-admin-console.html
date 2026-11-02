@@ -128,7 +128,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Birthdate (18+)<input id="editMemberBirthdate" type="date" required></label>
 <label>Gender<select id="editMemberGender"><option value="Male">Male</option><option value="Female">Female</option></select></label></div>
 <label>Guimba barangay<select id="editMemberBarangay"></select></label>
-<button id="saveMember">Save member profile</button>
+<button id="saveMember">Save member profile</button><button id="updateMemberBiometrics" type="button" class="ghost">Update facial biometrics</button>
 <button id="cancelMemberEdit" class="ghost">Cancel</button><pre id="editMemberResult"></pre>
 </dialog>
 <section id="electionSetupSection" class="wizard-panel">
@@ -494,35 +494,37 @@ async function showMembers(){
   const title=document.createElement('div'),name=document.createElement('strong'),caption=document.createElement('small');
   name.textContent=member.fullName;caption.textContent=member.memberId+' • '+member.area+' • '+member.status;
   title.append(name,document.createElement('br'),caption);
-  const actionButton=document.createElement('button');
-  actionButton.textContent=member.status==='Active'?'Deactivate member':'Activate member';
-  actionButton.className=member.status==='Active'?'danger':'';
-  actionButton.onclick=async()=>{
-   const status=member.status==='Active'?'Inactive':'Active';
-   if(!confirm('Set '+member.fullName+' to '+status+'?'))return;
-   const response=await action('membersResult',()=>call('/api/admin/members/'+encodeURIComponent(member.memberId)+'/status','PATCH',{status}));
-   if(response?.success)await showMembers();
+  const controls=document.createElement('div');controls.className='member-row-actions';
+  const icons={
+   edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>',
+   delete:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>',
+   disable:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/></svg>',
+   enable:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>'
   };
-  const editButton=document.createElement('button');
-  editButton.type='button';editButton.textContent='Edit profile';editButton.className='ghost';
-  editButton.onclick=()=>editMember(member);
-  const biometricButton=document.createElement('button');
-  biometricButton.type='button';biometricButton.className='ghost';
-  biometricButton.textContent='Update biometrics';
-  biometricButton.onclick=()=>window.location.assign(
-   '/admin-console?replace='+encodeURIComponent(member.memberId)+'#view-registration');
-  panel.append(title,editButton,biometricButton,actionButton);
-  if(stagingCleanupAllowed){
-   const purge=document.createElement('button');
-   purge.type='button';purge.className='danger';
-   purge.textContent='Purge unused test member';
-   purge.onclick=async()=>{
-    if(!confirm('Permanently remove the unused staging member and encrypted face enrollment? This cannot be undone.'))return;
-    const result=await action('membersResult',()=>call('/api/superadmin/staging-members/'+encodeURIComponent(member.memberId),'DELETE'));
-    if(result?.success)await showMembers();
-   };
-   panel.appendChild(purge);
-  }
+  const makeIcon=(label,icon,fn,{danger=false,disabled=false,hint=''}={})=>{
+   const button=document.createElement('button');button.type='button';
+   button.className='member-icon-button'+(danger?' danger':'');
+   button.innerHTML=icons[icon];button.title=hint||label;button.setAttribute('aria-label',label+' — '+member.fullName);
+   button.disabled=disabled;button.onclick=fn;return button;
+  };
+  const edit=makeIcon('Edit member','edit',()=>editMember(member));
+  const remove=makeIcon('Delete member','delete',async()=>{
+   if(!confirm('Permanently delete '+member.fullName+' and their enrollment biometrics? This is allowed only for unused staging records that never joined a frozen electorate.'))return;
+   const response=await call('/api/superadmin/staging-members/'+encodeURIComponent(member.memberId),'DELETE');
+   by('memberTotal').textContent=response.success?'Member deleted.':response.message||'Deletion unavailable.';
+   if(response.success)await showMembers();
+  },{danger:true,disabled:!stagingCleanupAllowed,
+   hint:stagingCleanupAllowed?'Delete unused staging member':'Deletion is restricted to Super Admin in isolated staging'});
+  const state=member.status==='Active'?'Inactive':'Active';
+  const toggle=makeIcon(member.status==='Active'?'Disable member':'Enable member',
+   member.status==='Active'?'disable':'enable',async()=>{
+   if(!confirm((state==='Inactive'?'Disable':'Enable')+' '+member.fullName+'?'))return;
+   const response=await call('/api/admin/members/'+encodeURIComponent(member.memberId)+'/status','PATCH',{status:state});
+   if(response.success)await showMembers();
+   else by('memberTotal').textContent=response.message||'Status update unavailable';
+  },{danger:member.status==='Active'});
+  controls.append(edit,remove,toggle);
+  panel.append(title,controls);
   view.appendChild(panel);
  }
  if(!result.members.length)view.textContent='No registered members.';
@@ -554,6 +556,10 @@ async function editMember(member){
 
 }
 by('cancelMemberEdit').onclick=()=>{by('memberEditor').close();editingMember=null};
+by('updateMemberBiometrics').onclick=()=>{
+ if(!editingMember)return;
+ window.location.assign('/admin-console?replace='+encodeURIComponent(editingMember.memberId)+'#view-registration');
+};
 by('saveMember').onclick=async()=>{
  if(!editingMember)return;
  const required=['editMemberFirst','editMemberLast','editMemberArea','editMemberAddress'];
