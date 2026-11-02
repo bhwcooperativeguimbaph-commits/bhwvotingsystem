@@ -12,6 +12,14 @@ fieldset{border:1px solid #d1dfd6;border-radius:12px;padding:14px;margin:17px 0}
 .warning{color:#99421f;font-weight:bold}
 #face-direction-cue{font-weight:bold;font-size:1.2rem}
 #status{white-space:pre-wrap}
+#confirmVote,#voteSuccess{border:0;border-radius:16px;max-width:min(440px,95vw);width:100%;padding:25px;text-align:center;color:#173454;box-shadow:0 20px 65px #10231b55}
+#confirmVote::backdrop,#voteSuccess::backdrop{background:rgba(0,17,12,.58)}
+.modal-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+.modal-actions button{min-width:120px}
+#receiptHistory p{margin:7px 0;word-break:break-word}
+.receipt-history-item{border:1px solid #d1dfd6;border-radius:10px;padding:12px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.receipt-history-item button{margin:0}
+
 </style>
 <header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
 
@@ -24,9 +32,22 @@ fieldset{border:1px solid #d1dfd6;border-radius:12px;padding:14px;margin:17px 0}
 </section>
 <section id="voting" class="hidden"><h2 id="welcome">Member ballot</h2>
 <p id="electionStatus"></p><div id="positions"></div>
-<button id="vote" disabled>Submit encrypted rehearsal vote</button>
-<p id="receipt"></p><label>Receipt confirmation number <input id="receiptInput" placeholder="BHW-..." style="width:100%;padding:9px"></label><button id="verifyReceipt">Verify my receipt</button><button id="downloadReceipt" disabled>Download secret-ballot receipt PDF</button><span id="receipt-no" hidden></span><span id="receipt-date" hidden></span>
+<button id="vote" disabled>Review and submit rehearsal vote</button>
+<p id="receipt" role="status" aria-live="polite"></p><label>Receipt confirmation number <input id="receiptInput" placeholder="BHW-..." style="width:100%;padding:9px"></label><button id="verifyReceipt">Verify my receipt</button><button id="downloadReceipt" disabled>Download secret-ballot receipt PDF</button><span id="receipt-no" hidden></span><span id="receipt-date" hidden></span>
 </section>
+<section id="receiptHistorySection" class="hidden"><h2>My receipt history</h2>
+<p>These confirm ballot acceptance only. They never disclose candidate selections.</p>
+<div id="receiptHistory"></div><button type="button" id="refreshReceipts">Refresh receipts</button></section>
+<dialog id="confirmVote" aria-labelledby="confirmTitle" aria-describedby="confirmText">
+<h2 id="confirmTitle">Submit this ballot?</h2>
+<p id="confirmText">Your selections will be encrypted. A submitted ballot cannot be edited.</p>
+<div class="modal-actions"><button id="cancelVote" type="button" class="ghost">Review again</button><button id="confirmSubmit" type="button">Confirm and cast</button></div>
+</dialog>
+<dialog id="voteSuccess" aria-labelledby="voteSuccessTitle" aria-describedby="voteSuccessText">
+<h2 id="voteSuccessTitle">Ballot securely recorded</h2>
+<p id="voteSuccessText"></p>
+<button id="closeVoteSuccess" type="button">View my receipt</button>
+</dialog>
 <section id="notifications" class="hidden"><h2>My election notifications</h2><div id="notificationList"></div><button id="refreshNotifications">Refresh notifications</button></section>
 <button id="session">Check current session</button>
 <button id="logout">Log out</button>
@@ -38,6 +59,41 @@ fieldset{border:1px solid #d1dfd6;border-radius:12px;padding:14px;margin:17px 0}
 'use strict';
 const by=id=>document.getElementById(id),video=by('webcam');
 let modelsReady=false,working=false,info=null;
+function showReceipt(receipt){
+ const code=receipt?.receiptNo;
+ if(typeof code!=='string'||!code)return;
+ by('receiptInput').value=code;
+ by('receipt-no').textContent=code;
+ by('receipt-date').textContent=receipt.recordedAt?new Date(receipt.recordedAt).toLocaleString():'';
+ by('downloadReceipt').disabled=false;
+ by('receipt').textContent='Receipt available: '+code+' — no candidate selections are recorded on it.';
+}
+async function loadReceipts(){
+ try{
+  const data=await request('/api/member/receipts');
+  const view=by('receiptHistory');view.replaceChildren();
+  if(data.receipts?.length){
+   by('receiptHistorySection').classList.remove('hidden');
+   if(!by('receipt-no').textContent)showReceipt(data.receipts[0]);
+   for(const item of data.receipts){
+    const row=document.createElement('div');row.className='receipt-history-item';
+    const text=document.createElement('span');
+    text.textContent=item.electionId+' — '+new Date(item.recordedAt).toLocaleString();
+    const button=document.createElement('button');button.className='ghost';button.type='button';
+    button.textContent='Use this receipt';
+    button.onclick=()=>showReceipt(item);
+    row.append(text,button);view.appendChild(row);
+   }
+  }else{
+   by('receiptHistorySection').classList.add('hidden');
+   by('downloadReceipt').disabled=true;
+  }
+ }catch(e){by('status').textContent='Receipt history: '+e.message}
+}
+by('refreshReceipts').onclick=loadReceipts;
+by('cancelVote').onclick=()=>by('confirmVote').close();
+by('closeVoteSuccess').onclick=()=>by('voteSuccess').close();
+
 function stopCamera(){video.srcObject?.getTracks().forEach(t=>t.stop());video.srcObject=null}
 async function request(url,body){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
@@ -54,8 +110,8 @@ async function displayBallot(){
  info=await request('/api/election-info');
  const container=by('positions');container.replaceChildren();
  if(!info.active||!info.config?.length){
-  by('electionStatus').textContent='No active election';by('vote').disabled=true;
-  await loadNotifications();return;
+  by('electionStatus').textContent='No current election. Previous receipts remain available.';by('vote').disabled=true;
+  await Promise.all([loadReceipts(),loadNotifications()]);return;
  }
  by('electionStatus').textContent=info.title+(auth.hasVoted?' — your vote is already recorded':'');
  for(const pos of info.config){
@@ -79,7 +135,7 @@ async function displayBallot(){
  if(info.voteSubmissionEnabled&&!auth.eligibleThisElection)by('electionStatus').textContent+=' — Your membership is outside the frozen electorate.';
  if(!isOpen)by('electionStatus').textContent+=' — Voting schedule is not currently open.';
  if(!info.voteSubmissionEnabled)by('electionStatus').textContent+=' — Voting disabled during development.';
- await loadNotifications();
+ await Promise.all([loadReceipts(),loadNotifications()]);
 }
 by('camera').onclick=async()=>{
  if(working)return;working=true;by('camera').disabled=true;by('status').textContent='Loading face models...';
@@ -105,30 +161,62 @@ by('login').onclick=async()=>{
   await displayBallot();by('status').textContent='Member session verified';
  }catch(e){by('status').textContent=e.message}finally{working=false;by('login').disabled=!modelsReady}
 };
-by('vote').onclick=async()=>{
+by('vote').onclick=()=>{
+ if(working||!info?.active||by('vote').disabled)return;
+ let text='You are about to cast an encrypted, non-editable ballot. ';
+ for(const position of info.config){
+  const count=[...document.querySelectorAll('input:checked')].filter(i=>i.dataset.position===position.title).length;
+  text+=position.title+': '+count+' of '+position.maxVotes+' selected. ';
+ }
+ by('confirmText').textContent=text;
+ by('confirmVote').showModal();
+};
+by('confirmSubmit').onclick=async()=>{
  if(working||!info?.active)return;
- const choices={};for(const pos of info.config){choices[pos.title]=
-  [...document.querySelectorAll('input:checked')].filter(i=>i.dataset.position===pos.title).map(i=>i.value)}
- working=true;by('vote').disabled=true;
+ by('confirmVote').close();
+ const choices={};
+ for(const pos of info.config){
+  choices[pos.title]=[...document.querySelectorAll('input:checked')].
+   filter(i=>i.dataset.position===pos.title).map(i=>i.value);
+ }
+ working=true;by('vote').disabled=true;by('confirmSubmit').disabled=true;
+ by('status').textContent='Submitting an encrypted rehearsal ballot…';
  try{
-  const r=await request('/api/vote',{choices});
-  by('receipt').textContent='Server-issued receipt number: '+r.receiptNo;
-  by('receiptInput').value=r.receiptNo;
-  by('receipt-no').textContent=r.receiptNo;
-  by('receipt-date').textContent=new Date().toLocaleString();
-  by('downloadReceipt').disabled=false;
-  by('status').textContent='Encrypted rehearsal ballot committed';
-  await loadNotifications();
- }catch(e){by('status').textContent=e.message;by('vote').disabled=false}
- finally{working=false}
+  const result=await request('/api/vote',{choices});
+  showReceipt({receiptNo:result.receiptNo,recordedAt:new Date().toISOString()});
+  by('voteSuccessText').textContent='Your confirmation number is '+result.receiptNo+
+   '. It contains no candidate selections. You can download your receipt below.';
+  by('voteSuccess').showModal();
+  by('status').textContent='Your rehearsal vote was securely recorded.';
+  for(const input of document.querySelectorAll('#positions input'))input.disabled=true;
+  await Promise.all([loadReceipts(),loadNotifications()]);
+ }catch(e){
+  by('status').textContent=e.message+' Checking your server-recorded voting status…';
+  // A timeout or dropped response does not prove the transaction failed.
+  // Re-check the server before allowing another submission.
+  try{
+   const session=await request('/api/session');
+   if(session.hasVoted){
+    by('vote').disabled=true;
+    by('status').textContent='Your ballot is recorded. The receipt has been restored.';
+    await loadReceipts();
+   }else{
+    const now=Date.now();
+    by('vote').disabled=!session.eligibleThisElection||!info.voteSubmissionEnabled||
+      now<new Date(info.startTime).getTime()||now>=new Date(info.endTime).getTime();
+    by('status').textContent=e.message;
+   }
+  }catch(_){
+   by('vote').disabled=true;
+   by('status').textContent='Voting status is uncertain. Refresh and check your receipt before retrying.';
+  }
+ }finally{working=false;by('confirmSubmit').disabled=false}
 };
 by('verifyReceipt').onclick=async()=>{
  const code=by('receiptInput').value.trim();
  try{
   const data=await request('/api/receipts/'+encodeURIComponent(code));
-  by('receipt-no').textContent=data.receiptNo;
-  by('receipt-date').textContent=new Date(data.recordedAt).toLocaleString();
-  by('downloadReceipt').disabled=false;
+  showReceipt(data);
   by('receipt').textContent='Receipt verified for your member account. No candidate selections are disclosed.';
  }catch(e){by('receipt').textContent=e.message;by('downloadReceipt').disabled=true}
 };
@@ -158,6 +246,10 @@ by('refreshNotifications').onclick=loadNotifications;
 by('session').onclick=()=>request('/api/session').then(d=>by('status').textContent='Authenticated as '+d.role).catch(e=>by('status').textContent=e.message);
 by('logout').onclick=()=>request('/api/logout',{}).then(()=>location.reload()).catch(e=>by('status').textContent=e.message);
 window.addEventListener('pagehide',stopCamera);
-request('/api/session').then(d=>{if(d.role==='member')return displayBallot()}).catch(()=>{});
+request('/api/session').then(d=>{
+ if(d.role==='member')return displayBallot();
+ if(d.role==='admin'||d.role==='superadmin')
+  by('status').textContent='An administrator is signed in. Log out to use member facial login.';
+}).catch(()=>{});
 </script><footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
 </html>
