@@ -10,7 +10,11 @@ async function registerMemberWithFace(connection,input,{key,validateLocation,ope
  if(!connection?.client||!connection?.db||typeof validateLocation!=='function')
   throw new TypeError('Missing MongoDB session or trusted geography validator');
  if(input?.biometricConsent!==true)throw new TypeError('Explicit biometric consent required');
- const member=validateMember(input);
+ const member=validateMember(input,{now});
+ // Biometric enrollment requires a complete, adult identity even though the
+ // legacy non-biometric createMember adapter supports older unsplit records.
+ if(!member.firstName||!member.lastName||!member.address||!member.birthdate||!member.gender)
+  throw new TypeError('Complete first/last names, address, adult birthdate and gender are required');
  if(!await validateLocation(member.location))throw new TypeError('Geographic codes are not verified as Guimba');
  const encrypted=encryptDescriptor(input.descriptor,key),db=connection.db;
  const memberId='MEM-'+crypto.randomUUID(),biometricId='BIO-'+crypto.randomUUID();
