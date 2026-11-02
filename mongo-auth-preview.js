@@ -269,7 +269,8 @@ app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
   lastName:clean(req.body?.lastName),area:clean(req.body?.area),
   address:clean(req.body?.address),birthdate:req.body?.birthdate,
   gender:req.body?.gender,location:req.body?.location,
-  descriptor:req.body?.descriptor,biometricConsent:req.body?.consent===true
+  descriptor:req.body?.descriptor,profilePhoto:req.body?.profilePhoto,
+  biometricConsent:req.body?.consent===true
  };
  // Validate everything possible before consuming a single-use challenge,
  // so a form error never forces the user to repeat the camera gestures.
@@ -803,6 +804,21 @@ app.get('/api/receipts/:code',async(req,res)=>{
   return res.json({success:true,receiptNo:code,electionId:receipt.electionId,
     recordedAt:participation.createdAt,message:'Participation confirmed. Ballot contents remain anonymous.'});
  }catch(_){return res.status(503).json({success:false,message:'Receipt verification unavailable'})}
+});
+app.get('/api/member/profile',async(req,res)=>{
+ try{
+  const auth=await authenticateSession(connection.db,token(req));
+  if(!auth||auth.role!=='member')return res.status(403).json({success:false,message:'Member login required'});
+  const member=await connection.db.collection('members').findOne(
+   {memberId:auth.accountId,status:'Active'},
+   {projection:{_id:0,memberId:1,fullName:1,area:1,portraitEncrypted:1}});
+  if(!member)return res.status(403).json({success:false,message:'Member unavailable'});
+  const {decryptPortrait}=require('./database/member-portrait');
+  const portrait=member.portraitEncrypted?decryptPortrait(member.portraitEncrypted,keyFromEnv()):null;
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,member:{memberId:member.memberId,
+   fullName:member.fullName,area:member.area,portrait}});
+ }catch(_){return res.status(503).json({success:false,message:'Profile unavailable'})}
 });
 app.get('/api/session',async(req,res)=>{
  try{
