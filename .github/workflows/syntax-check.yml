@@ -15,3 +15,5 @@ jobs:
         run: npm ci --ignore-scripts --no-audit --no-fund
       - name: Check application JavaScript
         run: npm test
+      - name: Validate protected-route access
+        run: node tests/mongodb-authorization-contract.test.js
