@@ -342,6 +342,18 @@ app.get('/api/admin/overview',staffOnly,async(req,res)=>{
   return res.json({success:true,summary:{members,activeMembers,staff,elections,ballots}});
  }catch(_){return res.status(503).json({success:false,message:'Dashboard temporarily unavailable'})}
 });
+app.get('/api/admin/elections/:electionId/lifecycle',staffOnly,async(req,res)=>{
+ try{
+  const {getElectionLifecycle}=require('./database/election-lifecycle');
+  const state=await getElectionLifecycle(connection.db,req.params.electionId);
+  if(!state)return res.status(404).json({success:false,message:'Election not found'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,election:state});
+ }catch(e){
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid election ID'});
+  return res.status(503).json({success:false,message:'Election status temporarily unavailable'});
+ }
+});
 app.get('/api/admin/history',staffOnly,async(req,res)=>{
  try{
   const elections=await connection.db.collection('elections').find({},
