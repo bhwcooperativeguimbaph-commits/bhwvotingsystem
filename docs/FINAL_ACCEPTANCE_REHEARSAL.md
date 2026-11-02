@@ -39,6 +39,14 @@
 | 21 | Deactivate a staff member and reset another staff password | Old sessions revoked; recovery OTP expires and cannot be reused |
 | 22 | Perform authorized audit and disaster-recovery checks | No votes, biometric templates, OTPs or shares leak in logs |
 
+## Acceptance progress (staging)
+
+- **Super Admin password + Brevo OTP:** **PASS (user-confirmed)**. User signed in to `https://secongvoting.onrender.com/admin-auth-preview` and reached the protected administrator interface. This confirms one successful login path only, not expired-code, lockout, or account-recovery tests.
+- **Anonymous/public staging gate:** **PASS (automated)**, using GitHub Actions with no secrets and no ballot submissions.
+- **Member biometric enrollment and facial member login:** **NOT RUN** — requires an explicitly consenting camera participant.
+- **Election, independent key custodians, ballot/receipt, results:** **NOT RUN** end to end.
+- **Production authorization:** **BLOCKED** pending full acceptance and privacy/security review.
+
 ## Test evidence and acceptance
 
 Collect only sanitized evidence: deploy commit SHA, CI pass/fail status, HTTP response codes, counts and screenshots without personal data or secrets. Record each result as **Pass / Fail / Not Run**. Do not include actual OTPs, tokens, share text, encryption keys or raw facial descriptors.
