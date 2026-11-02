@@ -12,7 +12,7 @@ async function check(path,method='GET',body=undefined){
    signal:controller.signal});
   const raw=await r.text();let data=null;
   try{data=JSON.parse(raw)}catch(_){}
-  return {status:r.status,data,raw:raw.slice(0,1000),type:r.headers.get('content-type')||''};
+  return {status:r.status,data,raw:raw.slice(0,20000),type:r.headers.get('content-type')||''};
  }finally{clearTimeout(timeout)}
 }
 function expect(condition,message){if(!condition)throw Error(message)}
