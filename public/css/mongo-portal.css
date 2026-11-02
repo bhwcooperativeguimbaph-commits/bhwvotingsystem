@@ -161,3 +161,7 @@ small{color:var(--muted)}
 #memberEditor::backdrop{background:#081e2cb0;backdrop-filter:blur(3px)}
 #memberEditor>h2{font-size:1.28rem;margin:0 0 10px}
 #memberEditor button{width:auto!important;margin-right:8px}
+
+.admin-announcements{display:grid;gap:7px;margin:10px 0 18px}
+.admin-announcement{display:block;border:1px solid #a9d9bd;background:#e9f8ed;color:#115b41;text-decoration:none;padding:11px 15px;border-radius:10px;font-size:12px;font-weight:750}
+.admin-announcement:hover{background:#daf1e2;color:#0a5139}
