@@ -43,8 +43,9 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
     status:'Valid',createdAt:now
    },{session});
    await db.collection('ballots').insertOne({
-    ballotId,electionId:election.electionId,encryptedVote:ciphertext,
-    voteHash,status:'Valid',receivedTimeBucket:new Date(Math.floor(now.getTime()/900000)*900000)
+    // A random _id avoids MongoDB ObjectId timestamp/order metadata on ballots.
+    _id:ballotId,ballotId,electionId:election.electionId,encryptedVote:ciphertext,
+    voteHash,status:'Valid'
    },{session});
    await db.collection('receiptCodes').insertOne({
     receiptCode:receiptNo,memberId,electionId:election.electionId,createdAt:now
