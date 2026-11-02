@@ -49,6 +49,14 @@ small{color:#52657a;display:block}
 <label>Guimba barangay<select id="barangay" required></select></label>
 <label><input type="checkbox" id="consent" required style="width:auto"> The test participant has consented to biometric capture and encrypted storage.</label>
 </form>
+<div id="replacePanel" hidden>
+ <h2>Update an existing member's biometrics</h2>
+ <p id="replaceMemberLabel"></p>
+ <label>Reason for biometric replacement (required)
+ <textarea id="replaceReason" minlength="12" maxlength="500" rows="3" placeholder="Explain why the stored biometric identity must be replaced"></textarea></label>
+ <label><input id="replaceConsent" type="checkbox" style="width:auto"> The member has explicitly consented to replacing their facial biometric template.</label>
+ <p class="warning">Existing member sessions will be revoked. Biometric changes are blocked after the election roster is frozen.</p>
+</div>
 <button type="button" id="openCapture" style="width:100%;max-width:760px;display:block;margin:20px auto">Capture biometrics &amp; register</button>
 <p class="capture-disclosure">A guided camera window will open after the registration form is complete.</p>
 <dialog id="captureDialog" aria-labelledby="captureTitle">
@@ -72,6 +80,15 @@ small{color:#52657a;display:block}
 <script>
 'use strict';
 const by=id=>document.getElementById(id),video=by('webcam');
+const replaceParam=new URLSearchParams(location.search).get('replace');
+const replacementMode=/^MEM-[0-9a-f-]{36}$/i.test(replaceParam||'');
+if(replacementMode){
+ by('register').hidden=true;by('replacePanel').hidden=false;
+ by('replaceMemberLabel').textContent='Member ID: '+replaceParam;
+ by('openCapture').textContent='Capture replacement biometrics';
+ document.querySelector('h1').textContent='Member biometric replacement';
+}
+
 let started=false,busy=false;
 async function api(url,options={}){
  const r=await fetch(url,{credentials:'same-origin',...options});
@@ -142,11 +159,21 @@ by('cancelCapture').onclick=()=>{
 };
 by('captureDialog').addEventListener('cancel',()=>stopRegistrationCamera());
 by('openCapture').onclick=()=>{
- if(!validateAge())return;
- for(const id of ['firstName','lastName','area','address']){
-  const field=by(id);field.setCustomValidity(field.value.trim()?'':'This field is required.');
+ if(replacementMode){
+  const reason=by('replaceReason').value.trim();
+  if(reason.length<12||reason.length>500){
+   by('status').textContent='Provide a reason of 12–500 characters before capturing the replacement.';return;
+  }
+  if(!by('replaceConsent').checked){
+   by('status').textContent='Explicit biometric replacement consent is required.';return;
+  }
+ }else{
+  if(!validateAge())return;
+  for(const id of ['firstName','lastName','area','address']){
+   const field=by(id);field.setCustomValidity(field.value.trim()?'':'This field is required.');
+  }
+  if(!by('register').reportValidity())return;
  }
- if(!by('register').reportValidity())return;
  by('captureDialog').showModal();
  by('camera').click();
 };
@@ -167,34 +194,47 @@ by('camera').onclick=async()=>{
 };
 by('enroll').onclick=async()=>{
  if(busy||!started)return;
- if(!validateAge())return;
- for(const id of ['firstName','lastName','area','address']){
+ if(!replacementMode&&!validateAge())return;
+ for(const id of replacementMode?[]:['firstName','lastName','area','address']){
   const field=by(id);
   field.setCustomValidity(field.value.trim()?'':'This field is required.');
  }
- if(!by('register').reportValidity())return;
+ if(!replacementMode&&!by('register').reportValidity())return;
+ if(replacementMode&&(by('replaceReason').value.trim().length<12||!by('replaceConsent').checked)){
+  by('status').textContent='Reason and biometric replacement consent are required.';return;
+ }
  busy=true;refreshEnrollmentButton();by('status').textContent='Complete the head-turn and blink actions shown below.';
  try{
   const verification=await window.runBHWFaceChallenge(video);
   const detection=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
   if(!detection)throw new Error('No face detected after the challenge');
-  const result=await api('/api/admin/register-member',{
-   method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({firstName:by('firstName').value.trim(),
-    middleName:by('middleName').value.trim(),lastName:by('lastName').value.trim(),area:by('area').value.trim(),
+  const target=replacementMode?
+   '/api/admin/members/'+encodeURIComponent(replaceParam)+'/biometrics':'/api/admin/register-member';
+  const formData=replacementMode?{
+    descriptor:Array.from(detection.descriptor),...verification,
+    reason:by('replaceReason').value.trim(),consent:by('replaceConsent').checked
+  }:{
+    firstName:by('firstName').value.trim(),middleName:by('middleName').value.trim(),
+    lastName:by('lastName').value.trim(),area:by('area').value.trim(),
     address:by('address').value,birthdate:by('birthdate').value,gender:by('gender').value,
     consent:by('consent').checked,
     location:{country:'Philippines',regionCode:by('region').value,
      provinceCode:by('province').value,province:'Nueva Ecija',
      cityCode:by('city').value,city:'Guimba',barangayCode:by('barangay').value},
-    descriptor:Array.from(detection.descriptor),...verification})});
-  by('status').textContent='Member successfully registered: '+result.memberId;
-  by('successDetail').textContent='Registration complete. Member ID: '+result.memberId;
+    descriptor:Array.from(detection.descriptor),...verification
+  };
+  const result=await api(target,{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify(formData)});
+  by('status').textContent=replacementMode?'Biometric replacement completed.':'Member successfully registered: '+result.memberId;
+  by('successTitle').textContent=replacementMode?'Biometric replacement successful!':'Member successfully registered!';
+  by('successDetail').textContent=replacementMode?
+   'The member biometric has been updated, and previous sessions are revoked. Member ID: '+replaceParam:
+   'Registration complete. Member ID: '+result.memberId;
   by('captureDialog').close();
   stopRegistrationCamera();
   by('successDialog').showModal();
-  by('register').reset();
-  by('barangay').value='';
+  if(!replacementMode){by('register').reset();by('barangay').value=''}
+  else{by('replaceReason').value='';by('replaceConsent').checked=false}
   by('camera').disabled=false;
  }catch(e){by('status').textContent=e.message||'Enrollment failed'}
  finally{busy=false;refreshEnrollmentButton()}
