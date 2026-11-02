@@ -13,7 +13,8 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
  const reservationId=crypto.randomUUID();
  const reserved=await db.collection('elections').updateOne({
   electionId,status:'Active',startTime:{$gt:now},
-  ballotPublicKeyPem:{$exists:false},keyProvisioningState:{$exists:false}
+  ballotPublicKeyPem:{$exists:false},keyProvisioningState:{$exists:false},
+  $or:[{candidateEditLeaseUntil:{$exists:false}},{candidateEditLeaseUntil:{$lte:now}}]
  },{$set:{keyProvisioningState:'Initializing',keyReservationId:reservationId,updatedAt:now}});
  if(reserved.modifiedCount!==1)throw Object.assign(new Error('Election is not eligible for key provisioning'),{code:'KEY_PROVISION_NOT_ALLOWED'});
  let succeeded=false;
