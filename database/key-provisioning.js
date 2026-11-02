@@ -36,6 +36,10 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
      {electionId,keyProvisioningState:'Initializing',keyReservationId:reservationId,
       startTime:{$gt:new Date()}},{session});
     if(!election)throw new Error('Key provisioning expired or was replaced');
+    // Freeze the electorate when both custodians' shares have been issued.
+    // This is before voting opens, not on the first turnout dashboard view.
+    const eligibleMembersSnapshot=await db.collection('members').countDocuments(
+      {status:'Active',createdAt:{$lte:now}},{session});
     const custodians=emails.map((email,i)=>({electionId,email,shareIndex:i+1,
      shareHash:pkg.shareHashes[i],fingerprint:pkg.fingerprint,status:'Sent',createdAt:now}));
     await db.collection('keyCustodians').insertMany(custodians,{session});
@@ -43,7 +47,7 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
      electionId,keyReservationId:reservationId,keyProvisioningState:'Initializing',
      ballotPublicKeyPem:{$exists:false}
     },{$set:{ballotPublicKeyPem:pkg.publicKeyPem,keyFingerprint:pkg.fingerprint,
-     keyProvisioningState:'Ready',updatedAt:new Date()},
+     keyProvisioningState:'Ready',eligibleMembersSnapshot,eligibilityFrozenAt:now,updatedAt:new Date()},
      $unset:{keyReservationId:''}},{session});
     if(result.modifiedCount!==1)throw new Error('Election reservation changed');
     await db.collection('auditLogs').insertOne({
