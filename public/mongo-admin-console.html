@@ -182,6 +182,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
 <small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
+<p class="warning">Final review: sending key shares freezes the eligible voter count and locks all candidate additions, edits and removals. A lost share cannot be recovered from the database. Do not proceed with a real election; use isolated synthetic staging data only.</p>
 <button id="provision">Send separate custodian shares (test only)</button><pre id="provisionResult">Not provisioned</pre></section>
 <section><h2>Election turnout</h2>
 <label>Election ID<input id="turnoutId" placeholder="ELEC-..."></label>
@@ -827,7 +828,26 @@ by('addCandidate').onclick=async()=>{
   position:by('candidatePosition').value,name:by('candidateName').value,photo}));
  if(r?.success){by('candidateName').value='';by('candidatePhoto').value='';showCandidates()}
 };
-by('provision').onclick=()=>action('provisionResult',()=>call('/api/admin/elections/'+encodeURIComponent(by('keyElection').value)+'/provision-keys','POST',{emails:[by('email1').value,by('email2').value]}));
+by('provision').onclick=async()=>{
+ const id=by('keyElection').value.trim();
+ const emails=[by('email1').value.trim().toLowerCase(),by('email2').value.trim().toLowerCase()];
+ if(!/^ELEC-[0-9a-f-]{36}$/i.test(id)||emails.some(v=>!/^\\S+@\\S+\\.\\S+$/.test(v))||
+  emails[0]===emails[1]){
+  by('provisionResult').textContent='Select an election and two different valid custodian email addresses.';return;
+ }
+ const caution='Confirm separate key delivery to:\\n1. '+emails[0]+'\\n2. '+emails[1]+
+  '\\n\\nThis freezes voter eligibility and candidate configuration. Lost shares cannot be retrieved from this system. Continue only with isolated staging test data.';
+ if(!window.confirm(caution))return;
+ const button=by('provision');button.disabled=true;
+ try{
+  const result=await action('provisionResult',()=>call('/api/admin/elections/'+
+   encodeURIComponent(id)+'/provision-keys','POST',{emails}));
+  if(result?.success){
+   by('lifecycleId').value=id;
+   await showLifecycle();
+  }
+ }finally{button.disabled=false}
+};
 by('turnout').onclick=()=>action('turnoutResult',()=>call('/api/admin/turnout/'+encodeURIComponent(by('turnoutId').value)));
 by('disclose').onclick=async()=>{
  const shares=[by('share1').value.trim(),by('share2').value.trim()];
