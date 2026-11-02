@@ -1,0 +1,1437 @@
+openapi: 3.1.0
+info:
+  title: BHW Guimba MongoDB Rehearsal API
+  version: '2026-11-02'
+  description: 'Code-matched API inventory and selected validated JSON fields. This is a staging contract baseline, not a production certification; remaining response-schema refinements and real browser/Atlas acceptance are tracked in DEVELOPMENT_HANDOFF.md.'
+servers:
+  - url: /
+tags:
+  - name: Public
+  - name: Member
+  - name: Administration
+  - name: SuperAdmin
+paths:
+  /api/admin/analytics:
+    get:
+      summary: "Aggregate-only latest-election daily and area participation"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/announcements:
+    get:
+      summary: "GET admin announcements"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/candidates:
+    get:
+      summary: "GET admin elections :electionId candidates"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+    post:
+      summary: "Add a pre-provisioning candidate"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [position, name]
+              properties:
+                position:
+                  type: string
+                name:
+                  type: string
+                photo:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/candidates/{candidateId}:
+    delete:
+      summary: "DELETE admin elections :electionId candidates :candidateId"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: candidateId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+    patch:
+      summary: "Edit a pre-provisioning candidate name and optional JPG/PNG photo"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+        - name: candidateId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                photo:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/disclose-results:
+    post:
+      summary: "Finalize aggregate results after election close using two independent key shares"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [shares]
+              properties:
+                shares:
+                  type: array
+                  items: {}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/lifecycle:
+    get:
+      summary: "Sanitized election setup and custody readiness"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/provision-keys:
+    post:
+      summary: "Reserve election ballot key and email two separate custodian shares"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [emails]
+              properties:
+                emails:
+                  type: array
+                  items: {}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/history:
+    get:
+      summary: "Aggregate election history and published-report availability"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/initialize-election:
+    post:
+      summary: "Create a future election with configurable positions and candidates"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, startTime, endTime, config]
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+                startTime:
+                  type: string
+                endTime:
+                  type: string
+                config:
+                  type: array
+                  items: {}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/login-otp:
+    post:
+      summary: "Consume one-time administrator email code and issue a session"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge, code]
+              properties:
+                challenge:
+                  type: string
+                code:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/login-password:
+    post:
+      summary: "Begin password and Brevo OTP verification"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/logs:
+    get:
+      summary: "Role-filtered, paginated audit events"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/members:
+    get:
+      summary: "GET admin members"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/members/{memberId}:
+    patch:
+      summary: "PATCH admin members :memberId"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/members/{memberId}/biometrics:
+    post:
+      summary: "Consent-based audited biometric replacement"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [descriptor, reason, consent, challengeId, completedActions]
+              properties:
+                descriptor:
+                  type: array
+                  items: {}
+                reason:
+                  type: string
+                consent:
+                  type: boolean
+                challengeId:
+                  type: string
+                completedActions:
+                  type: array
+                  items: {}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/members/{memberId}/status:
+    patch:
+      summary: "Change member status subject to roster lock"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/overview:
+    get:
+      summary: "GET admin overview"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/register-member:
+    post:
+      summary: "Register a consented Guimba member and encrypted biometric template"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [firstName, lastName, address, area, birthdate, gender, location, consent, descriptor, challengeId, completedActions]
+              properties:
+                firstName:
+                  type: string
+                middleName:
+                  type: string
+                lastName:
+                  type: string
+                address:
+                  type: string
+                area:
+                  type: string
+                birthdate:
+                  type: string
+                gender:
+                  type: string
+                location:
+                  type: object
+                consent:
+                  type: boolean
+                descriptor:
+                  type: array
+                  items: {}
+                challengeId:
+                  type: string
+                completedActions:
+                  type: array
+                  items: {}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/reset/request:
+    post:
+      summary: "Begin administrator password recovery without account enumeration"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username]
+              properties:
+                username:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/reset/verify:
+    post:
+      summary: "Verify password recovery code and revoke existing sessions"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge, code, newPassword]
+              properties:
+                challenge:
+                  type: string
+                code:
+                  type: string
+                newPassword:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/admin/turnout/{electionId}:
+    get:
+      summary: "GET admin turnout :electionId"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/election-info:
+    get:
+      summary: "GET election info"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/elections/{electionId}/results:
+    get:
+      summary: "Published aggregate election report with integrity hash"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/elections/recent-finalized:
+    get:
+      summary: "GET elections recent finalized"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/face-challenge:
+    post:
+      summary: "Create a single-use browser-bound facial challenge"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/geo/{level}:
+    get:
+      summary: "GET geo :level"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      parameters:
+        - name: level
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/geo/{level}/{code}:
+    get:
+      summary: "GET geo :level :code"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      parameters:
+        - name: level
+          in: path
+          required: true
+          schema: {type: string}
+        - name: code
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/key-custody/confirm:
+    post:
+      summary: "Confirm possession of one independently delivered key share"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [electionId, shareIndex, share]
+              properties:
+                electionId:
+                  type: string
+                shareIndex:
+                  type: integer
+                share:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/login-face:
+    post:
+      summary: "Complete facial challenge and authenticate a member"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challengeId, completedActions, descriptor]
+              properties:
+                challengeId:
+                  type: string
+                completedActions:
+                  type: array
+                  items: {}
+                descriptor:
+                  type: array
+                  items: {}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/logout:
+    post:
+      summary: "Revoke current session"
+      tags: [Member]
+      x-required-role: "authenticated"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/member/notifications:
+    get:
+      summary: "GET member notifications"
+      tags: [Member]
+      x-required-role: "member"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/member/notifications/{notificationId}/read:
+    post:
+      summary: "Mark member-owned notification read"
+      tags: [Member]
+      x-required-role: "member"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/member/receipts:
+    get:
+      summary: "Member-only acceptance receipt history"
+      tags: [Member]
+      x-required-role: "member"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/receipts/{code}:
+    get:
+      summary: "Verify receipt ownership and acceptance"
+      tags: [Member]
+      x-required-role: "member"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/session:
+    get:
+      summary: "Restore authenticated session after refresh"
+      tags: [Member]
+      x-required-role: "authenticated"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/superadmin/admins:
+    get:
+      summary: "GET superadmin admins"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+    post:
+      summary: "Create a regular administrator account"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, fullName, email, password]
+              properties:
+                username:
+                  type: string
+                fullName:
+                  type: string
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/superadmin/admins/{adminId}/status:
+    patch:
+      summary: "Enable or deactivate an administrator and revoke inactive sessions"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/superadmin/email-change/confirm:
+    post:
+      summary: "Verify both email codes and revoke Super Admin sessions"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [challenge, oldCode, newCode]
+              properties:
+                challenge:
+                  type: string
+                oldCode:
+                  type: string
+                newCode:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/superadmin/email-change/request:
+    post:
+      summary: "Send distinct codes to existing and proposed Super Admin email recipients"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [newEmail]
+              properties:
+                newEmail:
+                  type: string
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/superadmin/staging-members/{memberId}:
+    delete:
+      summary: "DELETE superadmin staging members :memberId"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: memberId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /api/vote:
+    post:
+      summary: "Stage-only encrypted ballot submission; disabled by default"
+      tags: [Member]
+      x-required-role: "member"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [choices]
+              properties:
+                choices:
+                  type: object
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+  /health:
+    get:
+      summary: "GET  health"
+      tags: [Public]
+      x-required-role: "public-or-challenge"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      responses:
+        '200':
+          description: JSON success or stage-specific status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusResponse'
+        '400':
+          description: Invalid request or verification data
+        '403':
+          description: Unauthorized, forbidden, or staging voting disabled
+        '409':
+          description: Duplicate or election lifecycle conflict
+        '503':
+          description: Service or MongoDB dependency unavailable
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: bhw_session
+  schemas:
+    StatusResponse:
+      type: object
+      properties:
+        success: {type: boolean}
+        message: {type: string}
+      additionalProperties: true
+    ErrorResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success: {type: boolean, const: false}
+        message: {type: string}
