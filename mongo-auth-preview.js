@@ -42,13 +42,7 @@ function rateLimit(req,res,next){
  if(++prior.count>8){attempts.set(key,prior);return res.status(429).json({success:false,message:'Too many attempts'})}
  attempts.set(key,prior);next();
 }
-function originCheck(req,res,next){
- if(req.method!=='GET'&&req.method!=='HEAD'){
-  const origin=req.get('origin'),expected=req.protocol+'://'+req.get('host');
-  if(origin&&origin!==expected)return res.status(403).json({success:false,message:'Cross-origin request rejected'});
- }
- next();
-}
+const {originCheck}=require('./database/request-origin');
 app.use(originCheck);
 let connection;
 app.get('/health',(req,res)=>res.json({status:'ok',database:'mongodb',mode:'auth-preview'}));
