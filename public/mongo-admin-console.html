@@ -598,7 +598,18 @@ async function showCandidates(){
  const id=by('candidateElection').value.trim();
  const data=await action('candidateResult',()=>call('/api/admin/elections/'+encodeURIComponent(id)+'/candidates'));
  const list=by('candidateList');list.replaceChildren();
- if(data?.success)for(const c of data.candidates){
+ const selection=by('candidatePosition');
+ selection.replaceChildren();
+ const placeholder=document.createElement('option');
+ placeholder.value='';placeholder.textContent='Choose election position';
+ selection.appendChild(placeholder);
+ if(data?.success){
+  const positions=[...new Set(data.candidates.map(c=>c.position))];
+  for(const name of positions){
+   const option=document.createElement('option');option.value=name;option.textContent=name;
+   selection.appendChild(option);
+  }
+  for(const c of data.candidates){
   const item=document.createElement('p'),title=document.createElement('span'),button=document.createElement('button');
   title.textContent=c.position+' — '+c.name+' ('+c.candidateId+') ';
   button.textContent='Remove this candidate';
@@ -609,6 +620,7 @@ async function showCandidates(){
    if(result?.success)showCandidates();
   };
   item.append(title,button);list.appendChild(item);
+  }
  }
 }
 by('listCandidates').onclick=showCandidates;
