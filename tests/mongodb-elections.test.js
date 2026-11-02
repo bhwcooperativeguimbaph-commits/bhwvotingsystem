@@ -6,7 +6,8 @@ async function main(){
   {title:'Kagawad',maxVotes:1,candidates:[{name:'Candidate A'},{name:'Candidate B'}]},
   {title:'Kapitan',maxVotes:2,candidates:[{name:'Candidate C'},{name:'Candidate D'}]}]};
  assert.equal(validateElection(base).config[1].maxVotes,2);
- assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:2,candidates:[{name:'A'}]}]}),/Insufficient candidates/);
+ assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:2,candidates:[{name:'A'}]}]}),/Kagawad allows 1/);
+ assert.throws(()=>validateElection({...base,config:[{title:'Kapitan',maxVotes:2,candidates:[{name:'A'}]}]}),/Insufficient candidates/);
  assert.throws(()=>validateElection({...base,endTime:base.startTime}),/schedule/);
  assert.throws(()=>validateElection({...base,config:[{title:'Kagawad',maxVotes:1,candidates:[{name:'A',photo:'data:image/svg+xml;base64,AAAA'}]}]}),/photo/);
  const elections=[],candidates=[];
