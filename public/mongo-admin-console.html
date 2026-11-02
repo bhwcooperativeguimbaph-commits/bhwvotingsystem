@@ -757,6 +757,16 @@ async function readWizardCandidates(){
   pos.candidates=out;
  }
 }
+function saveWizardCandidatesSoft(){
+ for(const group of document.querySelectorAll('#wizardCandidates .wizard-position')){
+  const pos=electionDraft.positions.find(p=>p.id===group.dataset.positionId);
+  if(!pos)continue;
+  pos.candidates=[...group.querySelectorAll('.wizard-candidate')].map(row=>({
+   name:row.querySelector('.wizardCandidateName').value.trim(),
+   photo:row.dataset.savedPhoto||null
+  }));
+ }
+}
 function renderWizardReview(){
  const root=by('wizardReview');root.replaceChildren();
  const dates=document.createElement('p');
@@ -783,7 +793,7 @@ function showWizardStep(n){
  by('wizardError').textContent='';
 }
 by('wizardBack').onclick=()=>{
- // Candidate form controls remain mounted while navigating Back.
+ if(wizardStep===3)saveWizardCandidatesSoft();
  showWizardStep(Math.max(1,wizardStep-1));
 };
 by('wizardNext').onclick=async()=>{
