@@ -62,7 +62,7 @@ Resend and Gmail SMTP keys are not required by the MongoDB application's email-O
 3. Browser enrollment works on synthetic consenting users; duplicate faces and non-Guimba addresses are rejected.
 4. Super Admin and regular admin OTP login, staff permissions, password recovery and session revocation are verified.
 5. Two independent custodians receive and separately confirm key shares through Brevo.
-6. Secure ballot UI enforces Kagawad = 1 and Kapitan = 2; simultaneous duplicate submissions cannot double-vote.
+6. Secure ballot UI enforces each configured position's administrator-selected maximum; simultaneous duplicate submissions cannot double-vote.
 7. Authenticated members see their own receipt PDF and notifications; other members cannot view them.
 8. Election closes, two-share decryption produces aggregate-only report, PDF export and integrity hash verification succeed.
 9. Security/privacy review verifies biometric retention and deletion, accessibility, backup/restore, spoof-resistance risks and approved election procedures.
