@@ -63,7 +63,20 @@ _Last updated: 2026-11-02 (Asia/Manila)_
 
 **Remaining HIGH-PRIORITY requirements:** browser end-to-end acceptance against latest Render deployment and isolated Atlas staging database; real two-address Brevo delivery; member face challenge/login with consenting test participant; key-custodian confirmation, vote concurrency, receipt PDFs, and finalized report rendering; privacy/anti-spoofing threat model; retention/deletion policy and accessible alternative identification; backup/restore and stakeholder review. Main deployment must not enable voting until approved.
 
-**Very next task:** check newest `main` CI + replica-set workflow, inspect failures, run the safe staging smoke check, then conduct the coordinated staging acceptance in `docs/FINAL_ACCEPTANCE_REHEARSAL.md`. Independently review `openapi.yaml` schemas and address known remaining security/policy gates. No claim of production readiness.
+**Additional staging diagnostics and repository conventions:**
+- Added root `AGENTS.md` (commit `93cb08921f2ff0e1f38e3c05ba373c70a976bc82`) to make the handoff/spec/main-branch workflow easy for future coding assistants to find.
+- Strict same-origin middleware initially caused a **false-failing staging script** that omitted the browser `Origin` header. Updated `scripts/check-staging-deployment.js` and `scripts/smoke-mongo-preview.js` to send same-origin headers on mutation probes; committed regression checks that enforce those headers. Added sanitized category output for challenge failures (no secret or biometric output).
+- A transient subsequent staging run failed a cookie-consumption assertion; the **next run passed** without weakening the face-challenge binding rules. Monitor for recurrence and investigate any repeat failures.
+
+**Latest VERIFIED automated evidence for commit `c860291bb7f909b196dda7e0c1b4701252c03434`:**
+- `ci-reports/LATEST_TEST_REPORT.json` shows `installExit=0`, `testExit=0`, `integrationExit=0`, `stagingExit=0` and `passed=true` with `stagingPublicGatePassed=true`.
+- GitHub report: https://github.com/bhwcooperativeguimbaph-commits/bhwvotingsystem/blob/ci-reports/LATEST_TEST_REPORT.json
+- GitHub staging gate: https://github.com/bhwcooperativeguimbaph-commits/bhwvotingsystem/actions/runs/41458454773
+- This verifies JavaScript/offline contracts, a **disposable local MongoDB replica set**, and a safe credential-free public Render staging smoke check, including anonymous auth boundaries, face-challenge browser cookie isolation and replay rejection. **No real or synthetic vote was submitted in staging by this gate.** This does NOT establish real Atlas transactional behavior, browser biometrics and PDF usability, actual Brevo delivery to two custodians or go-live approval.
+
+**Very next task:** perform the coordinated acceptance with only consenting synthetic participants and separate staging database/credentials in `docs/FINAL_ACCEPTANCE_REHEARSAL.md`. Record real browser camera enrollment/login, distinct Brevo custodian deliveries and confirmations, an encrypted ballot/receipt transaction, and final report PDF/verification. Independently review `openapi.yaml` responses, face spoofing risks, data retention/deletion, accessible alternatives, backup/restore, then obtain election-official/security sign-off. Keep real voting disabled.
+
+**Exact final `main` HEAD may advance when this handoff itself is committed; use GitHub branch HEAD and fresh CI to establish subsequent evidence.**
 
 ### 2026-11-02 — development resumed after context transfer
 - User requested persistent GitHub handoff notes and development **on main**, with completion of SPEC as the target.
