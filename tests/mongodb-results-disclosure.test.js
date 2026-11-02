@@ -25,6 +25,10 @@ async function run(){
   if(name==='ballots')return {find:()=>({toArray:async()=>ballots})};
   if(name==='voterParticipation')return {countDocuments:async()=>acceptedParticipants};
   if(name==='finalReports')return {insertOne:async doc=>saved.push(doc)};
+  if(name==='resultAnnouncements')return {insertOne:async(doc,opts)=>{
+   assert.equal(doc.type,'RESULTS_PUBLISHED');assert.match(doc.notificationId,/^NOTICE-/);
+   assert.ok(opts?.session);assert.ok(!JSON.stringify(doc).includes('BHW1.'));
+  }};
   if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'RESULTS_FINALIZED');assert.ok(opts?.session)}};
   throw Error(name);
  }}};
