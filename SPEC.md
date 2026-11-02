@@ -288,3 +288,16 @@ Subsequent commits implemented:
 - **Remaining mandatory gates:** full automated CI results for latest commit; MongoDB deployment and index migration verification; end-to-end facial enrollment/session workflows; two-recipient Brevo custodian receipts; live Atlas transaction concurrency tests; PDF format/download checks; permissions, privacy/anti-spoofing, accessibility and disaster-recovery reviews; complete original frontend parity; stakeholder rehearsal and approval.
 - **Agreed development sequence:** complete code and UI changes first; user conducts one coordinated browser acceptance test afterward. No intermediate user testing required simply to continue coding.
 
+
+## 14. Final UI preparation and persistent authentication challenges
+
+Additional completed code (not yet live acceptance evidence):
+- Corrected automated election-limit assertion and added UI navigation/DOM integrity checks.
+- Registered member directory now provides paginated records rather than stopping at the first 100; original street address, birthdate, gender and Guimba address are preserved.
+- Candidate photo upload request limit now accommodates validated 500 KB JPG/PNG photos.
+- Face login and enrollment challenges are issued and **atomically consumed** in MongoDB (`faceChallenges` with unique challenge hash, network hash and TTL) instead of the server's volatile JavaScript Map.
+- `scripts/mongodb-readiness.js` now validates unique `voterParticipation`, receipts, session TTL and absence of legacy member-linked ballot indexes.
+- The root `README.md` explains MongoDB default startup, the Brevo-only OTP provider, interface pages and the final acceptance procedure.
+- Syntax of the updated server, challenge service and all eight browser pages was independently checked through source compilation, and all eight UI pages passed static DOM ID/reference and navigation checks. **A complete live CI and Atlas transactional test has not been observed for these new commits.**
+
+Real voting remains disabled because `ENABLE_MONGODB_VOTE_TEST` is absent. Do not enable it for actual elections without the final supervised acceptance and presentation-attack risk assessment.
