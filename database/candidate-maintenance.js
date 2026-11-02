@@ -1,6 +1,6 @@
 'use strict';
-// Pre-start candidate edits. Uses a per-election lease to serialize concurrent
-// changes. Once key provisioning begins, all add/update/remove operations lock.
+// Candidate mutations and their audit evidence commit in the SAME transaction.
+// An election-scoped lease prevents key provisioning from racing an edit.
 const crypto=require('node:crypto');
 const clean=x=>typeof x==='string'?x.trim().replace(/\s+/g,' '):'';
 function error(code){return Object.assign(new Error(code),{code})}
@@ -15,64 +15,95 @@ function validatePhoto(photo){
  if(bytes.length>500000||!(match[1]==='jpeg'?jpeg:png))throw error('INVALID_CANDIDATE');
  return photo;
 }
-async function editCandidate(db,{electionId,candidateId,position,candidateName,photo,operation,now=new Date()}){
- if(!/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||!['add','update','remove'].includes(operation))
+async function editCandidate(connection,{
+ electionId,candidateId,position,candidateName,photo,operation,operatorId,actorRole,now=new Date()
+}){
+ if(!connection?.db||!connection?.client||!['add','update','remove'].includes(operation)||
+   !/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||
+   !['admin','superadmin'].includes(actorRole)||typeof operatorId!=='string'||!operatorId)
   throw error('INVALID_CANDIDATE');
- if(operation!=='add'&&!/^CAND-[0-9a-f-]{36}$/i.test(candidateId||''))throw error('INVALID_CANDIDATE');
- if(operation==='update'&&(candidateName===undefined||!clean(candidateName)||clean(candidateName).length>100))
+ if(operation!=='add'&&!/^CAND-[0-9a-f-]{36}$/i.test(candidateId||''))
   throw error('INVALID_CANDIDATE');
- if(operation==='add'&&(!clean(position)||clean(position).length>50||!clean(candidateName)||clean(candidateName).length>100))throw error('INVALID_CANDIDATE');
- const owner=crypto.randomUUID(),expiresAt=new Date(now.getTime()+120000);
+ if(operation==='update'&&(!clean(candidateName)||clean(candidateName).length>100))
+  throw error('INVALID_CANDIDATE');
+ if(operation==='add'&&(!clean(position)||clean(position).length>50||
+   !clean(candidateName)||clean(candidateName).length>100))
+  throw error('INVALID_CANDIDATE');
+ // Validate photo BEFORE reserving edit ownership; a bad file never obtains a lease.
+ const photoValue=photo===undefined?undefined:validatePhoto(photo);
+ const {db,client}=connection,owner=crypto.randomUUID(),expiresAt=new Date(now.getTime()+120000);
  const election=await db.collection('elections').findOneAndUpdate({
   electionId,status:'Active',startTime:{$gt:now},
-  keyProvisioningState:{$exists:false},ballotPublicKeyPem:{$exists:false},$or:[
-   {candidateEditLeaseUntil:{$exists:false}},{candidateEditLeaseUntil:{$lte:now}}
-  ]
+  keyProvisioningState:{$exists:false},ballotPublicKeyPem:{$exists:false},
+  $or:[{candidateEditLeaseUntil:{$exists:false}},{candidateEditLeaseUntil:{$lte:now}}]
  },{$set:{candidateEditOwner:owner,candidateEditLeaseUntil:expiresAt}},{returnDocument:'after'});
  if(!election)throw error('ELECTION_LOCKED');
  try{
-  if(await db.collection('ballots').findOne({electionId},{projection:{_id:1}}))
-   throw error('ELECTION_LOCKED');
-  const candidates=await db.collection('candidates').find({electionId,status:'Active'}).toArray();
-  if(operation==='update'){
-   const candidate=candidates.find(c=>c.candidateId===candidateId);
-   if(!candidate)throw error('CANDIDATE_NOT_FOUND');
-   candidateName=clean(candidateName);
-   if(candidates.some(c=>c.candidateId!==candidateId&&
+  const session=client.startSession();
+  try{
+   let output;
+   await session.withTransaction(async()=>{
+    const opts={session};
+    if(await db.collection('ballots').findOne({electionId},{...opts,projection:{_id:1}}))
+     throw error('ELECTION_LOCKED');
+    const candidates=await db.collection('candidates').find({electionId,status:'Active'},opts).toArray();
+    let selectedId;
+    if(operation==='update'){
+     const candidate=candidates.find(c=>c.candidateId===candidateId);
+     if(!candidate)throw error('CANDIDATE_NOT_FOUND');
+     candidateName=clean(candidateName);
+     if(candidates.some(c=>c.candidateId!==candidateId&&
       c.position.toLowerCase()===candidate.position.toLowerCase()&&
-      c.name.toLowerCase()===candidateName.toLowerCase()))throw error('DUPLICATE_CANDIDATE');
-   const changes={name:candidateName,updatedAt:now};
-   // Absent photo preserves the existing JPG/PNG. Explicit null removes it.
-   if(photo!==undefined)changes.photo=validatePhoto(photo);
-   const result=await db.collection('candidates').updateOne(
-    {electionId,candidateId,status:'Active'},{$set:changes});
-   if(result.matchedCount!==1)throw error('CANDIDATE_NOT_FOUND');
-   return {candidateId,status:'Active',name:candidateName};
-  }
-  if(operation==='remove'){
-   const candidate=candidates.find(c=>c.candidateId===candidateId);
-   if(!candidate)throw error('CANDIDATE_NOT_FOUND');
-   const current=candidates.filter(c=>c.position===candidate.position);
-   if(current.length<=candidate.maxVotes)throw error('INSUFFICIENT_CANDIDATES');
-   const result=await db.collection('candidates').updateOne(
-    {electionId,candidateId,status:'Active'},{$set:{status:'Removed',updatedAt:now}});
-   if(result.modifiedCount!==1)throw error('CANDIDATE_NOT_FOUND');
-   return {candidateId,status:'Removed'};
-  }
-  position=clean(position);candidateName=clean(candidateName);
-  if(!candidateName||candidateName.length>100)throw error('INVALID_CANDIDATE');
-  const pos=candidates.filter(c=>c.position.toLowerCase()===position.toLowerCase());
-  if(!pos.length)throw error('UNKNOWN_POSITION');
-  if(pos.some(c=>c.name.toLowerCase()===candidateName.toLowerCase()))throw error('DUPLICATE_CANDIDATE');
-  const candidateIdNew='CAND-'+crypto.randomUUID();
-  await db.collection('candidates').insertOne({
-   candidateId:candidateIdNew,electionId,position:pos[0].position,maxVotes:pos[0].maxVotes,
-   name:candidateName,photo:validatePhoto(photo),status:'Active',createdAt:now
-  });
-  return {candidateId:candidateIdNew,status:'Active'};
+      c.name.toLowerCase()===candidateName.toLowerCase()))
+      throw error('DUPLICATE_CANDIDATE');
+     const changes={name:candidateName,updatedAt:now};
+     if(photoValue!==undefined)changes.photo=photoValue;
+     const result=await db.collection('candidates').updateOne(
+      {electionId,candidateId,status:'Active'},{$set:changes},opts);
+     if(result.matchedCount!==1)throw error('CANDIDATE_NOT_FOUND');
+     selectedId=candidateId;
+     output={candidateId,status:'Active',name:candidateName};
+    }else if(operation==='remove'){
+     const candidate=candidates.find(c=>c.candidateId===candidateId);
+     if(!candidate)throw error('CANDIDATE_NOT_FOUND');
+     if(candidates.filter(c=>c.position===candidate.position).length<=candidate.maxVotes)
+      throw error('INSUFFICIENT_CANDIDATES');
+     const result=await db.collection('candidates').updateOne(
+      {electionId,candidateId,status:'Active'},
+      {$set:{status:'Removed',updatedAt:now}},opts);
+     if(result.modifiedCount!==1)throw error('CANDIDATE_NOT_FOUND');
+     selectedId=candidateId;
+     output={candidateId,status:'Removed'};
+    }else{
+     position=clean(position);candidateName=clean(candidateName);
+     const matching=candidates.filter(c=>c.position.toLowerCase()===position.toLowerCase());
+     if(!matching.length)throw error('UNKNOWN_POSITION');
+     if(matching.some(c=>c.name.toLowerCase()===candidateName.toLowerCase()))
+      throw error('DUPLICATE_CANDIDATE');
+     selectedId='CAND-'+crypto.randomUUID();
+     await db.collection('candidates').insertOne({
+      candidateId:selectedId,electionId,position:matching[0].position,
+      maxVotes:matching[0].maxVotes,name:candidateName,photo:photoValue||null,
+      status:'Active',createdAt:now
+     },opts);
+     output={candidateId:selectedId,status:'Active'};
+    }
+    // Never log candidate photos or ballot choices. Audit failures abort the mutation.
+    await db.collection('auditLogs').insertOne({
+     eventId:'AUD-'+crypto.randomUUID(),actorRole,operatorId,electionId,
+     candidateId:selectedId,action:({
+      add:'CANDIDATE_ADDED',update:'CANDIDATE_UPDATED',remove:'CANDIDATE_REMOVED'
+     })[operation],outcome:'success',createdAt:now
+    },opts);
+   },{writeConcern:{w:'majority'}});
+   return output;
+  }finally{await session.endSession()}
  }finally{
+  // Never hide a successful write if the already-expired lease cannot be released;
+  // the reservation has a bounded timeout, and is checked before new provisioning.
   await db.collection('elections').updateOne(
-   {electionId,candidateEditOwner:owner},{$unset:{candidateEditOwner:'',candidateEditLeaseUntil:''}}).catch(()=>{});
+   {electionId,candidateEditOwner:owner},
+   {$unset:{candidateEditOwner:'',candidateEditLeaseUntil:''}}).catch(()=>{});
  }
 }
 module.exports={editCandidate,validatePhoto};
