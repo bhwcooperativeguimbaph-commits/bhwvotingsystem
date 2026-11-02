@@ -43,6 +43,7 @@
 
 - **Super Admin password + Brevo OTP:** **PASS (user-confirmed)**. User signed in to `https://secongvoting.onrender.com/admin-auth-preview` and reached the protected administrator interface. This confirms one successful login path only, not expired-code, lockout, or account-recovery tests.
 - **Anonymous/public staging gate:** **PASS (automated)**, using GitHub Actions with no secrets and no ballot submissions.
+- **Facial challenge browser binding:** **PASS (staging automated live API)**. Following an on-time enrollment failure with the old proxy-IP binding, challenges now use a secure short-lived HttpOnly cookie. The live test confirms that a different browser binding is rejected, the originating browser can consume once, and replay is rejected. **Actual camera enrollment still requires user retest.**
 - **Member biometric enrollment and facial member login:** **NOT RUN** — requires an explicitly consenting camera participant.
 - **Election, independent key custodians, ballot/receipt, results:** **NOT RUN** end to end.
 - **Production authorization:** **BLOCKED** pending full acceptance and privacy/security review.
