@@ -313,4 +313,6 @@ This section documents code committed after the first persistent facial challeng
 - Added or revised mock tests for vote-eligibility cutoffs, frozen electorate count, facial challenge replay and expiry, critical index constraints, and integrated UI links/elements.
 - The source has passed static syntax and browser reference checks during development. **Fresh GitHub Actions CI results and live MongoDB/Brevo/browser acceptance are still mandatory before launch.**
 
+**Ballot metadata hardening:** new encrypted ballot records use a cryptographically random string `_id` rather than MongoDB's time-ordered ObjectId; the redundant per-ballot receipt-time bucket is omitted. Transaction/order side channels and operational logs still require an independent secrecy review for real elections.
+
 **Outstanding risks to resolve with election officials and a security reviewer:** browser-reported facial gestures can be spoofed; timing/ordering may compromise unlinkability of ballots in small electorates; ballot and eligibility concurrency must be verified on an actual Atlas replica set; biometric consent/retention and deletion need a final policy and audit; backups and disaster recovery must be exercised; accessible alternatives to face login may be necessary.
