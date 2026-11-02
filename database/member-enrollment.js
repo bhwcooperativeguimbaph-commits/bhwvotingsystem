@@ -49,7 +49,8 @@ async function registerMemberWithFace(connection,input,{key,validateLocation,ope
    await session.withTransaction(async()=>{
     await db.collection('members').insertOne({memberId,...member,
      ...(portrait?{portraitEncrypted:portrait}:{}),
-     biometricConsent:{granted:true,version:'BHW-BIOMETRIC-CONSENT-v1',grantedAt:now,
+     biometricConsent:{granted:true,version:portrait?
+      'BHW-BIOMETRIC-PORTRAIT-CONSENT-v2':'BHW-BIOMETRIC-CONSENT-v1',grantedAt:now,
       recordedBy:typeof operatorId==='string'?operatorId:null},createdAt:now,updatedAt:now},{session});
     await db.collection('biometricRegistrations').insertOne({
      biometricId,memberId,facialEncoding:encrypted,biometricStatus:'Active',createdAt:now,updatedAt:now
