@@ -342,6 +342,15 @@ app.get('/api/admin/overview',staffOnly,async(req,res)=>{
   return res.json({success:true,summary:{members,activeMembers,staff,elections,ballots}});
  }catch(_){return res.status(503).json({success:false,message:'Dashboard temporarily unavailable'})}
 });
+app.get('/api/admin/announcements',staffOnly,async(req,res)=>{
+ try{
+  const announcements=await connection.db.collection('resultAnnouncements').find({},{
+   projection:{_id:0,notificationId:1,electionId:1,message:1,createdAt:1},
+   sort:{createdAt:-1},limit:5}).toArray();
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,announcements});
+ }catch(_){return res.status(503).json({success:false,message:'Announcements unavailable'})}
+});
 app.get('/api/admin/analytics',staffOnly,async(req,res)=>{
  try{
   const {getAdminAnalytics}=require('./database/admin-analytics');
