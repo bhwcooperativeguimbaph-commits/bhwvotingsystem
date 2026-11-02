@@ -50,6 +50,14 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
    })),publishedAt:now};
    report.reportHash=crypto.createHash('sha256').update(JSON.stringify(report)).digest('hex');
    await db.collection('finalReports').insertOne({...report,createdAt:now},{session});
+   // Publish exactly one durable in-account announcement with the report.
+   // No per-voter materialization is required; all preexisting member accounts
+   // see this announcement when reading their notification inbox.
+   await db.collection('resultAnnouncements').insertOne({
+    notificationId:'NOTICE-'+crypto.randomUUID(),electionId,
+    type:'RESULTS_PUBLISHED',message:'Verified election results are now available.',
+    createdAt:now
+   },{session});
    const result=await db.collection('elections').updateOne(
     {electionId,status:{$in:['Active','Closed']},endTime:{$lte:now}},
     {$set:{status:'Finalized',finalizedAt:now}},{session});
