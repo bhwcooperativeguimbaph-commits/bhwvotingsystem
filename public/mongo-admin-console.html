@@ -283,12 +283,45 @@ async function refreshOverview(){
  }
  const holder=by('historyList');holder.replaceChildren();
  if(history.success){
+  const phTime=value=>{
+   const dt=new Date(value);
+   return Number.isFinite(dt.getTime())?
+    new Intl.DateTimeFormat('en-PH',{dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Manila'}).format(dt):
+    'Date unavailable';
+  };
   for(const e of history.elections){
-   const p=document.createElement('p'),button=document.createElement('button');
-   p.textContent=e.title+' — '+e.status+' · '+new Date(e.startTime).toLocaleString()+' to '+new Date(e.endTime).toLocaleString()+' ';
-   button.type='button';button.textContent='Use this election';button.className='ghost';
-   button.onclick=()=>{for(const field of ['candidateElection','keyElection','turnoutId','reportId','lifecycleId'])by(field).value=e.electionId;showLifecycle();by('lifecycleId').scrollIntoView({behavior:'smooth',block:'center'})};
-   p.appendChild(button);holder.appendChild(p);
+   const entry=document.createElement('article');entry.className='history-entry';
+   const heading=document.createElement('div');heading.className='history-heading';
+   const title=document.createElement('strong');title.textContent=e.title;
+   const chip=document.createElement('span');chip.className='status-chip';
+   chip.textContent=e.published?'Published & verified':'Not published';
+   heading.append(title,chip);
+   const dates=document.createElement('small');
+   dates.textContent='Voting: '+phTime(e.startTime)+' – '+phTime(e.endTime)+' (Philippine time)';
+   const stats=document.createElement('p');stats.className='history-stats';
+   const eligible=Number.isInteger(e.eligibleMembers)?e.eligibleMembers:null;
+   const pct=eligible===null?'Pending roster freeze':eligible===0?'N/A (no eligible voters)':
+    Number(e.turnoutPercent).toFixed(2)+'%';
+   stats.textContent='Status: '+e.status+' · Accepted ballots: '+e.ballotsCast+
+    ' · Frozen eligible: '+(eligible===null?'Not frozen':eligible)+' · Turnout: '+pct;
+   const actions=document.createElement('div');actions.className='history-actions';
+   const button=document.createElement('button');
+   button.type='button';button.textContent='Inspect / manage';button.className='ghost';
+   button.onclick=()=>{
+    for(const field of ['candidateElection','keyElection','turnoutId','reportId','lifecycleId'])by(field).value=e.electionId;
+    showLifecycle();by('lifecycleId').scrollIntoView({behavior:'smooth',block:'center'});
+   };
+   actions.appendChild(button);
+   if(e.published&&/^ELEC-[0-9a-f-]{36}$/i.test(e.electionId)){
+    const link=document.createElement('a');link.className='history-report-link';
+    link.href='/results?electionId='+encodeURIComponent(e.electionId);
+    link.textContent='View verified report';actions.appendChild(link);
+   }else{
+    const locked=document.createElement('small');
+    locked.textContent='Report locked until authorized two-custodian finalization.';
+    actions.appendChild(locked);
+   }
+   entry.append(heading,dates,stats,actions);holder.appendChild(entry);
   }
   if(!history.elections.length)holder.textContent='No elections created yet.';
  }else holder.textContent=history.message||'History unavailable';
