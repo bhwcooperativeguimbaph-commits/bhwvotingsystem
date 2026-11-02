@@ -80,10 +80,10 @@ async function setMemberStatus(db,memberId,status,{now=new Date(),session}={}){
   session?{session}:{});
  return r.matchedCount===1;
 }
-async function updateMemberProfile(db,memberId,input,{validateLocation,now=new Date()}={}){
+async function updateMemberProfile(db,memberId,input,{validateLocation,now=new Date(),session}={}){
  if(!/^MEM-[0-9a-f-]{36}$/i.test(memberId||'')||typeof validateLocation!=='function')
   throw new TypeError('Invalid member update request');
- const existing=await db.collection('members').findOne({memberId});
+ const existing=await db.collection('members').findOne({memberId},session?{session}:{});
  if(!existing)return null;
  const profile=validateMember({
   ...existing,...input,fullName:input?.fullName,area:input?.area,location:input?.location,
@@ -97,7 +97,8 @@ async function updateMemberProfile(db,memberId,input,{validateLocation,now=new D
  const changes={fullName:profile.fullName,firstName:profile.firstName,middleName:profile.middleName,
   lastName:profile.lastName,area:profile.area,address:profile.address,
   birthdate:profile.birthdate,gender:profile.gender,location:profile.location,updatedAt:now};
- const update=await db.collection('members').updateOne({memberId},{$set:changes});
+ const update=await db.collection('members').updateOne({memberId},{$set:changes},
+  session?{session}:{});
  if(!update.matchedCount)return null;
  return {memberId,...changes};
 }
@@ -124,5 +125,26 @@ async function setMemberStatusWithAudit(connection,memberId,status,{
   return changed;
  }finally{await session.endSession()}
 }
+async function updateMemberProfileWithAudit(connection,memberId,input,{
+ validateLocation,operatorId,actorRole,now=new Date()
+}={}){
+ if(!connection?.db||!connection?.client||typeof validateLocation!=='function'||
+  !['admin','superadmin'].includes(actorRole)||typeof operatorId!=='string'||!operatorId)
+  throw new TypeError('Invalid authorized profile update');
+ const session=connection.client.startSession();
+ try{
+  let result=null;
+  await session.withTransaction(async()=>{
+   result=await updateMemberProfile(connection.db,memberId,input,{validateLocation,now,session});
+   if(!result)return;
+   // Do not record names, addresses, birthdays or biometric templates in audits.
+   await connection.db.collection('auditLogs').insertOne({
+    eventId:'AUD-'+crypto.randomUUID(),actorRole,operatorId,memberId,
+    action:'MEMBER_PROFILE_UPDATED',outcome:'success',createdAt:now
+   },{session});
+  },{writeConcern:{w:'majority'}});
+  return result;
+ }finally{await session.endSession()}
+}
 module.exports={isAdultBirthdate,updateMemberProfile,validateMember,createMember,getMember,
- setMemberStatus,setMemberStatusWithAudit};
+ setMemberStatus,setMemberStatusWithAudit,updateMemberProfileWithAudit};
