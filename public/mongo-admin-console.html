@@ -147,7 +147,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div id="setupStep4" class="wizard-step" hidden>
  <h3>Review before creation</h3>
  <div id="wizardReview" aria-live="polite"></div>
- <p class="warning">Once key custodian provisioning starts, candidate configuration is locked. Use synthetic election data in staging.</p>
+ <p class="warning">Once key custodian provisioning starts, candidate configuration is locked.</p>
 </div>
 <p id="wizardError" class="warning" role="alert" aria-live="polite"></p>
 <div class="wizard-controls"><button id="wizardBack" type="button" class="ghost" hidden>Back</button>
@@ -180,8 +180,8 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
 <small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
-<p class="warning">Final review: sending key shares freezes the eligible voter count and locks all candidate additions, edits and removals. A lost share cannot be recovered from the database. Do not proceed with a real election; use isolated synthetic staging data only.</p>
-<button id="provision">Send separate custodian shares (test only)</button><pre id="provisionResult">Not provisioned</pre>
+<p class="warning">Final review: sending key shares freezes the eligible voter count and locks all candidate additions, edits and removals. A lost share cannot be recovered from the database. Verify both recipient addresses carefully.</p>
+<button id="provision">Send custodian shares</button><pre id="provisionResult">Not provisioned</pre>
 <button id="checkCustodianStatus" class="ghost" type="button">Check delivery and custodian confirmations</button>
 <div id="custodianStatus" role="status" aria-live="polite">No election status requested.</div></section>
 <section><h2>Election turnout</h2>
@@ -192,7 +192,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div class="cols"><label>Custodian 1 share<textarea id="share1" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
 <label>Custodian 2 share<textarea id="share2" rows="2" autocomplete="off" spellcheck="false"></textarea></label></div>
 <small>Requires both valid shares and a closed election. Shares are transmitted via HTTPS but are never shown in the report. Clear them from this browser afterward.</small>
-<button id="disclose">Finalize aggregate results (test only)</button><pre id="discloseResult">Not finalized</pre></section>
+<button id="disclose">Finalize aggregate results</button><pre id="discloseResult">Not finalized</pre></section>
 </main></div>
 <script>
 'use strict';
@@ -235,7 +235,7 @@ async function refreshAnalytics(){
   by('currentEligible').textContent=Number.isInteger(eligible)&&eligible>=0?String(eligible):'Not frozen';
   if(!election){
    by('currentTurnout').textContent='—';
-   by('turnoutExplanation').textContent='Create a test election to begin observing participation.';
+   by('turnoutExplanation').textContent='Create an election to begin observing participation.';
   }else if(!Number.isInteger(eligible)||eligible<0){
    by('currentTurnout').textContent='Pending';
    by('turnoutExplanation').textContent='Turnout is unavailable until the electorate is frozen during key provisioning.';
@@ -865,7 +865,7 @@ by('provision').onclick=async()=>{
   by('provisionResult').textContent='Select an election and two different valid custodian email addresses.';return;
  }
  const caution='Confirm separate key delivery to:\\n1. '+emails[0]+'\\n2. '+emails[1]+
-  '\\n\\nThis freezes voter eligibility and candidate configuration. Lost shares cannot be retrieved from this system. Continue only with isolated staging test data.';
+  '\\n\\nThis freezes voter eligibility and candidate configuration. Lost shares cannot be retrieved from this system. Proceed only when both custodians are ready to receive their private shares.';
  if(!window.confirm(caution))return;
  const button=by('provision');button.disabled=true;
  try{
