@@ -301,3 +301,16 @@ Additional completed code (not yet live acceptance evidence):
 - Syntax of the updated server, challenge service and all eight browser pages was independently checked through source compilation, and all eight UI pages passed static DOM ID/reference and navigation checks. **A complete live CI and Atlas transactional test has not been observed for these new commits.**
 
 Real voting remains disabled because `ENABLE_MONGODB_VOTE_TEST` is absent. Do not enable it for actual elections without the final supervised acceptance and presentation-attack risk assessment.
+
+## 15. Subsequent security and election-readiness work
+
+This section documents code committed after the first persistent facial challenge implementation. It is **not** a claim of completed live acceptance testing.
+
+- Removed the public `POST /api/face-prescan` identity-discovery endpoint. Member facial recognition now occurs after completion of the existing single-use, time-limited head-turn/blink challenge. Client-reported gestures **do not constitute certified liveness**.
+- Moved election eligibility freezing to the **custodian key-provisioning transaction**. The frozen count and timestamp are saved on the election before it opens; votes require active membership created no later than that cutoff. The turnout denominator no longer changes based on when staff first opens the dashboard.
+- Kept the `ENABLE_MONGODB_VOTE_TEST` flag absent/false. Vote submission is still disabled for real users.
+- Added member-directory pagination, bounded candidate photo upload support, linked email-code password recovery, and restricted Super Admin-only panels for key provisioning and result finalization.
+- Added or revised mock tests for vote-eligibility cutoffs, frozen electorate count, facial challenge replay and expiry, critical index constraints, and integrated UI links/elements.
+- The source has passed static syntax and browser reference checks during development. **Fresh GitHub Actions CI results and live MongoDB/Brevo/browser acceptance are still mandatory before launch.**
+
+**Outstanding risks to resolve with election officials and a security reviewer:** browser-reported facial gestures can be spoofed; timing/ordering may compromise unlinkability of ballots in small electorates; ballot and eligibility concurrency must be verified on an actual Atlas replica set; biometric consent/retention and deletion need a final policy and audit; backups and disaster recovery must be exercised; accessible alternatives to face login may be necessary.
