@@ -554,8 +554,9 @@ app.patch('/api/admin/members/:memberId/status',staffOnly,async(req,res)=>{
  if(!/^MEM-[0-9a-f-]{36}$/i.test(memberId)||!['Active','Inactive'].includes(status))
   return res.status(400).json({success:false,message:'Invalid member or status'});
  try {
-  const {setMemberStatus}=require('./database/members');
-  const updated=await setMemberStatus(connection.db,memberId,status);
+  const {setMemberStatusWithAudit}=require('./database/members');
+  const updated=await setMemberStatusWithAudit(connection,memberId,status,
+   {operatorId:req.staff.accountId,actorRole:req.staff.role});
   if(!updated)return res.status(404).json({success:false,message:'Member not found'});
   res.set('Cache-Control','no-store');
   return res.json({success:true});
