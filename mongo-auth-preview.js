@@ -241,36 +241,58 @@ async function superadminOnly(req,res,next){
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
 app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
-  let verified=false;
-  try{verified=await consumeFaceChallenge(connection.db,{
-    challengeId:req.body?.challengeId,completedActions:req.body?.completedActions,
-    binding:faceBinding(req)})}
-  catch(_){return res.status(503).json({success:false,message:'Enrollment facial challenge unavailable'})}
-  clearFaceBinding(res);
-  if(!verified)return res.status(401).json({success:false,message:'Enrollment facial challenge expired, incomplete, or from another browser'});
-  const {registerMemberWithFace}=require('./database/member-enrollment');
-  const {verifyGuimbaLocation}=require('./database/guimba-location');
-  try{
-    const clean=v=>typeof v==='string'?v.trim().replace(/\s+/g,' '):'';
-    const input={fullName:clean(req.body?.fullName)||[req.body?.firstName,req.body?.middleName,req.body?.lastName].map(clean).filter(Boolean).join(' '),
-      area:req.body?.area,location:req.body?.location,descriptor:req.body?.descriptor,
-      address:req.body?.address,birthdate:req.body?.birthdate,gender:req.body?.gender,
-      biometricConsent:req.body?.consent===true};
-    if(req.body?.consent!==true)return res.status(400).json({success:false,message:'Member biometric consent required'});
-    if(!req.body?.address||!req.body?.birthdate||!req.body?.gender)
-      return res.status(400).json({success:false,message:'Address, birthdate and gender are required'});
-    const {memberId}=await registerMemberWithFace(connection,input,{key:keyFromEnv(),validateLocation:verifyGuimbaLocation,
-      operatorId:req.staff?.accountId});
-    res.set('Cache-Control','no-store');
-    return res.status(201).json({success:true,memberId});
-  }catch(e){
-    if(e.code==='DUPLICATE_BIOMETRIC')
-      return res.status(409).json({success:false,message:'This face is already enrolled'});
-    if(e.code==='ENROLLMENT_BUSY')
-      return res.status(423).json({success:false,message:'Biometric registration is busy; retry later'});
-    if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid enrollment data or unverified Guimba address'});
-    return res.status(503).json({success:false,message:'Enrollment unavailable'});
-  }
+ const {registerMemberWithFace}=require('./database/member-enrollment');
+ const {validateMember}=require('./database/members');
+ const {verifyGuimbaLocation}=require('./database/guimba-location');
+ const clean=v=>typeof v==='string'?v.trim().replace(/\s+/g,' '):'';
+ const input={
+  firstName:clean(req.body?.firstName),middleName:clean(req.body?.middleName),
+  lastName:clean(req.body?.lastName),area:clean(req.body?.area),
+  address:clean(req.body?.address),birthdate:req.body?.birthdate,
+  gender:req.body?.gender,location:req.body?.location,
+  descriptor:req.body?.descriptor,biometricConsent:req.body?.consent===true
+ };
+ // Validate everything possible before consuming a single-use challenge,
+ // so a form error never forces the user to repeat the camera gestures.
+ if(!input.biometricConsent)
+  return res.status(400).json({success:false,message:'Member biometric consent is required'});
+ try{
+  const checked=validateMember(input);
+  if(!checked.firstName||!checked.lastName||!checked.address||!checked.birthdate||!checked.gender)
+   throw new TypeError('First name, last name, address, adult birthdate and gender are required');
+  if(!verifyGuimbaLocation(checked.location))
+   throw new TypeError('Select a valid barangay in Guimba, Nueva Ecija');
+  if(!validDescriptor(input.descriptor))
+   throw new TypeError('A valid facial descriptor is required');
+ }catch(e){
+  return res.status(400).json({success:false,message:e instanceof TypeError?
+   e.message:'Invalid member registration form'});
+ }
+ let verified=false;
+ try{
+  verified=await consumeFaceChallenge(connection.db,{
+   challengeId:req.body?.challengeId,completedActions:req.body?.completedActions,
+   binding:faceBinding(req)
+  });
+ }catch(_){return res.status(503).json({success:false,message:'Enrollment facial challenge unavailable'})}
+ clearFaceBinding(res);
+ if(!verified)return res.status(401).json({
+  success:false,message:'Enrollment facial challenge expired, incomplete, or from another browser'
+ });
+ try{
+  const {memberId}=await registerMemberWithFace(connection,input,{
+   key:keyFromEnv(),validateLocation:verifyGuimbaLocation,operatorId:req.staff?.accountId
+  });
+  res.set('Cache-Control','no-store');
+  return res.status(201).json({success:true,memberId});
+ }catch(e){
+  if(e.code==='DUPLICATE_BIOMETRIC')
+   return res.status(409).json({success:false,message:'This face is already enrolled'});
+  if(e.code==='ENROLLMENT_BUSY')
+   return res.status(423).json({success:false,message:'Biometric registration is busy; retry later'});
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:e.message});
+  return res.status(503).json({success:false,message:'Enrollment unavailable'});
+ }
 });
 app.get('/api/superadmin/admins',superadminOnly,async(req,res)=>{
  try{
