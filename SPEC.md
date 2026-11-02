@@ -367,3 +367,16 @@ This section documents code committed after the first persistent facial challeng
 ### Acceptance and sequencing
 - The screenshots illustrate desired layout/controls, **not evidence of completed code**. Design changes require responsive screenshot review, keyboard/accessibility checks, actual role-bound API tests and a supervised isolated staging rehearsal.
 - Shipping sequence: update specification and remove special-case voting rules; implement wizard and modernized portals/layout; implement notification, biometrics-update-with-reason, audit filters and analytics; run full CI plus live staging verification; obtain independent election security/biometric privacy approval before production voting.
+
+
+## 2026-11-02 implementation checkpoint — Render flow review preparation
+
+The following features are now **implemented in source with automated checks**; this is not a production go-live sign-off:
+- Published aggregate report SHA-256 is recalculated with browser Web Crypto and checked before the report is rendered or downloaded; the fingerprint detects modification to the served record but does not independently certify the vote tally.
+- Individual candidate add/edit/remove mutations and their secret-free audit entries commit in the same MongoDB transaction. The election-scoped edit lease and post-provisioning lock remain in effect; the disposable replica-set test exercises the sequence.
+- Administrator account creation, member activation/deactivation and member-profile corrections write role-scoped audit entries transactionally, without names, addresses, face descriptors or ballot choices in the audit records.
+- Super Admin custodian status displays each recipient's provider-accepted delivery timestamp (when available) and independent receipt confirmation. Provider acceptance is **not** proof that an email reached an inbox. Private shares and hashes are never returned to this status page.
+- Key provisioning requires a visible final confirmation warning that it freezes electorate eligibility and candidate configuration. Lost-key and partial-delivery recovery procedures still require an approved operational design.
+- `openapi.yaml` includes the additional custodian status route. `docs/RENDER_FLOW_REVIEW.md` provides an isolated staging browser walkthrough and sanitized feedback instructions.
+
+**Still required before declaring every SPEC acceptance criterion complete:** full live Render/Atlas role-based and transactional flow, real separate Brevo deliveries and confirmation, consenting-person camera usability and independent spoofing review, secure lost-key/recovery design, actual browser receipt/report PDF tests, alternative accessible identity method, retention/deletion and backup/restore procedures, and independent privacy/election-official authorization. Keep main/nonstaging voting disabled. See `DEVELOPMENT_HANDOFF.md` for exact automated test evidence and next steps.
