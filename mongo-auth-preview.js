@@ -562,8 +562,11 @@ app.get('/api/session',async(req,res)=>{
   if(!member)return res.status(401).json({success:false,message:'Session expired'});
   const election=await connection.db.collection('elections').findOne({status:'Active',endTime:{$gt:new Date()}},{sort:{createdAt:-1}});
   const hasVoted=!!(election&&await connection.db.collection('voterParticipation').findOne({electionId:election.electionId,memberId:auth.accountId,status:'Valid'}));
+  const eligibleThisElection=!!(election&&election.eligibilityFrozenAt instanceof Date&&
+    member.createdAt instanceof Date&&member.createdAt<=election.eligibilityFrozenAt);
   res.set('Cache-Control','no-store');
-  res.json({success:true,role:'member',memberId:auth.accountId,fullName:member.fullName,hasVoted});
+  res.json({success:true,role:'member',memberId:auth.accountId,fullName:member.fullName,
+    hasVoted,eligibleThisElection});
  }catch(_){res.status(503).json({success:false,message:'Session temporarily unavailable'})}
 });
 app.post('/api/logout',async(req,res)=>{
