@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BHW Member Enrollment — MongoDB Preview</title>
+<title>Member Registration | BHW Guimba</title>
 <link rel="stylesheet" href="/css/mongo-portal.css">
 <style>
 body{font:16px system-ui;max-width:760px;margin:30px auto;padding:15px;color:#163354}
@@ -29,16 +29,14 @@ small{color:#52657a;display:block}
 
 .hidden{display:none}
 </style>
-<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
+<style>.embedded-registration{margin:0!important;padding:18px 28px!important;max-width:none!important;background:white}.embedded-registration .enrollment-header,.embedded-registration>.portal-footer{display:none!important}.embedded-registration #register{max-width:860px;margin:auto}#addArea{width:auto;max-width:230px}</style><header class="portal-top enrollment-header"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member registration</small></span></a></header>
 
-<h1>Member registration — Rehearsal</h1>
-<p class="warning">Restricted to authorized administrators. Register synthetic test accounts only until privacy and election security reviews are complete.</p>
-<p><a href="/admin-console">Back to admin console</a></p>
+<h1>Member registration</h1><p>Complete the member's information, then capture their face to register.</p>
 <form id="register">
 <label>First name <input id="firstName" required maxlength="60" autocomplete="off" placeholder="Required"></label>
 <label>Middle name <small>(optional)</small><input id="middleName" maxlength="60" autocomplete="off" placeholder="Optional"></label>
 <label>Last name <input id="lastName" required maxlength="60" autocomplete="off" placeholder="Required"></label>
-<label>Membership area<input id="area" required maxlength="100" autocomplete="off"></label>
+<label>Area <select id="area" required><option value="">Select area</option></select></label><button id="addArea" type="button" class="ghost">+ Add area</button><p id="areaStatus" role="status" aria-live="polite"></p>
 <label>Street / house / sitio address<input id="address" required maxlength="500" autocomplete="off"></label>
 <label>Date of birth (18 years old or above)<input id="birthdate" required type="date" aria-describedby="ageHelp"></label>
 <p id="ageHelp" class="age-help" role="status" aria-live="polite"></p>
@@ -47,7 +45,7 @@ small{color:#52657a;display:block}
 <label>Province<select id="province" required disabled aria-label="Fixed Guimba province"></select></label>
 <label>City / Municipality<select id="city" required disabled aria-label="Fixed Guimba city"></select></label>
 <label>Guimba barangay<select id="barangay" required></select></label>
-<label><input type="checkbox" id="consent" required style="width:auto"> The test participant has consented to biometric capture and encrypted storage.</label>
+<label><input type="checkbox" id="consent" required style="width:auto"> The member consents to facial biometric verification and a profile photograph.</label>
 </form>
 <div id="replacePanel" hidden>
  <h2>Update an existing member's biometrics</h2>
@@ -61,7 +59,7 @@ small{color:#52657a;display:block}
 <p class="capture-disclosure">A guided camera window will open after the registration form is complete.</p>
 <dialog id="captureDialog" aria-labelledby="captureTitle">
 <h2 id="captureTitle">Biometric facial verification</h2>
-<p class="capture-disclosure">Follow the on-screen head-turn and blink instructions. This challenge is not certified anti-spoofing technology.</p>
+<p class="capture-disclosure">Follow the on-screen head-turn and blink instructions.</p>
 <video id="webcam" autoplay muted playsinline></video>
 <div id="face-direction-cue" class="hidden"></div><div id="face-action-status" class="hidden"></div>
 <button id="camera">1. Load face models and start camera</button>
@@ -80,7 +78,9 @@ small{color:#52657a;display:block}
 <script>
 'use strict';
 const by=id=>document.getElementById(id),video=by('webcam');
-const replaceParam=new URLSearchParams(location.search).get('replace');
+const params=new URLSearchParams(location.search);
+if(params.get('embedded')==='1')document.body.classList.add('embedded-registration');
+const replaceParam=params.get('replace');
 const replacementMode=/^MEM-[0-9a-f-]{36}$/i.test(replaceParam||'');
 if(replacementMode){
  by('register').hidden=true;by('replacePanel').hidden=false;
@@ -117,6 +117,20 @@ async function geography(){
  const c=fill('city',await api('/api/geo/cities/'+encodeURIComponent(p)));
  fill('barangay',await api('/api/geo/barangays/'+encodeURIComponent(c)),{placeholder:true});
 }
+async function loadAreas(selected=''){
+ try{const data=await api('/api/admin/areas'),field=by('area');field.replaceChildren();
+  const blank=document.createElement('option');blank.value='';blank.textContent='Select area';field.appendChild(blank);
+  for(const name of data.areas||[]){const o=document.createElement('option');o.value=name;o.textContent=name;field.appendChild(o)}
+  field.value=selected||'';
+ }catch(e){by('areaStatus').textContent=e.message}
+}
+by('addArea').onclick=async()=>{
+ const name=prompt('Enter an area name (1–100 characters)');if(name===null)return;
+ try{const result=await api('/api/admin/areas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim()})});
+  await loadAreas(result.area.name);by('areaStatus').textContent='Area added.';
+ }catch(e){by('areaStatus').textContent=e.message}
+};
+loadAreas();
 const dateText=date=>[
  date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),
  String(date.getDate()).padStart(2,'0')
@@ -143,7 +157,7 @@ function validateAge(){
 function refreshEnrollmentButton(){
  by('enroll').disabled=busy||!started||!validateAge();
 }
-for(const id of ['firstName','lastName','area','address']){
+for(const id of ['firstName','lastName','address']){
  by(id).addEventListener('input',()=>by(id).setCustomValidity(''));
 }
 by('birthdate').addEventListener('input',refreshEnrollmentButton);
@@ -242,5 +256,5 @@ by('enroll').onclick=async()=>{
 window.addEventListener('pagehide',()=>video.srcObject?.getTracks().forEach(t=>t.stop()));
 geography().catch(e=>{by('status').textContent=e.message||'Guimba reference data unavailable'});
 </script>
-<footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
+<footer class="portal-footer">BHW Guimba Voting System · Authorized member registration</footer>
 </html>
