@@ -13,6 +13,46 @@
  }
  const move=(id,view)=>{const x=by(id);if(x)views[view].appendChild(x)};
  move('adminDashboard','dashboard');
+ // Dashboard table summaries use the same aggregate-only, privacy-suppressed
+ // endpoint as the charts: no identities, ballot choices or receipts exposed.
+ const tableBox=document.createElement('div');tableBox.className='cols analytics-tables';
+ for(const [heading,id,first] of [
+  ['Daily voting activity','dailyTurnoutTable','Date'],
+  ['Turnout by area','areaTurnoutTable','Area']]){
+  const panel=document.createElement('div');
+  const h=document.createElement('h3');h.textContent=heading;panel.appendChild(h);
+  const table=document.createElement('table');table.className='modern-table';
+  const thead=document.createElement('thead'),row=document.createElement('tr');
+  for(const col of [first,'Votes recorded']){const th=document.createElement('th');th.textContent=col;row.appendChild(th)}
+  thead.appendChild(row);table.appendChild(thead);
+  const body=document.createElement('tbody');body.id=id;table.appendChild(body);
+  panel.appendChild(table);tableBox.appendChild(panel);
+ }
+ by('refreshOverview').insertAdjacentElement('beforebegin',tableBox);
+ function populateTable(id,items,key){
+  const holder=by(id);holder.replaceChildren();
+  const values=items.length?items:[{[key]:'No reportable votes',count:'—'}];
+  for(const item of values){
+   const tr=document.createElement('tr');
+   for(const value of [item[key],String(item.count)]){
+    const cell=document.createElement('td');cell.textContent=String(value);tr.appendChild(cell)
+   }holder.appendChild(tr);
+  }
+ }
+ async function refreshTables(){
+  try{
+   const res=await fetch('/api/admin/analytics',{credentials:'same-origin'});
+   if(!res.ok)throw Error('Analytics unavailable');
+   const data=await res.json();
+   populateTable('dailyTurnoutTable',data.daily||[],'date');
+   populateTable('areaTurnoutTable',data.areas||[],'area');
+  }catch(_){
+   populateTable('dailyTurnoutTable',[],'date');
+   populateTable('areaTurnoutTable',[],'area');
+  }
+ }
+ by('refreshOverview').addEventListener('click',refreshTables);
+ refreshTables();
  const original=by('adminDashboard');
  // History and audit are pulled out of the dashboard, preserving their controls
  // and existing event handlers while they receive independent page views.
