@@ -346,12 +346,17 @@ app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
 });
 app.get('/api/admin/members',staffOnly,async(req,res)=>{
  try {
-  const members=await connection.db.collection('members').find({},{
-    projection:{_id:0,memberId:1,fullName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
-    sort:{createdAt:-1},limit:100
-  }).toArray();
+  const page=Math.min(1000,Math.max(1,Number.parseInt(String(req.query.page||'1'),10)||1));
+  const perPage=25;
+  const [members,total]=await Promise.all([
+    connection.db.collection('members').find({},{
+      projection:{_id:0,memberId:1,fullName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
+      sort:{createdAt:-1,memberId:1},skip:(page-1)*perPage,limit:perPage
+    }).toArray(),
+    connection.db.collection('members').countDocuments({})
+  ]);
   res.set('Cache-Control','no-store');
-  return res.json({success:true,members});
+  return res.json({success:true,members,page,perPage,total,pages:Math.ceil(total/perPage)});
  }catch(_){return res.status(503).json({success:false,message:'Member directory unavailable'})}
 });
 app.patch('/api/admin/members/:memberId',staffOnly,async(req,res)=>{
