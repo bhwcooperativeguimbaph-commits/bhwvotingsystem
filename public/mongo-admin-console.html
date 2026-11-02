@@ -57,7 +57,11 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <h2 id="historyReportsSection" style="margin-top:22px!important">Election history &amp; reports</h2>
 <div id="historyList">Loading…</div>
 <h2 id="auditSection" style="margin-top:22px!important">Audit activity</h2>
-<div id="auditList">Loading…</div></section>
+<div class="cols"><label>Actor role<select id="auditRole"><option value="all">All activities</option><option value="member">Members</option><option value="admin">Administrators</option><option value="superadmin">Super Admin</option></select></label>
+<label>Action (optional)<input id="auditAction" placeholder="e.g. MEMBER_ENROLLED"></label>
+<label>From date<input id="auditFrom" type="date"></label><label>To date<input id="auditTo" type="date"></label></div>
+<button type="button" id="auditApply" class="ghost">Filter audit logs</button>
+<div id="auditList">Loading…</div><div class="audit-page"><button id="auditPrev" type="button" class="ghost">Previous</button><span id="auditPage">Page 1</span><button id="auditNext" type="button" class="ghost">Next</button></div></section>
 <section aria-labelledby="lifecycleTitle"><h2 id="lifecycleTitle">Election readiness</h2>
 <p>Select an election from History or paste its ID to see whether the ballot is editable, custodians are ready, and results can be finalized.</p>
 <label>Election ID <input id="lifecycleId" placeholder="ELEC-..." autocomplete="off"></label>
@@ -204,9 +208,37 @@ async function refreshAnalytics(){
   by('areaChart').textContent='Area analytics temporarily unavailable';
  }
 }
+let auditPage=1,auditPages=1;
+async function loadAuditLogs(){
+ const params=new URLSearchParams({actor:by('auditRole').value,
+  action:by('auditAction').value.trim(),page:String(auditPage)});
+ if(by('auditFrom').value)params.set('from',by('auditFrom').value);
+ if(by('auditTo').value)params.set('to',by('auditTo').value);
+ const result=await call('/api/admin/logs?'+params.toString());
+ const root=by('auditList');root.replaceChildren();
+ if(!result.success){root.textContent=result.message||'Audit activity unavailable';return}
+ auditPages=Math.max(1,result.pages||1);
+ by('auditPage').textContent='Page '+auditPage+' of '+auditPages+' • '+result.total+' events';
+ by('auditPrev').disabled=auditPage<=1;by('auditNext').disabled=auditPage>=auditPages;
+ if(!result.logs.length){root.textContent='No audit events match these filters';return}
+ const table=document.createElement('div');table.className='audit-table';
+ for(const event of result.logs){
+  const row=document.createElement('div');row.className='audit-row';
+  const date=document.createElement('span');date.textContent=new Date(event.createdAt).toLocaleString('en-PH');
+  const actor=document.createElement('span');actor.textContent=(event.actorRole||'System')+
+   (event.operatorId?' · '+event.operatorId:event.actorId?' · '+event.actorId:'');
+  const action=document.createElement('span');action.textContent=event.action||'Unknown';
+  const detail=document.createElement('small');detail.textContent=event.electionId||event.memberId||'—';
+  row.append(date,actor,action,detail);table.appendChild(row);
+ }
+ root.appendChild(table);
+}
+by('auditApply').onclick=()=>{auditPage=1;loadAuditLogs()};
+by('auditPrev').onclick=()=>{if(auditPage>1){auditPage--;loadAuditLogs()}};
+by('auditNext').onclick=()=>{if(auditPage<auditPages){auditPage++;loadAuditLogs()}};
 async function refreshOverview(){
- const [summary,history,logs]=await Promise.all([
-  call('/api/admin/overview'),call('/api/admin/history'),call('/api/admin/logs')
+ const [summary,history]=await Promise.all([
+  call('/api/admin/overview'),call('/api/admin/history')
  ]);
  if(summary.success){
   for(const [id,key] of [['summaryMembers','members'],['summaryActive','activeMembers'],
@@ -224,14 +256,7 @@ async function refreshOverview(){
   }
   if(!history.elections.length)holder.textContent='No elections created yet.';
  }else holder.textContent=history.message||'History unavailable';
- const audit=by('auditList');audit.replaceChildren();
- if(logs.success){
-  for(const entry of logs.logs.slice(0,30)){
-   const p=document.createElement('p');
-   p.textContent=new Date(entry.createdAt).toLocaleString()+' — '+entry.action+' ('+entry.actorRole+')';
-   audit.appendChild(p);
-  }if(!logs.logs.length)audit.textContent='No recorded events yet.';
- }else audit.textContent=logs.message||'Audit history unavailable';
+ await loadAuditLogs();
 }
 async function showLifecycle(){
  const id=by('lifecycleId').value.trim();
