@@ -345,7 +345,12 @@ async function showMembers(){
   const editButton=document.createElement('button');
   editButton.type='button';editButton.textContent='Edit profile';editButton.className='ghost';
   editButton.onclick=()=>editMember(member);
-  panel.append(title,editButton,actionButton);
+  const biometricButton=document.createElement('button');
+  biometricButton.type='button';biometricButton.className='ghost';
+  biometricButton.textContent='Update biometrics';
+  biometricButton.onclick=()=>window.location.assign(
+   '/member-enrollment-preview?replace='+encodeURIComponent(member.memberId));
+  panel.append(title,editButton,biometricButton,actionButton);
   if(stagingCleanupAllowed){
    const purge=document.createElement('button');
    purge.type='button';purge.className='danger';
