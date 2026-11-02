@@ -74,6 +74,11 @@
  }
  const reg=document.createElement('section');reg.className='registration-frame-panel';
  reg.innerHTML='<h2>Member registration</h2><iframe title="Member enrollment form" src="/member-enrollment-preview?embedded=1" loading="lazy"></iframe>';
+ const replacement=new URLSearchParams(location.search).get('replace');
+ if(/^MEM-[0-9a-f-]{36}$/i.test(replacement||'')){
+  reg.querySelector('h2').textContent='Update member biometrics';
+  reg.querySelector('iframe').src='/member-enrollment-preview?embedded=1&replace='+encodeURIComponent(replacement);
+ }
  views.registration.appendChild(reg);
  const toolbar=document.createElement('div');toolbar.className='admin-toolbar';
  toolbar.innerHTML='<div><small>ADMINISTRATION</small><h1 id="activePageTitle">Dashboard</h1></div><strong id="loggedInAs" class="admin-identity" aria-live="polite">Admin</strong>';
