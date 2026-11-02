@@ -93,17 +93,19 @@ const dateText=date=>[
  date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),
  String(date.getDate()).padStart(2,'0')
 ].join('-');
-const today=new Date();
-const oldestAllowed=new Date(today.getFullYear()-18,today.getMonth(),today.getDate());
-by('birthdate').max=dateText(oldestAllowed);
+const phCalendar=Object.fromEntries(new Intl.DateTimeFormat('en-US',{
+ timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'
+}).formatToParts(new Date()).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+const oldestAllowed=new Date(Date.UTC(phCalendar.year-18,phCalendar.month-1,phCalendar.day));
+by('birthdate').max=oldestAllowed.toISOString().slice(0,10);
 function validateAge(){
  const field=by('birthdate'),value=field.value;
  let message='';
  if(value){
   const parts=value.split('-').map(Number);
-  const b=new Date(parts[0],parts[1]-1,parts[2]);
-  if(parts.length!==3||b.getFullYear()!==parts[0]||b.getMonth()+1!==parts[1]||
-     b.getDate()!==parts[2]||b>oldestAllowed)
+  const b=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
+  if(parts.length!==3||b.getUTCFullYear()!==parts[0]||b.getUTCMonth()+1!==parts[1]||
+     b.getUTCDate()!==parts[2]||b>oldestAllowed)
    message='Member must be at least 18 years old.';
  }
  field.setCustomValidity(message);
