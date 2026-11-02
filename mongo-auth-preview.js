@@ -470,6 +470,8 @@ app.patch('/api/admin/members/:memberId',staffOnly,async(req,res)=>{
 });
 app.post('/api/admin/members/:memberId/biometrics',staffOnly,async(req,res)=>{
  const {updateMemberBiometrics}=require('./database/member-biometric-replacement');
+ if(req.body?.consent!==true)
+  return res.status(400).json({success:false,message:'Explicit consent to biometric replacement is required'});
  if(typeof req.body?.reason!=='string'||req.body.reason.trim().length<12||
     req.body.reason.trim().length>500)
   return res.status(400).json({success:false,message:'A reason of 12–500 characters is required'});
