@@ -229,7 +229,7 @@ async function loadAuditLogs(){
   const actor=document.createElement('span');actor.textContent=(event.actorRole||'System')+
    (event.operatorId?' · '+event.operatorId:event.actorId?' · '+event.actorId:'');
   const action=document.createElement('span');action.textContent=event.action||'Unknown';
-  const detail=document.createElement('small');detail.textContent=event.electionId||event.memberId||'—';
+  const detail=document.createElement('small');detail.textContent=[event.electionId||event.memberId||'—',event.reason?'Reason: '+event.reason:''].filter(Boolean).join(' · ');
   row.append(date,actor,action,detail);table.appendChild(row);
  }
  root.appendChild(table);
