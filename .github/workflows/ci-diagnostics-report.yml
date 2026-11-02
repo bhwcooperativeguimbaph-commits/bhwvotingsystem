@@ -1,0 +1,71 @@
+name: Publish Sanitized Offline Test Report
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: offline-test-report
+  cancel-in-progress: true
+jobs:
+  report:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run unit and browser-contract tests with no secrets
+        shell: bash
+        run: |
+          set +e
+          npm ci --ignore-scripts --no-audit --no-fund > /tmp/bhw-install.log 2>&1
+          install_exit=$?
+          if [ "$install_exit" -eq 0 ]; then
+            npm test > /tmp/bhw-test.log 2>&1
+            test_exit=$?
+            if [ "$test_exit" -eq 0 ]; then
+              node tests/mongodb-authorization-contract.test.js >> /tmp/bhw-test.log 2>&1
+              test_exit=$?
+            fi
+          else
+            test_exit=99
+            echo "Tests not executed because npm ci failed." > /tmp/bhw-test.log
+          fi
+          BHW_INSTALL_EXIT="$install_exit" BHW_TEST_EXIT="$test_exit" node - <<'NODE'
+          const fs=require('fs');
+          const tail=p=>{
+            const s=fs.readFileSync(p,'utf8');
+            return s.split('\n').slice(-100).join('\n').slice(-12000);
+          };
+          const result={
+            commit:process.env.GITHUB_SHA,
+            installExit:Number(process.env.BHW_INSTALL_EXIT),
+            testExit:Number(process.env.BHW_TEST_EXIT),
+            passed:process.env.BHW_INSTALL_EXIT==='0'&&process.env.BHW_TEST_EXIT==='0',
+            installTail:process.env.BHW_INSTALL_EXIT==='0'?'':tail('/tmp/bhw-install.log'),
+            testTail:tail('/tmp/bhw-test.log')
+          };
+          fs.writeFileSync('/tmp/bhw-test-report.json',JSON.stringify(result,null,2)+'\n');
+          NODE
+          exit 0
+      - name: Publish report to isolated branch
+        shell: bash
+        run: |
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git fetch origin ci-reports:refs/remotes/origin/ci-reports 2>/dev/null || true
+          if git show-ref --verify --quiet refs/remotes/origin/ci-reports; then
+            git switch -C ci-reports origin/ci-reports
+          else
+            git checkout --orphan ci-reports
+          fi
+          git rm -r -f --ignore-unmatch . > /dev/null 2>&1 || true
+          cp /tmp/bhw-test-report.json ./LATEST_TEST_REPORT.json
+          git add LATEST_TEST_REPORT.json
+          git commit -m "Record synthetic offline test status for latest main commit" --allow-empty
+          git push origin HEAD:ci-reports
