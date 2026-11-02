@@ -19,8 +19,6 @@ function validateElection(input){
   if(!name||name.length>50||seen.has(name.toLowerCase()))throw new TypeError('Invalid or duplicate position');
   seen.add(name.toLowerCase());
   if(!Number.isInteger(maxVotes)||maxVotes<1||maxVotes>100)throw new TypeError('Invalid maximum votes');
-  if((name.toLowerCase()==='kagawad'&&maxVotes!==1)||(name.toLowerCase()==='kapitan'&&maxVotes!==2))
-   throw new TypeError('Kagawad allows 1 selection; Kapitan allows 2 selections');
   if(!Array.isArray(position.candidates)||position.candidates.length<maxVotes)throw new TypeError('Insufficient candidates');
   const candidateNames=new Set();
   const candidates=position.candidates.map(candidate=>{
