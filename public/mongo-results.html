@@ -13,6 +13,7 @@
 <nav class="portal-nav"><a href="/">Overview</a><a href="/member-preview">Members</a><a href="/admin-auth-preview">Administration</a></nav></header>
 <h1>Published election results</h1>
 <p>Only aggregate results from finalized elections are shown. Individual member identities and ballot selections are never included.</p>
+<p class="code">The SHA-256 check detects changes to the published report data. It does not independently certify the election tally.</p>
 <section><h2>Election archive</h2><label for="election">Select a finalized election</label>
 <select id="election" style="width:100%;max-width:520px"></select>
 <button type="button" id="load">View published report</button><p id="status" role="status">Loading election archive…</p></section>
@@ -22,6 +23,7 @@
 <div id="results"></div><p class="code" id="reportHash"></p>
 <button id="download" type="button">Download aggregate results (PDF)</button></section>
 <footer class="portal-footer">Published totals do not reveal voter-to-candidate choices. Verify all results against the election's signed-off finalization record.</footer>
+<script src="/js/report-integrity.js"></script>
 <script>
 'use strict';
 const by=id=>document.getElementById(id);let current=null,archive=[];
@@ -79,6 +81,8 @@ async function display(){
  current=null;by('report').hidden=true;by('status').textContent='Validating report integrity…';
  try{
   const data=await get('/api/elections/'+encodeURIComponent(id)+'/results'),report=data.report;
+  if(!window.BHWReportIntegrity||!(await window.BHWReportIntegrity.verify(report)))
+   throw Error('Report SHA-256 verification failed. This report cannot be displayed or downloaded.');
   const record=archive.find(x=>x.electionId===id);
   current={report,title:record?.title||'Election'};
   by('reportTitle').textContent=current.title;
@@ -96,7 +100,7 @@ async function display(){
    tbody.appendChild(tr);
   }table.appendChild(tbody);holder.appendChild(table);
   by('reportHash').textContent='Integrity hash: '+report.reportHash;
-  by('report').hidden=false;by('status').textContent='Verified published aggregate report.';
+  by('report').hidden=false;by('status').textContent='Published report SHA-256 matches the stored fingerprint. This does not independently certify the tally.';
  }catch(e){by('status').textContent=e.message}
 }
 by('load').onclick=display;
