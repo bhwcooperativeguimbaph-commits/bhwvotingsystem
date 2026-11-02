@@ -387,13 +387,17 @@ app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
 app.get('/api/admin/members',staffOnly,async(req,res)=>{
  try {
   const page=Math.min(1000,Math.max(1,Number.parseInt(String(req.query.page||'1'),10)||1));
+  const {directoryFilter}=require('./database/member-directory');
+  let filter;
+  try{filter=directoryFilter(req.query.q||'')}
+  catch(_){return res.status(400).json({success:false,message:'Search must contain at most 80 printable characters'})}
   const perPage=25;
   const [members,total]=await Promise.all([
-    connection.db.collection('members').find({},{
+    connection.db.collection('members').find(filter,{
       projection:{_id:0,memberId:1,fullName:1,firstName:1,middleName:1,lastName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
       sort:{createdAt:-1,memberId:1},skip:(page-1)*perPage,limit:perPage
     }).toArray(),
-    connection.db.collection('members').countDocuments({})
+    connection.db.collection('members').countDocuments(filter)
   ]);
   res.set('Cache-Control','no-store');
   return res.json({success:true,members,page,perPage,total,pages:Math.ceil(total/perPage)});
