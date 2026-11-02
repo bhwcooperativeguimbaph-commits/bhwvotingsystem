@@ -1,6 +1,17 @@
 'use strict';
 const assert=require('node:assert/strict');
 const {editCandidate,validatePhoto}=require('../database/candidate-maintenance');
+const fs=require('node:fs'),path=require('node:path');
+const root=path.join(__dirname,'..');
+const api=fs.readFileSync(path.join(root,'mongo-auth-preview.js'),'utf8');
+const ui=fs.readFileSync(path.join(root,'public/mongo-admin-console.html'),'utf8');
+assert.match(api,/app\.patch\('\/api\/admin\/elections\/:electionId\/candidates\/:candidateId',staffOnly/);
+for(const id of ['candidateEditDialog','candidateEditContext','editCandidateName','editCandidatePhoto','candidateEditError','saveCandidateEdit']){
+ assert.match(ui,new RegExp('id="'+id+'"'));
+}
+assert.match(ui,/openCandidateEditor\(id,c\)/);
+assert.match(ui,/encodeCandidatePhoto\(by\('editCandidatePhoto'\)\)/);
+
 async function main(){
  const electionId='ELEC-00000000-0000-4000-8000-000000000001';
  const base=[
