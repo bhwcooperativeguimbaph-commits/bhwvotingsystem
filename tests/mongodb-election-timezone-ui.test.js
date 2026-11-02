@@ -4,7 +4,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const html=fs.readFileSync(path.join(__dirname,'..','public/mongo-admin-console.html'),'utf8');
 const start=html.indexOf('function guimbaLocalToUtcIso(value){');
-const end=html.indexOf("by('create').onclick=async()=>{",start);
+const end=html.indexOf('let wizardStep=1;',start);
 assert.ok(start>=0&&end>start,'The admin UI must convert Guimba local times explicitly');
 const converter=new Function(html.slice(start,end)+';return guimbaLocalToUtcIso;')();
 assert.equal(converter('2027-01-01T08:00'),'2027-01-01T00:00:00.000Z');
