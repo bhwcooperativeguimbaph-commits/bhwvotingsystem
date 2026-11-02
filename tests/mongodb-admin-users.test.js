@@ -3,7 +3,7 @@ const assert=require('node:assert/strict');
 const {createAdmin,updateAdminStatus,validateAdmin}=require('../database/admin-users');
 const {verifyPassword,beginAdminLogin,completeAdminLogin}=require('../database/admin-auth');
 async function main(){
- const existing=[],sessions=[{accountId:'x'}],mfa=[],sent=[];
+ const existing=[],sessions=[{accountId:'x'}],mfa=[],sent=[],audits=[];
  const transaction={withTransaction:async fn=>fn(),endSession:async()=>{}};
  const db={collection(name){
   if(name==='admins')return {
@@ -25,13 +25,20 @@ async function main(){
    updateOne:async q=>{const v=mfa.find(x=>x.challengeHash===q.challengeHash);if(v&&!v.consumed){v.consumed=true;return{modifiedCount:1}}return{modifiedCount:0}},
    deleteOne:async()=>({})
   };
-  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'ADMIN_STATUS_CHANGED');assert.ok(opts?.session)}};
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.ok(['ADMIN_CREATED','ADMIN_STATUS_CHANGED'].includes(doc.action));assert.ok(opts?.session);audits.push(doc)}};
   throw Error(name)
  }};
  assert.throws(()=>validateAdmin({username:'a',email:'invalid',fullName:'Someone',password:'short'}),e=>e.code==='INVALID_ADMIN');
- const admin=await createAdmin(db,{username:'staff.one',fullName:'Test Staff',email:'staff@example.test',password:'Correct-Horse-Battery-2026'});
+ const activeConnection={db,client:{startSession:()=>transaction}};
+ const admin=await createAdmin(activeConnection,{username:'staff.one',fullName:'Test Staff',email:'staff@example.test',password:'Correct-Horse-Battery-2026'},{operatorId:'SUPERADMIN'});
  assert.equal(admin.username,'staff.one');
  assert.equal(existing[0].role,'admin');
+ assert.equal(audits.length,1);assert.equal(audits[0].action,'ADMIN_CREATED');
+ assert.equal(audits[0].operatorId,'SUPERADMIN');
+ assert.equal(audits[0].targetAdminId,admin.adminId);
+ assert.ok(!JSON.stringify(audits[0]).includes('staff@example.test'));
+ assert.ok(!JSON.stringify(audits[0]).includes('Correct-Horse'));
+
  assert.equal(verifyPassword('Correct-Horse-Battery-2026',existing[0].passwordHash),true);
  assert.equal(verifyPassword('wrong',existing[0].passwordHash),false);
  const at=new Date('2027-01-01T00:00:00Z');
@@ -41,7 +48,6 @@ async function main(){
  const verified=await completeAdminLogin(db,{challenge:started.challenge,code:sent[0].code,now:at});
  assert.equal(verified.ok,true);assert.equal(verified.role,'admin');
  sessions.push({accountId:admin.adminId});
- const activeConnection={db,client:{startSession:()=>transaction}};
  await updateAdminStatus(activeConnection,admin.adminId,'Inactive');
  assert.equal(existing[0].status,'Inactive');
  assert.equal(sessions.filter(s=>s.accountId===admin.adminId).length,0);
