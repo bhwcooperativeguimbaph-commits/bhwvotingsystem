@@ -15,7 +15,8 @@ const {sendBrevoEmail}=require('./services/brevo-email');
 const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',1);
-app.use(express.json({limit:'256kb'}));
+// Allow one resized 500 KB JPG/PNG candidate image as base64 while rejecting oversized payloads.
+app.use(express.json({limit:'850kb'}));
 const challenges=new Map(),attempts=new Map();
 const challengeTTL=120000;
 function decodeStoredTemplate(value){return decryptDescriptor(value,keyFromEnv());}
