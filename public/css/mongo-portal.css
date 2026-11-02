@@ -156,3 +156,8 @@ small{color:var(--muted)}
 .audit-page{display:flex;justify-content:center;align-items:center;gap:12px;margin:13px 0}
 .audit-page button{width:auto!important;min-width:115px}
 @media(max-width:780px){.audit-row{grid-template-columns:1fr 1fr}.audit-row span:nth-child(3){grid-column:1}.audit-row small{grid-column:2}}
+
+#memberEditor{max-width:min(740px,calc(100vw - 28px));width:100%;max-height:91vh;overflow:auto;padding:26px;background:#fff;border:0;border-radius:19px;box-shadow:0 35px 90px #091d2f65;color:#1b3545}
+#memberEditor::backdrop{background:#081e2cb0;backdrop-filter:blur(3px)}
+#memberEditor>h2{font-size:1.28rem;margin:0 0 10px}
+#memberEditor button{width:auto!important;margin-right:8px}
