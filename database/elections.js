@@ -4,7 +4,12 @@ const clean=x=>typeof x==='string'?x.trim().replace(/\s+/g,' '):'';
 function validateElection(input){
  const title=clean(input?.title);
  if(!title||title.length>150)throw new TypeError('Invalid election title');
- const start=new Date(input?.startTime),end=new Date(input?.endTime);
+ // Require an explicit timezone to prevent Render UTC vs Manila date shifts.
+ const offsetTime=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
+ if(typeof input?.startTime!=='string'||typeof input?.endTime!=='string'||
+    !offsetTime.test(input.startTime)||!offsetTime.test(input.endTime))
+  throw new TypeError('Election times must include a timezone (e.g. +08:00)');
+ const start=new Date(input.startTime),end=new Date(input.endTime);
  if(!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime())||start>=end)
   throw new TypeError('Invalid election schedule');
  if(!Array.isArray(input?.config)||input.config.length===0)throw new TypeError('No ballot positions');
