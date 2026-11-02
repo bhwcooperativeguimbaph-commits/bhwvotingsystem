@@ -190,7 +190,7 @@ by('camera').onclick=async()=>{
   await video.play();started=true;refreshEnrollmentButton();
   by('status').textContent='Camera ready. Fill the fields and begin the facial challenge.';
  }catch(e){by('status').textContent=e.message||'Camera/model initialization failed';by('camera').disabled=false}
- finally{busy=false}
+ finally{busy=false;refreshEnrollmentButton()}
 };
 by('enroll').onclick=async()=>{
  if(busy||!started)return;
