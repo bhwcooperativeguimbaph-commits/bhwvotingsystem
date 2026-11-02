@@ -1,29 +1,44 @@
 'use strict';
-// Read-only migration readiness check. Do not print personal, biometric or ballot data.
+// Read-only MongoDB readiness check. Does not expose names, templates, ballots or secrets.
 const {connectMongo}=require('../database/mongodb');
 async function main(){
  let connection;
  try{
   connection=await connectMongo();
   const db=connection.db;
-  const required=['admins','members','elections','candidates','ballots','authSessions','biometricRegistrations'];
+  const required=['admins','members','elections','candidates','ballots',
+    'voterParticipation','receiptCodes','authSessions','biometricRegistrations',
+    'keyCustodians','finalReports','memberInbox'];
   const available=new Set((await db.listCollections({}, {nameOnly:true}).toArray()).map(x=>x.name));
   const counts={};
-  for(const name of required){
-   counts[name]=available.has(name)?await db.collection(name).estimatedDocumentCount():0;
-  }
-  const ballotIndexes=available.has('ballots')?await db.collection('ballots').indexes():[];
-  const sessionIndexes=available.has('authSessions')?await db.collection('authSessions').indexes():[];
-  const uniqueBallots=ballotIndexes.some(x=>x.unique===true && x.key?.electionId===1 && x.key?.memberId===1);
+  for(const name of required)counts[name]=available.has(name)?
+    await db.collection(name).estimatedDocumentCount():0;
+  const indexes=async name=>available.has(name)?await db.collection(name).indexes():[];
+  const ballotIndexes=await indexes('ballots');
+  const participationIndexes=await indexes('voterParticipation');
+  const receiptIndexes=await indexes('receiptCodes');
+  const sessionIndexes=await indexes('authSessions');
+  const uniqueParticipation=participationIndexes.some(x=>x.unique===true&&
+    x.key?.electionId===1&&x.key?.memberId===1);
+  const receiptUnique=receiptIndexes.some(x=>x.unique===true&&x.key?.receiptCode===1);
   const ttlSessions=sessionIndexes.some(x=>x.key?.expiresAt===1&&x.expireAfterSeconds===0);
+  const legacyVoterLinkedBallotIndex=ballotIndexes.some(x=>x.unique===true&&
+    x.key?.electionId===1&&x.key?.memberId===1);
+  // Read only one candidate document to check schema, never print the contents.
+  const sample=available.has('ballots')?await db.collection('ballots').findOne({},
+    {projection:{memberId:1,receiptCode:1,_id:0}}):null;
+  const ballotIdentityLeak=!!sample&&('memberId' in sample||'receiptCode' in sample);
   const summary={database:db.databaseName,collectionsPresent:required.filter(x=>available.has(x)),
-    recordCounts:counts,uniqueBallotConstraint:uniqueBallots,sessionExpiryIndex:ttlSessions,
+    recordCounts:counts,uniqueParticipationConstraint:uniqueParticipation,
+    uniqueReceiptConstraint:receiptUnique,sessionExpiryIndex:ttlSessions,
+    ballotIdentityIsolation:!legacyVoterLinkedBallotIndex&&!ballotIdentityLeak,
     readyForProduction:false};
   console.log(JSON.stringify(summary,null,2));
-  if(!uniqueBallots||!ttlSessions)process.exitCode=2;
- }finally{if(connection)await connection.client.close();}
+  if(!uniqueParticipation||!receiptUnique||!ttlSessions||legacyVoterLinkedBallotIndex||ballotIdentityLeak)
+   process.exitCode=2;
+ }finally{if(connection)await connection.client.close()}
 }
 main().catch(e=>{
- console.error('Migration readiness check failed:',e.name==='MongoServerSelectionError'?'Atlas unavailable':'Database configuration or permission error');
+ console.error('Readiness check failed:',e.name==='MongoServerSelectionError'?'Atlas unavailable':'Database configuration, schema or permission error');
  process.exitCode=1;
 });
