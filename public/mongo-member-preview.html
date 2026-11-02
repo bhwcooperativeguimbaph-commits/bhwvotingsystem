@@ -230,6 +230,13 @@ async function loadNotifications(){
    const p=document.createElement('p'),text=document.createElement('span');
    text.textContent=new Date(note.createdAt).toLocaleString()+' — '+note.message;
    p.appendChild(text);
+   if(note.type==='RESULTS_PUBLISHED'&&/^ELEC-[0-9a-f-]{36}$/i.test(note.electionId||'')){
+    const link=document.createElement('a');
+    link.href='/results?electionId='+encodeURIComponent(note.electionId);
+    link.textContent=' View verified results';
+    link.style.marginLeft='8px';
+    p.appendChild(link);
+   }
    if(!note.read){const button=document.createElement('button');button.textContent='Mark as read';
     button.onclick=async()=>{
      try{await request('/api/member/notifications/'+encodeURIComponent(note.notificationId)+'/read',{});await loadNotifications()}
