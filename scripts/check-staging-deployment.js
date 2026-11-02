@@ -31,7 +31,7 @@ async function main(){
  expect(health?.status===200&&health.data?.database==='mongodb','MongoDB health endpoint failed');
  console.log('PASS staging MongoDB health');
  for(const [path,marker] of [['/','BHW Guimba'],['/admin-auth-preview','Administrator'],
-   ['/member-preview','member voting'],['/results','Published election results']]){
+   ['/member-preview','Member login'],['/results','Published election results']]){
   const response=await check(path);
   expect(response.status===200&&response.raw.toLowerCase().includes(marker.toLowerCase()),
    'UI route failed: '+path+' HTTP '+response.status);
