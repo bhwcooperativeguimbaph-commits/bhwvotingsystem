@@ -56,6 +56,9 @@ async function main(){
  assert.equal('candidateId' in savedVote,false);
  assert.equal('memberId' in savedVote,false);
  assert.equal('receiptCode' in savedVote,false);
+ assert.equal('receivedTimeBucket' in savedVote,false);
+ assert.equal(savedVote._id,savedVote.ballotId);
+ assert.match(savedVote._id,/^VOTE-[a-f0-9-]{36}$/);
  assert.deepEqual(decryptBallot(savedVote.encryptedVote,'E1',privateKey),choices);
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='DUPLICATE_BALLOT');
  member={memberId:'M1',createdAt:new Date('2027-01-02T00:00:00Z')};
