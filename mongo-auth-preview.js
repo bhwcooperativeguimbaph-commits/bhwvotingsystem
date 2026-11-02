@@ -565,6 +565,18 @@ app.patch('/api/admin/members/:memberId/status',staffOnly,async(req,res)=>{
   return res.status(503).json({success:false,message:'Member update unavailable'});
  }
 });
+app.get('/api/superadmin/elections/:electionId/custodians',superadminOnly,async(req,res)=>{
+ try{
+  const {getCustodianDeliveryStatus}=require('./database/custodian-status');
+  const status=await getCustodianDeliveryStatus(connection.db,req.params.electionId);
+  if(!status)return res.status(404).json({success:false,message:'Election not found'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...status});
+ }catch(e){
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid election ID'});
+  return res.status(503).json({success:false,message:'Custodian status temporarily unavailable'});
+ }
+});
 app.post('/api/admin/elections/:electionId/provision-keys',superadminOnly,async(req,res)=>{
  try{
   if(!process.env.BREVO_API_KEY||!process.env.BREVO_FROM_EMAIL)
