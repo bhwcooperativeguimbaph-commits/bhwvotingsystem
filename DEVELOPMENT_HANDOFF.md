@@ -48,6 +48,23 @@ _Last updated: 2026-11-02 (Asia/Manila)_
 4. Update the dated session log below **on main** with changed files, commit identifiers, verification results, current blockers and next concrete step.
 
 ## Dated session log
+### 2026-11-02 — direct-main implementation and security increment
+**Current development policy:** use `main` for future changes, update this handoff after every development session, and treat `SPEC.md` as the authoritative acceptance criteria. Do not invent finished status.
+
+**Implemented directly on main during this session:**
+1. **Candidate edit parity:** `database/candidate-maintenance.js` now handles guarded `update` alongside add/remove; new staff-only `PATCH /api/admin/elections/:electionId/candidates/:candidateId`; edit dialog and photo replacement in `public/mongo-admin-console.html`; extended `tests/mongodb-candidate-maintenance.test.js`. Candidate name changes reject duplicates per position; JPG/PNG signatures, sizes, and existing lease lock remain enforced. Actual browser and live Atlas race tests still pending.
+2. **Origin/CSRF defense:** `database/request-origin.js` requires exact browser `Origin` on unsafe methods and rejects non-same-origin Fetch Metadata. Integrated in `mongo-auth-preview.js`; `tests/mongodb-origin-check.test.js` covers missing, malformed, foreign, same-site/sibling and same-origin cases. Live Render proxy behavior still needs a browser check.
+3. **Super Admin email recovery:** `database/superadmin-email-change.js`, new `adminEmailChangeChallenges`/cooldown indexes, and the Super Admin-only API `/api/superadmin/email-change/{request,confirm}`. Two separate 6-digit codes are sent to the current and new email, stored as hashes, verified in a five-minute window with attempt bounds, then the address change and session revocation occur in one MongoDB transaction with a sanitized audit event. UI inside Super Admin staff settings, mock regression test `tests/mongodb-superadmin-email-change.test.js`. **Needs controlled live Brevo verification**; no email addresses or OTPs are documented here.
+4. **API contracts:** `openapi.yaml` generated as a 45-operation inventory of current API entry points, with documented selected JSON fields, high-level responses, role classifications and explicit staging status. `tests/mongodb-openapi-contract.test.js` ensures registered HTTP routes appear in the inventory. **Not yet a finalized exact response/schema contract**; refine before declaring full API parity.
+5. **Navigation and docs:** removed the obsolete Test Biometrics link, reconciled the UX-02 wording in `SPEC.md`, updated `README.md` and `docs/FINAL_ACCEPTANCE_REHEARSAL.md`.
+6. Existing PR #1 dashboard/history changes merged to `main` as `6d67139320022370e4eec425cd3c466b0a3f58fa`; this file originated in commit `4d583c75f8d01b0857393ee7b4a6e2ba0e3263cf`.
+
+**Verification evidence:** JavaScript/contract CI on the application code at commit `4fd34ed32e291470c04fa1d858c4b604c268a0d6` passed: https://github.com/bhwcooperativeguimbaph-commits/bhwvotingsystem/actions/runs/41457753112 . Earlier last full unit/replica report successfully completed at `849357e36c4a6777f970e794468fcf101ab09b4d`: https://github.com/bhwcooperativeguimbaph-commits/bhwvotingsystem/actions/runs/41457392909 . Subsequent documentation commits were made; check fresh `main` HEAD and most recent green runs rather than treating this prior SHA as final.
+
+**Remaining HIGH-PRIORITY requirements:** browser end-to-end acceptance against latest Render deployment and isolated Atlas staging database; real two-address Brevo delivery; member face challenge/login with consenting test participant; key-custodian confirmation, vote concurrency, receipt PDFs, and finalized report rendering; privacy/anti-spoofing threat model; retention/deletion policy and accessible alternative identification; backup/restore and stakeholder review. Main deployment must not enable voting until approved.
+
+**Very next task:** check newest `main` CI + replica-set workflow, inspect failures, run the safe staging smoke check, then conduct the coordinated staging acceptance in `docs/FINAL_ACCEPTANCE_REHEARSAL.md`. Independently review `openapi.yaml` schemas and address known remaining security/policy gates. No claim of production readiness.
+
 ### 2026-11-02 — development resumed after context transfer
 - User requested persistent GitHub handoff notes and development **on main**, with completion of SPEC as the target.
 - Squashed already-tested PR #1 to main: `6d67139320022370e4eec425cd3c466b0a3f58fa`.
