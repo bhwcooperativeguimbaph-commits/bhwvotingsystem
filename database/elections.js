@@ -4,6 +4,8 @@ const clean=x=>typeof x==='string'?x.trim().replace(/\s+/g,' '):'';
 function validateElection(input){
  const title=clean(input?.title);
  if(!title||title.length>150)throw new TypeError('Invalid election title');
+ const description=clean(input?.description);
+ if(description.length>1000)throw new TypeError('Election description exceeds 1000 characters');
  // Require an explicit timezone to prevent Render UTC vs Manila date shifts.
  const offsetTime=/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:\d{2})$/;
  if(typeof input?.startTime!=='string'||typeof input?.endTime!=='string'||
@@ -39,7 +41,7 @@ function validateElection(input){
   });
   return {title:name,maxVotes,candidates};
  });
- return {title,startTime:start,endTime:end,config};
+ return {title,description,startTime:start,endTime:end,config};
 }
 async function createElection(connection,input,{now=new Date()}={}){
  const {db,client}=connection;
@@ -56,7 +58,7 @@ async function createElection(connection,input,{now=new Date()}={}){
    const active=await db.collection('elections').findOne(
     {status:'Active',endTime:{$gt:now}},{session});
    if(active)throw Object.assign(new Error('An election is already open'),{code:'ACTIVE_ELECTION'});
-   await db.collection('elections').insertOne({electionId,title:prepared.title,
+   await db.collection('elections').insertOne({electionId,title:prepared.title,description:prepared.description,
     startTime:prepared.startTime,endTime:prepared.endTime,status:'Active',createdAt:now},{session});
    const candidates=prepared.config.flatMap(pos=>pos.candidates.map(c=>({
     ...c,electionId,position:pos.title,maxVotes:pos.maxVotes,status:'Active'
