@@ -1,0 +1,17 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const path=require('node:path');
+const html=fs.readFileSync(path.join(__dirname,'..','public/mongo-admin-console.html'),'utf8');
+const start=html.indexOf('function guimbaLocalToUtcIso(value){');
+const end=html.indexOf("by('create').onclick=async()=>{",start);
+assert.ok(start>=0&&end>start,'The admin UI must convert Guimba local times explicitly');
+const converter=new Function(html.slice(start,end)+';return guimbaLocalToUtcIso;')();
+assert.equal(converter('2027-01-01T08:00'),'2027-01-01T00:00:00.000Z');
+assert.equal(converter('2027-01-01T00:00'),'2026-12-31T16:00:00.000Z');
+assert.equal(converter('2027-12-31T23:59'),'2027-12-31T15:59:00.000Z');
+assert.throws(()=>converter('2027-02-30T12:00'),/Invalid Philippine election date/);
+assert.throws(()=>converter('2027-01-01T25:00'),/Invalid Philippine election date/);
+assert.throws(()=>converter('2027-01-01T12:00Z'),/Choose a valid Philippine/);
+assert.ok(html.includes('Philippine time (UTC+08:00)'));
+console.log('PASS: Philippine election schedule inputs map consistently to absolute UTC timestamps');
