@@ -11,7 +11,7 @@ async function main(){
  assert.deepEqual(decryptBallot(e.ciphertext,'E1',privateKey),choices);
  assert.throws(()=>decryptBallot(e.ciphertext,'E2',privateKey));
  assert.equal(e.voteHash,crypto.createHash('sha256').update(e.ciphertext).digest('hex'));
- let member={memberId:'M1'},election={electionId:'E1',ballotPublicKeyPem:publicKey,keyDeliveryConfirmed:true,keyProvisioningState:'Ready'},voteCount=0,receiptCount=0;
+ let member={memberId:'M1',createdAt:new Date('2026-12-01T00:00:00Z')},election={electionId:'E1',ballotPublicKeyPem:publicKey,keyDeliveryConfirmed:true,keyProvisioningState:'Ready',eligibilityFrozenAt:new Date('2027-01-01T00:00:00Z'),eligibleMembersSnapshot:3},voteCount=0,receiptCount=0;
  const candidates=[
   {candidateId:'c1',position:'Kagawad',maxVotes:1,status:'Active'},
   {candidateId:'c2',position:'Kapitan',maxVotes:2,status:'Active'},
@@ -58,10 +58,13 @@ async function main(){
  assert.equal('receiptCode' in savedVote,false);
  assert.deepEqual(decryptBallot(savedVote.encryptedVote,'E1',privateKey),choices);
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='DUPLICATE_BALLOT');
+ member={memberId:'M1',createdAt:new Date('2027-01-02T00:00:00Z')};
+ await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='NOT_AUTHORIZED');
+ member={memberId:'M1',createdAt:new Date('2026-12-01T00:00:00Z')};
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices:{Kagawad:['c1','c2'],Kapitan:[]}}),e=>e.code==='INVALID_BALLOT');
  member=null;
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='NOT_AUTHORIZED');
- member={memberId:'M1'};election=null;
+ member={memberId:'M1',createdAt:new Date('2026-12-01T00:00:00Z')};election=null;
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='VOTING_CLOSED');
  election={electionId:'E1'};
  await assert.rejects(castEncryptedVote(connection,{memberId:'M1',choices}),e=>e.code==='ENCRYPTION_UNAVAILABLE');
