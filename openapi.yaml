@@ -1264,6 +1264,50 @@ paths:
           description: Duplicate or election lifecycle conflict
         '503':
           description: Service or MongoDB dependency unavailable
+  /api/superadmin/elections/{electionId}/custodians:
+    get:
+      summary: "Read provider acceptance and independent custody confirmation without secret material"
+      tags: [SuperAdmin]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Sanitized custodian delivery and confirmation statuses
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, electionId, custodians]
+                properties:
+                  success: {type: boolean}
+                  electionId: {type: string}
+                  provisioning: {type: string}
+                  bothConfirmed: {type: boolean}
+                  custodians:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        shareIndex: {type: integer}
+                        email: {type: string, format: email}
+                        status: {type: string}
+                        providerAcceptedAt: {type: [string, 'null'], format: date-time}
+                        confirmedAt: {type: [string, 'null'], format: date-time}
+        '400':
+          description: Invalid election ID
+        '403':
+          description: Super Admin session required
+        '404':
+          description: Election not found
+        '503':
+          description: Custodian database unavailable
   /api/superadmin/email-change/confirm:
     post:
       summary: "Verify both email codes and revoke Super Admin sessions"
