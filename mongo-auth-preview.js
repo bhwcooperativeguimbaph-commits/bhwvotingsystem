@@ -584,6 +584,11 @@ async function main(){
  keyFromEnv();
  connection=await connectMongo();
  await initializeMongoIndexes(connection.db);
+ if(/_(?:Staging|Test)$/i.test(connection.db.databaseName)){
+  const {ensureStagingSuperadmin}=require('./database/staging-bootstrap');
+  const result=await ensureStagingSuperadmin(connection.db);
+  console.log('Isolated staging Super Admin bootstrap:',result.status);
+ }
  app.listen(Number(process.env.PORT)||10000,'0.0.0.0',()=>console.log('MongoDB authentication preview listening; voting disabled'));
 }
 main().catch(()=>{console.error('MongoDB authentication preview failed to start; check configuration');process.exitCode=1});
