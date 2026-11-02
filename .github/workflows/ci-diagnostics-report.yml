@@ -36,7 +36,11 @@ jobs:
             test_exit=99
             echo "Tests not executed because npm ci failed." > /tmp/bhw-test.log
           fi
-          BHW_INSTALL_EXIT="$install_exit" BHW_TEST_EXIT="$test_exit" node - <<'NODE'
+          # Separate staging uses no credentials. Failed public checks are reported
+          # but never treated as an election authorization or a production release.
+          node scripts/check-staging-deployment.js > /tmp/bhw-staging.log 2>&1
+          staging_exit=$?
+          BHW_INSTALL_EXIT="$install_exit" BHW_TEST_EXIT="$test_exit" BHW_STAGING_EXIT="$staging_exit" node - <<'NODE'
           const fs=require('fs');
           const tail=p=>{
             const s=fs.readFileSync(p,'utf8');
@@ -46,6 +50,10 @@ jobs:
             commit:process.env.GITHUB_SHA,
             installExit:Number(process.env.BHW_INSTALL_EXIT),
             testExit:Number(process.env.BHW_TEST_EXIT),
+            stagingUrl:'https://secongvoting.onrender.com',
+            stagingExit:Number(process.env.BHW_STAGING_EXIT),
+            stagingPublicGatePassed:process.env.BHW_STAGING_EXIT==='0',
+            stagingTail:tail('/tmp/bhw-staging.log'),
             passed:process.env.BHW_INSTALL_EXIT==='0'&&process.env.BHW_TEST_EXIT==='0',
             installTail:process.env.BHW_INSTALL_EXIT==='0'?'':tail('/tmp/bhw-install.log'),
             testTail:tail('/tmp/bhw-test.log')
