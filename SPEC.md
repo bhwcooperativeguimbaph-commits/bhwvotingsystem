@@ -260,7 +260,7 @@ Status legend: **Verified** = user demonstrated against Render; **Partial** = co
 The user confirmed a green **MongoDB Preview Staging Smoke Test #1** on 2026-11-01. This validates only the public health endpoint, Guimba barangay response, and anonymous authorization boundaries; it does not prove secure voting.
 
 Subsequent commits implemented:
-- Pre-start **individual candidate add/remove**, strict Kagawad = 1 / Kapitan = 2 election limits, JPG/PNG validation, and a per-election editing lease. Add/remove is rejected once an election has started or has any ballots.
+- Pre-start **individual candidate add/remove**, configurable per-position vote limits (replacing the obsolete fixed-title rule), JPG/PNG validation, and a per-election editing lease. Add/remove is rejected once an election has started or has any ballots.
 - A member inbox notification created in the **same MongoDB transaction** as the encrypted ballot and server-issued receipt, with member-only listing and mark-as-read endpoints and UI.
 - Turnout eligibility snapshot on the first qualifying read after voting starts, preventing subsequent account changes from rewriting previously captured percentages. **Caveat:** without an exact scheduled snapshot trigger, an enrollment/status change between start and first snapshot can affect the denominator; resolve before real elections.
 - CI regressions for candidate edits, the critical MongoDB ballot/receipt/active-election/session indexes, and historical turnout. The GitHub Actions JavaScript workflow now executes a locked dependency installation before tests.
