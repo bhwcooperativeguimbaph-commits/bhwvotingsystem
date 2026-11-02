@@ -60,11 +60,11 @@ async function getMember(db,memberId){
  const item=await db.collection('members').findOne({memberId:memberId.trim()},{projection:{_id:0,memberId:1,fullName:1,area:1,status:1,location:1}});
  return item||null;
 }
-async function setMemberStatus(db,memberId,status,{now=new Date()}={}){
+async function setMemberStatus(db,memberId,status,{now=new Date(),session}={}){
  if(!['Active','Inactive'].includes(status))throw new TypeError('Invalid status');
  if(status==='Active'){
   const current=await db.collection('members').findOne({memberId},
-   {projection:{_id:0,status:1}});
+   {projection:{_id:0,status:1},...(session?{session}:{})});
   if(!current)return false;
   if(current.status!=='Active'){
    // Do not add a previously inactive member to a frozen electorate.
@@ -72,11 +72,12 @@ async function setMemberStatus(db,memberId,status,{now=new Date()}={}){
    // roster and concurrency audit are required before real elections.
    const frozen=await db.collection('elections').findOne({
     status:'Active',eligibilityFrozenAt:{$exists:true},endTime:{$gt:now}
-   },{projection:{_id:1}});
+   },{projection:{_id:1},...(session?{session}:{})});
    if(frozen)throw Object.assign(new Error('Election electorate is frozen'),{code:'ELECTORATE_FROZEN'});
   }
  }
- const r=await db.collection('members').updateOne({memberId},{$set:{status,updatedAt:now}});
+ const r=await db.collection('members').updateOne({memberId},{$set:{status,updatedAt:now}},
+  session?{session}:{});
  return r.matchedCount===1;
 }
 async function updateMemberProfile(db,memberId,input,{validateLocation,now=new Date()}={}){
@@ -100,4 +101,28 @@ async function updateMemberProfile(db,memberId,input,{validateLocation,now=new D
  if(!update.matchedCount)return null;
  return {memberId,...changes};
 }
-module.exports={isAdultBirthdate,updateMemberProfile,validateMember,createMember,getMember,setMemberStatus};
+// Status changes and audit metadata are committed together. Do not expose member
+// biometric data or ballot selections in the audit record.
+async function setMemberStatusWithAudit(connection,memberId,status,{
+ now=new Date(),operatorId,actorRole
+}={}){
+ if(!connection?.db||!connection?.client||!/^MEM-[0-9a-f-]{36}$/i.test(memberId||'')||
+  !['Active','Inactive'].includes(status)||!['admin','superadmin'].includes(actorRole)||
+  typeof operatorId!=='string'||!operatorId)
+  throw new TypeError('Invalid member status change');
+ const session=connection.client.startSession();
+ try{
+  let changed=false;
+  await session.withTransaction(async()=>{
+   changed=await setMemberStatus(connection.db,memberId,status,{now,session});
+   if(!changed)return;
+   await connection.db.collection('auditLogs').insertOne({
+    eventId:'AUD-'+crypto.randomUUID(),actorRole,operatorId,memberId,
+    action:'MEMBER_STATUS_CHANGED',outcome:'success',newStatus:status,createdAt:now
+   },{session});
+  },{writeConcern:{w:'majority'}});
+  return changed;
+ }finally{await session.endSession()}
+}
+module.exports={isAdultBirthdate,updateMemberProfile,validateMember,createMember,getMember,
+ setMemberStatus,setMemberStatusWithAudit};
