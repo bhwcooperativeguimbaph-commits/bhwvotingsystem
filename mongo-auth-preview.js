@@ -511,7 +511,7 @@ app.post('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=
   return res.status(201).json({success:true,...result});
  }catch(e){
   const errors={INVALID_CANDIDATE:[400,'Invalid candidate or photo'],
-    ELECTION_LOCKED:[409,'Election has started or another administrator is editing'],
+    ELECTION_LOCKED:[409,'Candidate editing is locked after key provisioning begins, after voting starts, or during another edit'],
     DUPLICATE_CANDIDATE:[409,'Candidate already exists'],UNKNOWN_POSITION:[400,'Unknown election position']};
   const [status,message]=errors[e?.code]||[503,'Candidate update unavailable'];
   return res.status(status).json({success:false,message});
@@ -525,7 +525,7 @@ app.delete('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,
   return res.json({success:true,...result});
  }catch(e){
   const errors={INVALID_CANDIDATE:[400,'Invalid candidate ID'],
-   ELECTION_LOCKED:[409,'Election has started or another administrator is editing'],
+   ELECTION_LOCKED:[409,'Candidate editing is locked after key provisioning begins, after voting starts, or during another edit'],
    CANDIDATE_NOT_FOUND:[404,'Candidate not found'],
    INSUFFICIENT_CANDIDATES:[409,'Cannot leave fewer candidates than the position limit']};
   const [status,message]=errors[e?.code]||[503,'Candidate removal unavailable'];
