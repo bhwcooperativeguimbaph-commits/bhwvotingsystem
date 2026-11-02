@@ -1,0 +1,44 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const root=path.join(__dirname,'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const home=read('public/mongo-portal.html');
+const admin=read('public/mongo-admin-console.html');
+const login=read('public/admin-auth-preview.html');
+const enroll=read('public/mongo-enrollment-preview.html');
+const workspace=read('public/js/admin-workspace.js');
+const server=read('mongo-auth-preview.js');
+assert.ok(!home.includes('portal-nav'),'Landing must not expose top tabs');
+for(const token of ['id="roleStatus"','id="electionStatus"','id="electionPositions"',
+ 'home-portal-grid','Election information','System under development']){
+ assert.ok(!home.includes(token),'Landing must not show '+token);
+}
+assert.ok(!home.includes('/api/election-info'),'Landing must not fetch election data');
+assert.ok(!home.includes('/api/session'),'Landing must not fetch user session data');
+assert.ok(home.includes('href="/member-preview"'));
+assert.ok(home.includes('href="/admin-auth-preview"'));
+assert.ok(!admin.includes('portal-nav'),'Admin console must not show top tabs');
+assert.ok(!admin.includes('Development/rehearsal only'),'Admin console must not show dev copy');
+assert.ok(!login.includes('Open protected administration console'));
+assert.ok(!login.includes('synthetic rehearsal'));
+assert.ok(!login.includes('portal-nav'));
+assert.match(login,/document\.getElementById\('credentials'\)\.hidden=true/);
+assert.match(login,/document\.getElementById\('otpForm'\)\.hidden=false/);
+assert.match(workspace,/id='view-'/);
+assert.match(workspace,/location\.hash/);
+assert.match(workspace,/viewNames/);
+assert.match(workspace,/loggedInAs/);
+assert.match(workspace,/dailyTurnoutTable/);
+assert.match(workspace,/areaTurnoutTable/);
+assert.match(workspace,/\/member-enrollment-preview\?embedded=1/);
+assert.match(enroll,/<select id="area" required>/);
+assert.match(enroll,/by\('addArea'\)\.onclick=/);
+assert.match(enroll,/\/api\/admin\/areas/);
+assert.ok(!enroll.includes('Register synthetic test accounts only'));
+assert.match(server,/app\.get\('\/api\/admin\/areas',staffOnly/);
+assert.match(server,/app\.post\('\/api\/admin\/areas',staffOnly/);
+assert.match(server,/app\.get\('\/js\/admin-workspace\.js',staffOnly/);
+assert.match(server,/frame-src 'self'/);
+new vm.Script(workspace,{filename:'admin-workspace.js'});
+console.log('PASS: access-only landing, focused admin MFA, sidebar views, turnout tables and area dropdown');
