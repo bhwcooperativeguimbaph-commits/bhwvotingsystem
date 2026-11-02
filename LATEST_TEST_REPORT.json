@@ -1,10 +1,10 @@
 {
-  "commit": "788fd1557d9e4e0b606b3a2ba3a029c12ccaba72",
+  "commit": "44fdcf19a74ac15103775fbd2112b045e8982b98",
   "installExit": 0,
   "testExit": 0,
   "integrationExit": 0,
   "integrationPassed": true,
-  "integrationTail": "PASS: Real MongoDB replica-set transactions, isolated voter, key custody, encrypted ballot, unique receipt, duplicate rejection, final aggregate report\n",
+  "integrationTail": "PASS: Real MongoDB transactions, concurrent one-vote guard, orphan participation rejection, two-share finalization and anonymous aggregate tallies\n",
   "stagingUrl": "https://secongvoting.onrender.com",
   "stagingExit": 0,
   "stagingPublicGatePassed": true,
