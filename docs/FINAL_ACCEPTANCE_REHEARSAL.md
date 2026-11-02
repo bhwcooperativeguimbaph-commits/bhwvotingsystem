@@ -45,7 +45,7 @@
 - **Anonymous/public staging gate:** **PASS (automated)**, using GitHub Actions with no secrets and no ballot submissions.
 - **Facial challenge browser binding:** **PASS (staging automated live API)**. Following an on-time enrollment failure with the old proxy-IP binding, challenges now use a secure short-lived HttpOnly cookie. The live test confirms that a different browser binding is rejected, the originating browser can consume once, and replay is rejected. **Actual camera enrollment still requires user retest.**
 - **Member biometric enrollment:** **PASS (user-confirmed)** on the staging service after the secure browser-binding challenge fix. The user successfully registered a test member through the camera workflow. Exact adult-age, names, address and locked Guimba geography UI changes are committed with green offline regression tests, but their refreshed UI is still awaiting visual confirmation.
-- **Member facial login:** **NOT RUN** — needs separate verification of authentication, session persistence and ballot access.
+- **Member facial login:** **NOT RUN** — requires the consenting previously enrolled member to complete a fresh face challenge and confirm session survives a page refresh. Offline matcher/session tests are green.
 - **Election, independent key custodians, ballot/receipt, results:** **NOT RUN** end to end.
 - **Production authorization:** **BLOCKED** pending full acceptance and privacy/security review.
 
@@ -69,3 +69,16 @@ Code committed and offline regression tests passed:
 - Existing registered members are not renamed or modified during this update.
 
 **Remaining acceptance:** after staging auto-deploy, verify the new visual controls, a success popup with a consenting synthetic user, and user-facing validation messages. A previously enrolled face will be rejected as a duplicate; do not reenroll the same participant merely to test the popup.
+
+
+## Member portal development checkpoint
+
+Implemented and validated by offline tests and static browser checks:
+- Member-only receipt history `GET /api/member/receipts`, sourced from the private participation ledger with no ballot/candidate links. Previous receipts can be restored after page refresh or across elections, independently of whether an election is currently open.
+- Confirmation dialog shows counts per position before irreversible submission. After success, the member sees a receipt dialog and can download a PDF without their candidate choices.
+- On a network timeout or uncertain vote response, the browser first re-reads server session/receipt status; it disables resubmission if the vote was already committed.
+- Ordinary administrators are prompted to log out before using member facial sign-in. Signed-in members stay signed in across a normal refresh until their session expires.
+- The ambiguous `/api/member/my-receipt` endpoint was retired in favor of explicit member-owned receipt history.
+- CI now includes member receipt-owner isolation and member ballot confirmation/receipt restoration contracts. **These are offline checks, not evidence of a real camera login or live ballot transaction.**
+
+**Next acceptance**: verify a previously enrolled consenting test member can sign in through the camera and remain signed in after a refresh. If no election is active, the member portal should show the no-current-election state and any prior receipts; this does not require enabling or casting ballots.
