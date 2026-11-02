@@ -94,10 +94,9 @@ by('camera').onclick=async()=>{
 by('login').onclick=async()=>{
  if(working||!modelsReady)return;working=true;by('login').disabled=true;
  try{
-  const initial=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+  const initial=await faceapi.detectSingleFace(video).withFaceLandmarks();
   if(!initial)throw Error('No face detected');
-  const prescan=await request('/api/face-prescan',{descriptor:Array.from(initial.descriptor)});
-  if(!prescan.recognized)throw Error(prescan.message||'Face not recognized');
+  // Never reveal the existence of an enrolled biometric before the challenge.
   const challenge=await window.runBHWFaceChallenge(video);
   const final=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
   if(!final)throw Error('Face was lost after challenge');
