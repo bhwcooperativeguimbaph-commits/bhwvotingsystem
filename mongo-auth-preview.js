@@ -571,7 +571,8 @@ app.get('/api/session',async(req,res)=>{
     const admin=await connection.db.collection('admins').findOne({adminId:auth.accountId,status:'Active'});
     if(!admin)return res.status(401).json({success:false,message:'Session expired'});
     res.set('Cache-Control','no-store');
-    return res.json({success:true,role:auth.role,memberId:auth.accountId,fullName:admin.fullName});
+    return res.json({success:true,role:auth.role,memberId:auth.accountId,fullName:admin.fullName,
+      staging:/_(?:Staging|Test)$/i.test(connection.db.databaseName)});
   }
   const member=await connection.db.collection('members').findOne({memberId:auth.accountId,status:'Active'});
   if(!member)return res.status(401).json({success:false,message:'Session expired'});
