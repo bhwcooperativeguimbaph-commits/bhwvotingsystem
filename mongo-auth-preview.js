@@ -373,11 +373,39 @@ app.get('/api/admin/history',staffOnly,async(req,res)=>{
 });
 app.get('/api/admin/logs',staffOnly,async(req,res)=>{
  try{
-  const logs=await connection.db.collection('auditLogs').find({},
-   {projection:{_id:0,eventId:1,actorRole:1,action:1,electionId:1,createdAt:1},
-    sort:{createdAt:-1},limit:100}).toArray();
+  const actor=String(req.query.actor||'all').toLowerCase();
+  const action=String(req.query.action||'').trim().toUpperCase();
+  const page=Number.parseInt(String(req.query.page||'1'),10);
+  if(!['all','member','admin','superadmin'].includes(actor)||
+    !/^[A-Z0-9_]{0,60}$/.test(action)||
+    !Number.isInteger(page)||page<1||page>1000)
+   return res.status(400).json({success:false,message:'Invalid audit filters'});
+  const filter={};
+  if(actor==='member')filter.actorRole='member';
+  if(actor==='admin')filter.actorRole={$in:['admin','staff']};
+  if(actor==='superadmin')filter.actorRole='superadmin';
+  if(action)filter.action=action;
+  const rawFrom=req.query.from,rawTo=req.query.to;
+  if(rawFrom||rawTo){
+   const datePattern=/^\d{4}-\d{2}-\d{2}$/;
+   if((rawFrom&&!datePattern.test(String(rawFrom)))||(rawTo&&!datePattern.test(String(rawTo))))
+    return res.status(400).json({success:false,message:'Invalid audit date range'});
+   filter.createdAt={};
+   if(rawFrom)filter.createdAt.$gte=new Date(String(rawFrom)+'T00:00:00+08:00');
+   if(rawTo)filter.createdAt.$lt=new Date(new Date(String(rawTo)+'T00:00:00+08:00').getTime()+86400000);
+   if(Object.values(filter.createdAt).some(v=>!Number.isFinite(v.getTime())))
+    return res.status(400).json({success:false,message:'Invalid audit dates'});
+  }
+  const perPage=40,db=connection.db;
+  const [logs,total]=await Promise.all([
+   db.collection('auditLogs').find(filter,{projection:{
+    _id:0,eventId:1,actorRole:1,action:1,electionId:1,memberId:1,
+    operatorId:1,actorId:1,createdAt:1},
+    sort:{createdAt:-1},skip:(page-1)*perPage,limit:perPage}).toArray(),
+   db.collection('auditLogs').countDocuments(filter)
+  ]);
   res.set('Cache-Control','no-store');
-  return res.json({success:true,logs});
+  return res.json({success:true,logs,page,perPage,total,pages:Math.ceil(total/perPage)});
  }catch(_){return res.status(503).json({success:false,message:'Audit logs unavailable'})}
 });
 app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
