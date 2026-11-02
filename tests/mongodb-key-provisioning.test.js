@@ -18,6 +18,9 @@ async function main(){
     for(const key of Object.keys(u.$unset||{}))delete e[key];
     return {modifiedCount:1};
    }};
+  if(name==='members')return {countDocuments:async q=>{
+   assert.equal(q.status,'Active');assert.ok(q.createdAt.$lte instanceof Date);return 12;
+  }};
   if(name==='ballots')return {findOne:async()=>null};
   if(name==='keyCustodians')return {
    insertMany:async rows=>{custodians.push(...rows)},
