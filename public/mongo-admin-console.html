@@ -294,7 +294,7 @@ async function refreshOverview(){
    const heading=document.createElement('div');heading.className='history-heading';
    const title=document.createElement('strong');title.textContent=e.title;
    const chip=document.createElement('span');chip.className='status-chip';
-   chip.textContent=e.published?'Published & verified':'Not published';
+   chip.textContent=e.published?'Published':'Not published';
    heading.append(title,chip);
    const dates=document.createElement('small');
    dates.textContent='Voting: '+phTime(e.startTime)+' – '+phTime(e.endTime)+' (Philippine time)';
@@ -315,7 +315,7 @@ async function refreshOverview(){
    if(e.published&&/^ELEC-[0-9a-f-]{36}$/i.test(e.electionId)){
     const link=document.createElement('a');link.className='history-report-link';
     link.href='/results?electionId='+encodeURIComponent(e.electionId);
-    link.textContent='View verified report';actions.appendChild(link);
+    link.textContent='View report & verify integrity';actions.appendChild(link);
    }else{
     const locked=document.createElement('small');
     locked.textContent='Report locked until authorized two-custodian finalization.';
