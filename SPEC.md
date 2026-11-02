@@ -5,7 +5,7 @@
 **Target:** Node.js web application on Render, MongoDB Atlas database `BHWVotingDB`  
 **Status:** **PARTIALLY IMPLEMENTED — NOT APPROVED FOR LIVE VOTING**
 
-> This file is the source of truth for what must be built, tested, and approved. A checked-off feature means it has met the acceptance criteria, not merely that an isolated module exists. Existing implementation is split between legacy MySQL `server.js` and MongoDB `mongo-auth-preview.js`. The latter does not yet serve the full voting website.
+> This file is the source of truth for what must be built, tested, and approved. A checked-off feature means it has met the acceptance criteria, not merely that an isolated module exists. MongoDB `mongo-auth-preview.js` is the active staged backend; `server.js` is retained only as legacy MySQL reference. The interface is undergoing the redesign specified in Section 16.
 
 ## 1. Goals and boundaries
 
@@ -17,7 +17,7 @@ Deliver an accessible BHW cooperative election platform for **Guimba, Nueva Ecij
 - **Hosting:** Render web service; bind to `0.0.0.0:PORT`. Support Render Free limitations.
 - **Email:** Brevo Transactional Email HTTPS API, preferred over blocked SMTP ports; administrator OTP and separate election key-custodian deliveries. Never expose API credentials to browsers.
 - **Facial challenge:** preserve the current **turn-left, turn-right, blink** interaction, randomized permitted ordering, short-lived one-use challenge, matching threshold and ambiguity rejection. This does **not** prove independent anti-spoofing/liveness; document and assess that risk before a real election.
-- **Election position limits requested:** **Kagawad = at most 1** selection, **Kapitan = at most 2** selections. These are project-specific rules, not assumptions about public elections.
+- **Election positions and limits:** No hardcoded Kagawad/Kapitan rules. Authorized staff define arbitrary position titles and their per-voter maximum selections during the setup wizard. The server validates those limits per election.
 - **Candidate photos:** JPG or PNG only. Validate MIME, file signatures, and server-side size.
 - **Member authentication:** a successful member login survives page refresh until expiration or logout. Admin login must not expose member camera.
 - **Preserve existing frontend layout and user-facing behavior** where reasonable; adapt API to frontend contracts or update them together.
@@ -70,7 +70,7 @@ Use server-side role checks on **every** protected route. Deny by default. No ro
 
 ### F04 — Election creation and maintenance
 - Super Admin/authorized staff create election with title, start/end datetime and timezone rules, state transitions (Draft, Scheduled, Active, Closed, Finalized), positions, candidate cards and JPG/PNG photos.
-- Enforce **Kagawad max 1** and **Kapitan max 2** selections. Selection limits are authoritative server-side.
+- Enforce each configured position's server-defined maximum selections, without special-casing any position title. Allow administrators to choose position names, candidate counts, and vote limits before locking the ballot definition.
 - Add/edit/remove **individual candidates** without deleting a whole position; reject duplicate candidate IDs/names in a position and invalid photos. Define behavior if candidate changes after first ballot (freeze or version ballot; must be decided before launch).
 - Enforce at most one open election as designed; schedule boundary and authorization tests. Prevent concurrent activation of conflicting elections using DB constraints/coordination, not solely a prior read.
 - Read-only election info compatible with frontend, including candidates, positions, photos, limits and date windows.
@@ -316,3 +316,54 @@ This section documents code committed after the first persistent facial challeng
 **Ballot metadata hardening:** new encrypted ballot records use a cryptographically random string `_id` rather than MongoDB's time-ordered ObjectId; the redundant per-ballot receipt-time bucket is omitted. Transaction/order side channels and operational logs still require an independent secrecy review for real elections.
 
 **Outstanding risks to resolve with election officials and a security reviewer:** browser-reported facial gestures can be spoofed; timing/ordering may compromise unlinkability of ballots in small electorates; ballot and eligibility concurrency must be verified on an actual Atlas replica set; biometric consent/retention and deletion need a final policy and audit; backups and disaster recovery must be exercised; accessible alternatives to face login may be necessary.
+
+
+## 16. UI/UX redesign — reference `ui.docx` (6 screenshot pages)
+
+**Design authority:** Use the six-page screenshot reference uploaded in the conversation. Preserve the visual direction rather than reproducing low-resolution screenshots as assets: dark navy left navigation, emerald-green primary actions and active highlights, soft white/gray card surfaces, airy spacing, rounded panels, restrained shadows, and clear status chips. All pages must be responsive, accessible, keyboard operable, and consistent with the BHW Guimba brand. Reference pages: (1) member directory and member-edit/biometric modal; (2–3) audit logs, users/roles and recovery email; (3) public green landing hero; (4) analytics dashboard and registration; (5) step-by-step election setup; (6) verified history and results.
+
+### UX-01 — Animated landing page and portal separation
+- Public landing page uses a crisp, green/navy editorial hero with modest entry animation, illustrated voting card, and motion-reduced alternative; animated elements must not conceal content or block clicks.
+- Present **two prominent distinct portal choices**: **Member Portal** for face challenge, ballot, notices and receipts; **Admin Portal** for password + Brevo OTP, enrollment, election setup and administration. Independent routes and protected sessions. Key custodian and public results are secondary navigation.
+- Clearly disclose staging / rehearsal status without suggesting that live elections have been approved.
+
+### UX-02 — Administrative navigation and analytics dashboard
+- Desktop: persistent dark navy left sidebar, emerald active item, account/role badge, sign-out action. Mobile: collapsible/accessible navigation with no content obscured.
+- Sections: Dashboard, Registration, Test Biometrics (controlled diagnostics), Setup Election, History & Reports, Members Table, Audit Logs, Users & Roles. Users & Roles is **Super Admin only**.
+- Dashboard: summary cards for registered/active voters, ballots cast, turnout %, election/key status, and safe aggregate charts (live participation trend and turnout by area). No individual vote selections or biometric identifiers in analytics. Handle missing election and zero-denominator states honestly.
+
+### UX-03 — Registration and biometric camera modal
+- Registration retains validated required first name, optional middle name, required last name, house/street address, Guimba-only geographic chain, explicit barangay selection, and Philippine calendar 18+ restriction.
+- Pressing **Capture Biometrics** opens an accessible modal/dialog containing webcam preview, face challenge progress (left/right/blink), cancellation, retry and clear completion/failed states; camera stops when closed.
+- Required consent, authorization, encrypted template storage, duplicate/ambiguous match checks and server-issued single-use challenge remain mandatory; browser gestures are **not independently secure presentation-attack detection**.
+- Show clear success feedback with member ID and error corrections before the camera challenge where possible.
+
+### UX-04 — Guided election setup wizard / configurable ballot
+- Multi-step wizard: (1) election title, optional description, Philippines-local start/end dates, (2) dynamically add/remove **arbitrary election positions** and select per-position maximum votes, (3) register/edit candidate names and optional valid JPG/PNG photos, (4) review all settings and confirm creation. Display progress and permit Back before final submission.
+- **Remove all hardcoded Kagawad and Kapitan rules.** Those titles may be used as examples, never required predefined positions. For each position, `maxVotes` is an administrator-configured positive integer no greater than its candidate count. Server-side ballot validation uses the persisted per-position limit. Candidate editing locks when custodian provisioning begins.
+- No test/real-election mixing; before sending key shares, show an explicit irreversible-freeze warning.
+
+### UX-05 — History, cryptographic unlocking, and first-publication notice
+- Election History & Reports lists elections and **unpublished/finalized** status, turnout and sanitized results scope; token/cryptographic key section is visible only to Super Admin at the correct point of the workflow.
+- The **first successful 2-of-2 custodian-key disclosure** must atomically finalize results and record one durable public-results announcement. All eligible member accounts receive an in-app notification in their member portal, once per finalized election, with an election/report link and publication timestamp; no candidate choices or private tokens in notices.
+- Subsequent report viewing/retries **must not trigger duplicate notifications**. Show verified aggregate results, cryptographic integrity fingerprint/hash and PDF export; never expose any private vote mapping.
+- Key shares belong to two independent custodians, not one shared administrator token; plaintext shares must not persist in audit logs or browsers after submission.
+
+### UX-06 — Members table, paging, edits, and biometrics replacement
+- Search by name/area/member ID, paginated rows, status chips, clear edit actions and modal-based member information editing like page 1 of the reference.
+- **Update biometrics** opens a permission-checked camera/challenge modal requiring a mandatory written reason for the update. Store reason, authorized actor, target member, and timestamp in protected audit metadata. Old template securely replaced only after a successful new, unique/ambiguous-safe verification; don't expose raw descriptors.
+- Validate every member correction on the backend; never change historical ballots or frozen roster eligibility by editing member information. Consider additional verification for reassignment/high-impact biometric changes.
+
+### UX-07 — Filterable audit history
+- Protected searchable audit table with actor category filter **All / Member / Admin / Super Admin**, optional action and date range, pagination and role-safe summaries.
+- Audit entries include timestamp, actor role/ID (restricted), operation, target/election reference where safe, and outcome. Do not log OTPs, key shares, raw faces, member ballot selections or personal secrets.
+- Recorded member events and administrator actions must be distinguishable; audit log insertion must not be silently skipped for sensitive mutations.
+
+### UX-08 — Users and roles (Super Admin only)
+- Super Admin can create ordinary Admin accounts, inspect status, and enable/disable individual administrator accounts from a separate sidebar page. Changes revoke sessions as applicable and generate audit events.
+- Ordinary Admin and Member routes deny access server-side, not just by hiding the UI. Do not permit a normal administrator to grant themselves Super Admin privileges.
+- Keep recovery email verification separate from self-service reset; changing a recovery email requires identity validation and audit.
+
+### Acceptance and sequencing
+- The screenshots illustrate desired layout/controls, **not evidence of completed code**. Design changes require responsive screenshot review, keyboard/accessibility checks, actual role-bound API tests and a supervised isolated staging rehearsal.
+- Shipping sequence: update specification and remove special-case voting rules; implement wizard and modernized portals/layout; implement notification, biometrics-update-with-reason, audit filters and analytics; run full CI plus live staging verification; obtain independent election security/biometric privacy approval before production voting.
