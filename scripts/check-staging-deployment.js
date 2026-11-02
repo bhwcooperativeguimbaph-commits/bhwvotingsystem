@@ -2,17 +2,18 @@
 // Credential-free, read-only or safely rejected requests against the separate Render staging service.
 // Never enrolls members, requests OTPs, issues key shares, or casts ballots.
 const base=(process.env.BHW_STAGING_URL||'https://secongvoting.onrender.com').replace(/\/$/,'');
-async function check(path,method='GET',body=undefined){
+async function check(path,method='GET',body=undefined,cookieHeader=undefined){
  const controller=new AbortController();
  const timeout=setTimeout(()=>controller.abort(),75_000);
  try{
   const r=await fetch(base+path,{method,redirect:'manual',
-   headers:body===undefined?{'Accept':'application/json'}:{'Content-Type':'application/json'},
+   headers:{...(body===undefined?{'Accept':'application/json'}:{'Content-Type':'application/json'}),
+    ...(cookieHeader?{'Cookie':cookieHeader}:{})},
    body:body===undefined?undefined:JSON.stringify(body),
    signal:controller.signal});
   const raw=await r.text();let data=null;
   try{data=JSON.parse(raw)}catch(_){}
-  return {status:r.status,data,raw:raw.slice(0,20000),type:r.headers.get('content-type')||''};
+  return {status:r.status,data,raw:raw.slice(0,20000),type:r.headers.get('content-type')||'',setCookie:r.headers.get('set-cookie')||''};
  }finally{clearTimeout(timeout)}
 }
 function expect(condition,message){if(!condition)throw Error(message)}
@@ -59,6 +60,34 @@ async function main(){
  const vote=await check('/api/vote','POST',{choices:{Kagawad:[],Kapitan:[]}});
  expect(vote.status===403,'Anonymous test ballot request unexpectedly succeeded');
  console.log('PASS anonymous vote rejected (no ballots created)');
+
+ // Create an ephemeral challenge with no biometric data and ensure the
+ // HttpOnly browser binding (not proxy IP) is required to consume it.
+ const face=await check('/api/face-challenge','POST',{});
+ expect(face.status===200&&face.data?.success===true&&
+   /^[a-f0-9]{48}$/.test(face.data.challengeId)&&
+   Array.isArray(face.data.actions)&&face.data.actions.length===3,
+   'Facial challenge issuance is unavailable');
+ const match=/(?:^|,)\s*(bhw_face_bind=[a-f0-9]{64})(?:;|$)/.exec(face.setCookie);
+ expect(Boolean(match),'Secure browser-binding cookie not issued by staging deployment');
+ expect(face.setCookie.includes('HttpOnly')&&face.setCookie.includes('Secure')&&
+   face.setCookie.includes('SameSite=Strict'),
+   'Facial challenge cookie security flags are missing');
+ const cookie=match[1];
+ const wrongCookie='bhw_face_bind='+('0'.repeat(64)===cookie.slice(14)?'1'.repeat(64):'0'.repeat(64));
+ // Deliberately implausible descriptor: never matches a real member.
+ const synthetic={challengeId:face.data.challengeId,
+   completedActions:face.data.actions,descriptor:Array(128).fill(1000000)};
+ const rejected=await check('/api/login-face','POST',synthetic,wrongCookie);
+ expect(rejected.status===401&&/challenge/i.test(rejected.data?.message||''),
+   'A different browser could consume a challenge or staging is using the old IP binding');
+ const accepted=await check('/api/login-face','POST',synthetic,cookie);
+ expect(accepted.status===401&&accepted.data?.message==='Face not recognized',
+   'Correct browser cookie was not accepted for a single-use facial challenge');
+ const replay=await check('/api/login-face','POST',synthetic,cookie);
+ expect(replay.status===401&&/challenge/i.test(replay.data?.message||''),
+   'Replaying a facial challenge was not rejected');
+ console.log('PASS secure browser-bound challenge (wrong cookie, valid cookie, replay)');
  console.log('STAGING_GATE_PASS: public endpoints, settings, and access boundaries');
 }
 main().catch(e=>{console.error('STAGING_GATE_FAILED:',e.message);process.exitCode=1});
