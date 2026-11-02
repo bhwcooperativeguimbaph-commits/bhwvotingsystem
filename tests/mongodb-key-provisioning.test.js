@@ -37,9 +37,11 @@ async function main(){
  }};
  const connection={db,client:{startSession:()=>session}};
  const result=await provisionElectionKeys(connection,{electionId,emails,now:new Date('2027-01-01'),
-  deliver:async data=>sent.push(data)});
+  deliver:async data=>{sent.push(data);return {messageId:'provider-'+sent.length}}});
  assert.equal(result.custodians,2);assert.equal(sent.length,2);assert.notEqual(sent[0].to,sent[1].to);
  assert.equal(custodians.length,2);assert.equal(e.keyProvisioningState,'Ready');
+ assert.deepEqual(custodians.map(c=>c.providerMessageId),['provider-1','provider-2']);
+ assert.ok(custodians.every(c=>c.deliveryAcceptedAt instanceof Date));
  assert.equal(typeof e.ballotPublicKeyPem,'string');
  assert.equal(JSON.stringify(custodians).includes('BHW1.'),false);
  // Attach object IDs like real MongoDB documents for confirmation updates.
