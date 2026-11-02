@@ -68,6 +68,8 @@ _Last updated: 2026-11-02 (Asia/Manila)_
 
 **User-review and safety caveats:** No physical camera, phone/tablet layout, saved encrypted portrait or full click-through ballot/PDF was exercised in an authenticated Render browser by this coding session. New photos apply to newly registered consenting accounts; preexisting members show initials because no historical portrait was captured. Autodownload can be blocked by some browsers, so the manual download button remains. UI labels now look final, but synthetic-only staging vote guard, privacy controls, anti-spoofing limitations, official signoff and production-vote denial remain intact.
 
+**Additional navigation fix:** Commit `a5257d7459bd2090b23cc0e7c7f04ff174ea3de6` keeps biometric replacement inside the admin Registration sidebar by using a validated `replace` query parameter for its embedded form; commit `afe042028ed44b177b5d4ab7047a5cdd8ebef228` updates the member table's action to open that view. Real-browser replacement and automatic receipt download still await user confirmation.
+
 **Next concrete check:** Confirm latest Render deployed SHA equals `main`; ask user to review centered camera/login, profile/portrait, notification bell, Ready to vote, ballot summary, receipt, each admin sidebar panel, OTP step, and Area addition using only consenting synthetic staging data. Resolve their sanitized feedback. Complete the independent privacy/anti-spoofing, data-retention, accessibility and official election authorization review before any real cooperative election.
 
 ### 2026-11-02 — Render flow-preparation development (continued)
