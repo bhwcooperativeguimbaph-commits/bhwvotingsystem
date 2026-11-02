@@ -231,7 +231,7 @@ async function superadminOnly(req,res,next){
  try{
   const auth=await authenticateSession(connection.db,token(req));
   if(!auth||auth.role!=='superadmin')return res.status(403).json({success:false,message:'Superadmin session required'});
-  next();
+  req.staff=auth;next();
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
 app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
@@ -320,6 +320,42 @@ app.patch('/api/superadmin/admins/:adminId/status',superadminOnly,async(req,res)
   if(e?.code==='INVALID_ADMIN')return res.status(400).json({success:false,message:'Invalid administrator'});
   if(e?.code==='ADMIN_NOT_FOUND')return res.status(404).json({success:false,message:'Administrator not found'});
   return res.status(503).json({success:false,message:'Administrator status change unavailable'});
+ }
+});
+app.post('/api/superadmin/email-change/request',superadminOnly,rateLimit,async(req,res)=>{
+ try{
+  if(!process.env.BREVO_API_KEY||!process.env.BREVO_FROM_EMAIL)
+   return res.status(503).json({success:false,message:'Email verification temporarily unavailable'});
+  const {requestSuperadminEmailChange}=require('./database/superadmin-email-change');
+  const data=await requestSuperadminEmailChange(connection.db,{
+   adminId:req.staff.accountId,newEmail:req.body?.newEmail
+  });
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...data,message:'Separate confirmation codes sent to your current and proposed email addresses'});
+ }catch(e){
+  if(e?.code==='INVALID_EMAIL_CHANGE')
+   return res.status(400).json({success:false,message:'Invalid or already registered email address'});
+  if(e?.code==='EMAIL_CHANGE_COOLDOWN'){
+   res.set('Retry-After','300');
+   return res.status(429).json({success:false,message:'Email verification recently requested. Retry after five minutes.'});
+  }
+  return res.status(503).json({success:false,message:'Cannot deliver both email confirmations'});
+ }
+});
+app.post('/api/superadmin/email-change/confirm',superadminOnly,rateLimit,async(req,res)=>{
+ try{
+  const {completeSuperadminEmailChange}=require('./database/superadmin-email-change');
+  await completeSuperadminEmailChange(connection,{
+   adminId:req.staff.accountId,challenge:req.body?.challenge,
+   oldCode:req.body?.oldCode,newCode:req.body?.newCode
+  });
+  res.clearCookie('bhw_session',{httpOnly:true,secure:true,sameSite:'strict',path:'/'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,message:'Email updated and existing sessions revoked. Sign in using a new OTP.'});
+ }catch(e){
+  if(e?.code==='INVALID_EMAIL_CHANGE')
+   return res.status(400).json({success:false,message:'Invalid or expired confirmation codes. Request a new change if needed.'});
+  return res.status(503).json({success:false,message:'Email change unavailable'});
  }
 });
 app.get('/api/admin/overview',staffOnly,async(req,res)=>{
