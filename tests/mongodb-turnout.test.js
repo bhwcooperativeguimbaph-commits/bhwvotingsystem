@@ -11,7 +11,8 @@ async function run(){
  }};
  assert.equal((await getElectionTurnout(db,'E-1')).turnoutPercent,25);
  eligible=0;cast=0;assert.equal((await getElectionTurnout(db,'E-1')).turnoutPercent,0);
- election={electionId:'E-1',title:'Past Election',status:'Active',startTime:new Date('2026-01-01T00:00:00Z')};
+ election={electionId:'E-1',title:'Past Election',status:'Active',
+  startTime:new Date('2026-01-01T00:00:00Z'),eligibleMembersSnapshot:20};
  eligible=20;cast=10;
  const frozen=await getElectionTurnout(db,'E-1',new Date('2026-02-01T00:00:00Z'));
  assert.equal(frozen.eligibleMembers,20);assert.equal(frozen.turnoutPercent,50);
@@ -19,6 +20,6 @@ async function run(){
  const later=await getElectionTurnout(db,'E-1',new Date('2026-03-01T00:00:00Z'));
  assert.equal(later.eligibleMembers,20);assert.equal(later.turnoutPercent,50);
  election=null;assert.equal(await getElectionTurnout(db,'E-1'),null);
- console.log('PASS: MongoDB turnout aggregation tests');
+ console.log('PASS: Frozen electorate turnout stays stable after member status changes');
 }
 run().catch(e=>{console.error(e);process.exitCode=1});
