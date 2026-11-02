@@ -41,6 +41,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <p class="warning">Development/rehearsal only. Do not create a real election or enroll real members until the full system passes acceptance testing.</p>
 <p>Use the <a href="/admin-auth-preview">administrator login</a> first. Administrative views require a verified staff session. Key custody, result finalization, and staff-account changes require the Super Admin.</p><p><a href="/member-enrollment-preview">Register a test member with the camera</a> · <a href="/member-preview">Open member voting rehearsal</a> · <a href="/custodian-confirm">Custodian receipt confirmation</a></p>
 <section id="adminDashboard"><h2>Election overview</h2>
+<div id="adminAnnouncements" class="admin-announcements" role="status" aria-live="polite"></div>
 <div class="portal-meta" style="margin:0">
 <div><small>Registered members</small><strong id="summaryMembers">—</strong></div>
 <div><small>Active members</small><strong id="summaryActive">—</strong></div>
@@ -279,8 +280,20 @@ async function showLifecycle(){
  by('lifecycleAction').textContent=next;
 }
 by('checkLifecycle').onclick=showLifecycle;
+async function loadAdminAnnouncements(){
+ const root=by('adminAnnouncements');root.replaceChildren();
+ const result=await call('/api/admin/announcements');
+ if(!result.success)return;
+ for(const note of result.announcements||[]){
+  if(!/^ELEC-[a-f0-9-]{36}$/i.test(note.electionId||''))continue;
+  const link=document.createElement('a');link.className='admin-announcement';
+  link.href='/results?electionId='+encodeURIComponent(note.electionId);
+  link.textContent='✓ Verified election results published • '+new Date(note.createdAt).toLocaleString('en-PH')+' • View report →';
+  root.appendChild(link);
+ }
+}
 const previousRefresh=refreshOverview;
-refreshOverview=async()=>{await previousRefresh();await refreshAnalytics()};
+refreshOverview=async()=>{await previousRefresh();await Promise.all([refreshAnalytics(),loadAdminAnnouncements()])};
 by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
