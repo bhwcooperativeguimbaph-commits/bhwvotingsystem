@@ -597,27 +597,6 @@ app.get('/api/member/receipts',async(req,res)=>{
   return res.json({success:true,receipts});
  }catch(_){return res.status(503).json({success:false,message:'Receipt history unavailable'})}
 });
-app.get('/api/member/my-receipt',async(req,res)=>{
- try{
-  const auth=await authenticateSession(connection.db,token(req));
-  if(!auth||auth.role!=='member')
-   return res.status(403).json({success:false,message:'Member session required'});
-  // Participation ledger contains the receipt code, never the encrypted ballot.
-  const election=await connection.db.collection('elections').findOne(
-   {status:{$in:['Active','Closed','Finalized']}},
-   {sort:{createdAt:-1},projection:{_id:0,electionId:1,title:1,status:1}}
-  );
-  if(!election)return res.status(404).json({success:false,message:'No election receipt found'});
-  const entry=await connection.db.collection('voterParticipation').findOne({
-   electionId:election.electionId,memberId:auth.accountId,status:'Valid'
-  },{projection:{_id:0,receiptCode:1,electionId:1,createdAt:1}});
-  if(!entry||typeof entry.receiptCode!=='string')
-   return res.status(404).json({success:false,message:'No receipt found for this member'});
-  res.set('Cache-Control','no-store');
-  return res.json({success:true,receiptNo:entry.receiptCode,
-   electionId:entry.electionId,electionTitle:election.title,recordedAt:entry.createdAt});
- }catch(_){return res.status(503).json({success:false,message:'Receipt restoration unavailable'})}
-});
 app.get('/api/receipts/:code',async(req,res)=>{
  try{
   const auth=await authenticateSession(connection.db,token(req));
