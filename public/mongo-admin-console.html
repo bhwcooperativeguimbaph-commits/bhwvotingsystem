@@ -48,10 +48,12 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <section id="memberEditor" hidden><h2>Edit member profile</h2>
 <small>Member IDs and prior ballots never change. This form only updates the member's name, membership area and verified Guimba address.</small>
 <input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
-<div class="cols"><label>Full name<input id="editMemberName" maxlength="100"></label>
-<label>Area<input id="editMemberArea" maxlength="100"></label></div>
-<div class="cols"><label>Street address<input id="editMemberAddress" maxlength="500"></label>
-<label>Birthdate<input id="editMemberBirthdate" type="date"></label>
+<div class="cols"><label>First name (required)<input id="editMemberFirst" maxlength="60" required></label>
+<label>Middle name (optional)<input id="editMemberMiddle" maxlength="60"></label>
+<label>Last name (required)<input id="editMemberLast" maxlength="60" required></label>
+<label>Area (required)<input id="editMemberArea" maxlength="100" required></label></div>
+<div class="cols"><label>Street address (required)<input id="editMemberAddress" maxlength="500" required></label>
+<label>Birthdate (18+)<input id="editMemberBirthdate" type="date" required></label>
 <label>Gender<select id="editMemberGender"><option value="Male">Male</option><option value="Female">Female</option></select></label></div>
 <label>Guimba barangay<select id="editMemberBarangay"></select></label>
 <button id="saveMember">Save member profile</button>
@@ -218,7 +220,10 @@ async function editMember(member){
  editingMember=member;
  by('memberEditor').hidden=false;
  by('editMemberId').value=member.memberId;
- by('editMemberName').value=member.fullName;
+ const tokens=(member.fullName||'').trim().split(/\s+/).filter(Boolean);
+ by('editMemberFirst').value=member.firstName||tokens[0]||'';
+ by('editMemberMiddle').value=member.middleName||(!member.firstName&&tokens.length>2?tokens.slice(1,-1).join(' '):'');
+ by('editMemberLast').value=member.lastName||(!member.firstName&&tokens.length>1?tokens[tokens.length-1]:'');
  by('editMemberArea').value=member.area;
  by('editMemberAddress').value=member.address||'';
  by('editMemberBirthdate').value=member.birthdate||'';
@@ -234,12 +239,25 @@ async function editMember(member){
 by('cancelMemberEdit').onclick=()=>{by('memberEditor').hidden=true;editingMember=null};
 by('saveMember').onclick=async()=>{
  if(!editingMember)return;
+ const required=['editMemberFirst','editMemberLast','editMemberArea','editMemberAddress'];
+ for(const id of required){
+  const field=by(id);field.setCustomValidity(field.value.trim()?'':'This field is required.');
+  if(!field.reportValidity())return;
+ }
+ const birth=by('editMemberBirthdate');
+ const today=new Date(),cutoff=new Date(today.getFullYear()-18,today.getMonth(),today.getDate());
+ const maxDate=[cutoff.getFullYear(),String(cutoff.getMonth()+1).padStart(2,'0'),String(cutoff.getDate()).padStart(2,'0')].join('-');
+ birth.max=maxDate;
+ birth.setCustomValidity(birth.value&&birth.value<=maxDate?'':'Member must be at least 18 years old.');
+ if(!birth.reportValidity())return;
+ if(!by('editMemberBarangay').value){by('editMemberResult').textContent='Select a valid Guimba barangay.';return}
  const previous=editingMember.location||{};
  const location={...previous,country:'Philippines',province:'Nueva Ecija',city:'Guimba',
   regionCode:'0300000000',provinceCode:'0304900000',cityCode:'0304911000',
   barangayCode:by('editMemberBarangay').value};
  const result=await action('editMemberResult',()=>call('/api/admin/members/'+encodeURIComponent(editingMember.memberId),'PATCH',
-  {fullName:by('editMemberName').value,area:by('editMemberArea').value,
+  {firstName:by('editMemberFirst').value.trim(),middleName:by('editMemberMiddle').value.trim(),
+   lastName:by('editMemberLast').value.trim(),area:by('editMemberArea').value.trim(),
   address:by('editMemberAddress').value,birthdate:by('editMemberBirthdate').value,
   gender:by('editMemberGender').value,location}));
  if(result?.success){by('memberEditor').hidden=true;editingMember=null;await showMembers()}
