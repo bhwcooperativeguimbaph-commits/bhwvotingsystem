@@ -26,7 +26,7 @@
 | 8 | Attempt non-Guimba location, unsupported image, or repeated facial descriptor | Rejected; no partially created member |
 | 9 | Turn head and blink in member login challenge | Challenge accepted once; duplicate/replayed/expired challenge rejected |
 | 10 | Create future election with Kagawad 1, Kapitan 2, multiple synthetic candidates | Election and candidate records present; no second overlapping active election |
-| 11 | Add/remove individual candidate before opening; attempt removal after opening | Valid pre-start edit succeeds; late edits fail |
+| 11 | Add/rename/replace photo/remove individual candidates before key provisioning; attempt again after key provisioning | Valid pre-freeze edits succeed; locked changes fail; no malformed JPG/PNG accepted |
 | 12 | Provision two custodian shares to distinct synthetic-controlled recipients | Two independent Brevo deliveries; only share hashes in database |
 | 13 | Verify share 1 then share 2 on separate custodian pages | First alone insufficient; after both, election marked custody-confirmed |
 | 14 | Check electorate freeze; enroll an additional member afterward | Existing frozen members eligible; newly enrolled member ineligible |
@@ -36,8 +36,9 @@
 | 18 | Refresh voter session; inspect notifications; verify and download receipt PDF | No logout on refresh; owner-only receipt; no selections exposed |
 | 19 | Close election; try finalization with incorrect/one share | Rejected without partial results |
 | 20 | Finalize with correct two shares, review `/results`, download results PDF | Candidate totals correct; only aggregates shown; report hash validated |
-| 21 | Deactivate a staff member and reset another staff password | Old sessions revoked; recovery OTP expires and cannot be reused |
+| 21 | Deactivate a staff member, reset an administrator password, and update the Super Admin recovery email using codes sent to both old and new addresses | Existing sessions revoked; wrong/replayed/expired codes rejected; new email receives subsequent OTP |
 | 22 | Perform authorized audit and disaster-recovery checks | No votes, biometric templates, OTPs or shares leak in logs |
+| 23 | Send same-origin and cross-origin POST requests with and without Origin/Fetch Metadata | Same-origin succeeds as appropriate; missing/cross-site/spoofed origins return 403 before mutations |
 
 ## Acceptance progress (staging)
 
@@ -114,3 +115,12 @@ The integration test also proves:
 These tests exercise real MongoDB transactions and indexes. They do **not** replace a live staging test with camera login, Brevo deliveries, actual Atlas topology, browser PDF rendering, network interruptions, operational backups or independent election security review.
 
 The latest serialized report is published under `ci-reports/LATEST_TEST_REPORT.json`, including independent `testExit`, `integrationExit`, and `stagingExit` fields.
+
+
+## 2026-11-02 staged-code additions (not accepted in Render yet)
+
+- Candidate edit-by-ID endpoint and inline modal now support replacing candidate names or validated JPG/PNG images before the election editing lease locks. Confirm visually with synthetic candidates.
+- Mutation routes now reject missing, foreign, and invalid `Origin` headers; verify Render proxy/HTTPS header behavior during controlled staging browser tests.
+- Super Admin recovery email change now requires both old and new email codes, records a non-sensitive audit event, and revokes sessions after completion. Verify that both distinct messages arrive through Brevo and that no code is logged.
+- `openapi.yaml` inventories the available API routes; response schemas are still being refined. Check it against deployed API behavior before declaring parity.
+- Passing offline CI is **not** live browser, Brevo, actual Atlas, accessibility or security acceptance.
