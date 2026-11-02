@@ -47,6 +47,12 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div><small>Accepted ballots</small><strong id="summaryBallots">—</strong></div>
 <div><small>Elections</small><strong id="summaryElections">—</strong></div>
 </div>
+<div class="analytics-grid">
+ <article class="analytics-card"><div class="analytics-card-title"><h3>Live participation overview</h3><small>Accepted ballots by day • Philippine time</small></div>
+ <div id="participationChart" class="chart-bars" role="img" aria-label="Accepted ballots by day">No election data yet.</div></article>
+ <article class="analytics-card"><div class="analytics-card-title"><h3>Turnout by area</h3><small>Groups with at least three voters only</small></div>
+ <div id="areaChart" class="area-chart" role="img" aria-label="Area turnout">Awaiting eligible turnout.</div></article>
+</div>
 <button id="refreshOverview" class="ghost">Refresh overview</button>
 <h2 id="historyReportsSection" style="margin-top:22px!important">Election history &amp; reports</h2>
 <div id="historyList">Loading…</div>
@@ -160,6 +166,44 @@ async function action(out,work){
  try{const data=await work();by(out).textContent=JSON.stringify(data,null,2);return data}
  catch(e){by(out).textContent=e.name==='AbortError'?'Request timed out; check Render logs':'Request unavailable'}
 }
+function renderBarChart(elementId,items,labelKey){
+ const root=by(elementId);root.replaceChildren();
+ if(!items.length){root.textContent='No aggregate participation data yet.';return}
+ const max=Math.max(1,...items.map(x=>x.count));
+ for(const item of items.slice(-12)){
+  const wrapper=document.createElement('div');wrapper.className='chart-bar-item';
+  const bar=document.createElement('div');bar.className='chart-bar';
+  bar.style.height=Math.max(5,Math.round(item.count/max*130))+'px';
+  bar.title=(item[labelKey]||'')+' — '+item.count+' accepted ballots';
+  const label=document.createElement('small');label.textContent=item[labelKey]||'';
+  const count=document.createElement('strong');count.textContent=String(item.count);
+  wrapper.append(count,bar,label);root.appendChild(wrapper);
+ }
+}
+async function refreshAnalytics(){
+ try{
+  const result=await call('/api/admin/analytics');
+  if(!result.success)throw Error(result.message||'Analytics unavailable');
+  renderBarChart('participationChart',result.daily||[],'date');
+  const area=by('areaChart');area.replaceChildren();
+  if(!(result.areas||[]).length){
+   area.textContent='No area group has reached the privacy threshold for display.';
+  }else{
+   const max=Math.max(...result.areas.map(x=>x.count),1);
+   for(const item of result.areas){
+    const row=document.createElement('div');row.className='area-chart-row';
+    const caption=document.createElement('span');caption.textContent=item.area+' · '+item.count;
+    const track=document.createElement('div');track.className='area-track';
+    const fill=document.createElement('div');fill.className='area-fill';
+    fill.style.width=Math.round(item.count/max*100)+'%';
+    track.appendChild(fill);row.append(caption,track);area.appendChild(row);
+   }
+  }
+ }catch(_){
+  by('participationChart').textContent='Analytics temporarily unavailable';
+  by('areaChart').textContent='Area analytics temporarily unavailable';
+ }
+}
 async function refreshOverview(){
  const [summary,history,logs]=await Promise.all([
   call('/api/admin/overview'),call('/api/admin/history'),call('/api/admin/logs')
@@ -210,6 +254,8 @@ async function showLifecycle(){
  by('lifecycleAction').textContent=next;
 }
 by('checkLifecycle').onclick=showLifecycle;
+const previousRefresh=refreshOverview;
+refreshOverview=async()=>{await previousRefresh();await refreshAnalytics()};
 by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
