@@ -6,6 +6,7 @@ const {MongoClient}=require('mongodb');
 const {initializeMongoIndexes}=require('../database/mongodb');
 const {createElection}=require('../database/elections');
 const {provisionElectionKeys}=require('../database/key-provisioning');
+const {editCandidate}=require('../database/candidate-maintenance');
 const {confirmCustodianShare}=require('../database/custodian-confirmation');
 const {castEncryptedVote}=require('../database/vote-service');
 const {discloseElectionResults}=require('../database/results-disclosure');
@@ -45,6 +46,24 @@ async function main(){
     {title:'Kapitan',maxVotes:2,candidates:candidates.kapitan.map(name=>({name}))}
    ]
   },{now});
+  // Candidate changes and protected audit entries must commit together in a
+  // real replica-set transaction, before custodians lock the candidate roster.
+  const initialCandidates=await db.collection('candidates').find({electionId,status:'Active'}).toArray();
+  const toRename=initialCandidates.find(c=>c.name==='Candidate B');
+  const editArgs={electionId,operatorId:'SUPERADMIN',actorRole:'superadmin',now};
+  await editCandidate({client,db},{...editArgs,operation:'update',
+   candidateId:toRename.candidateId,candidateName:'Candidate B Renamed'});
+  const extra=await editCandidate({client,db},{...editArgs,operation:'add',
+   position:'Kapitan',candidateName:'Candidate F'});
+  assert.match(extra.candidateId,/^CAND-/);
+  await editCandidate({client,db},{...editArgs,operation:'remove',
+   candidateId:extra.candidateId});
+  const edits=await db.collection('auditLogs').find({electionId,action:{$in:[
+   'CANDIDATE_ADDED','CANDIDATE_UPDATED','CANDIDATE_REMOVED']}}).toArray();
+  assert.deepEqual(edits.map(x=>x.action).sort(),
+   ['CANDIDATE_ADDED','CANDIDATE_REMOVED','CANDIDATE_UPDATED']);
+  assert.ok(edits.every(x=>x.operatorId==='SUPERADMIN'&&x.actorRole==='superadmin'));
+  assert.equal(await db.collection('candidates').countDocuments({electionId,status:'Active'}),5);
   const messages=[];
   await provisionElectionKeys({client,db},{electionId,now,
    emails:['custodian1@example.test','custodian2@example.test'],
@@ -53,6 +72,10 @@ async function main(){
   const configured=await db.collection('elections').findOne({electionId});
   assert.equal(configured.eligibleMembersSnapshot,2);
   assert.equal(configured.keyProvisioningState,'Ready');
+  await assert.rejects(editCandidate({client,db},{...editArgs,operation:'update',
+   candidateId:toRename.candidateId,candidateName:'Change After Keys'}),e=>e.code==='ELECTION_LOCKED');
+  assert.equal((await db.collection('candidates').findOne({
+   candidateId:toRename.candidateId})).name,'Candidate B Renamed');
   const keys=messages.map((m,i)=>{
    const match=m.text.match(new RegExp('BHW'+(i+1)+'\\.[a-f0-9]{20}\\.[A-Za-z0-9_-]+'));
    assert.ok(match,'Missing mock custodian share');
