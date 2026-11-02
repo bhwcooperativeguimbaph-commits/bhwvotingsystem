@@ -19,6 +19,8 @@ const indexSpecs = {
   enrollmentLocks: [[{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaCooldowns: [[{adminId:1},{unique:true}]],
   passwordResetCooldowns: [[{adminId:1},{unique:true}]],
+  adminEmailChangeCooldowns: [[{adminId:1},{unique:true}]],
+  adminEmailChangeChallenges: [[{challengeHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   passwordResetChallenges: [[{challengeHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   adminMfaChallenges: [[{challengeHash:1},{unique:true}],[{expiresAt:1},{expireAfterSeconds:0}]],
   biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
