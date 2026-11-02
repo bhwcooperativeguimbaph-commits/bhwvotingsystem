@@ -15,7 +15,11 @@ async function sendBrevoEmail({to,subject,text},config=process.env){
    signal:controller.signal
   });
   if(!r.ok){const e=new Error('Brevo request rejected');e.code='BREVO_HTTP_'+r.status;throw e}
-  return true;
+  // Provider acceptance is not inbox delivery; store only the opaque provider ID.
+  const receipt=await r.json().catch(()=>({}));
+  const messageId=typeof receipt?.messageId==='string'&&receipt.messageId.length<=256?
+   receipt.messageId:null;
+  return {messageId};
  }catch(e){
   if(e.name==='AbortError')throw Object.assign(new Error('Brevo timeout'),{code:'BREVO_TIMEOUT'});
   throw e;
