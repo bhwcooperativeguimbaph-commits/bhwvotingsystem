@@ -4,7 +4,7 @@
 <title>BHW Guimba Voting System | Cooperative Election Portal</title>
 <meta name="description" content="BHW Guimba election management, protected member access and encrypted voting.">
 <link rel="stylesheet" href="/css/mongo-portal.css">
-</head><body>
+</head><body class="public-home">
 <header class="portal-top">
 <a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · Election Management</small></span></a>
 <nav class="portal-nav" aria-label="Main navigation">
@@ -12,12 +12,27 @@
 </nav>
 </header>
 <main>
-<div class="portal-hero">
-<span class="status-chip">MongoDB Atlas · Secure rehearsal mode</span>
-<h1>One cooperative. One trusted election platform.</h1>
-<p>Manage eligible members, prepare elections, verify administrator access, and protect the confidentiality of every ballot through a unified portal.</p>
+<div class="portal-hero home-hero">
+<div class="home-hero-copy">
+<span class="status-chip">Guimba BHW Cooperative • Secure election portal</span>
+<h1>Your voice.<br><em>Your vote.</em><br>Our future.</h1>
+<p>A clear, convenient way to participate in cooperative elections, with identity verification, confidential ballots and accessible election information.</p>
 <div class="portal-actions">
-<a id="primaryLink" href="/member-preview">Member access</a><a class="secondary" href="/admin-auth-preview">Administrator sign in</a>
+ <a id="primaryLink" href="/member-preview">Enter Member Portal <span aria-hidden="true">→</span></a>
+ <a class="secondary" href="/admin-auth-preview">Administrator Portal</a>
+</div>
+<p class="home-hero-footnote">Two secure portals. One trusted cooperative election experience.</p>
+</div>
+<div class="home-hero-art" aria-hidden="true">
+ <div class="floating-note note-one">✓ Identity verified <small>Protected participation</small></div>
+ <div class="home-vote-card">
+  <div class="home-vote-logo">G</div>
+  <span>GUIMBA BHW MULTIPURPOSE COOPERATIVE</span>
+  <h2>Every vote<br>matters.</h2>
+  <p>Secure. Private. Accountable.</p>
+  <div class="vote-card-bottom"><span>YOUR VOICE • YOUR FUTURE</span><span>↗</span></div>
+ </div>
+ <div class="floating-note note-two">▣ Ballot submitted <small>Encrypted confirmation</small></div>
 </div>
 </div>
 <div class="portal-meta" aria-label="Platform status">
@@ -25,19 +40,19 @@
 <div><small>Current election</small><strong id="electionStatus">Checking…</strong></div>
 <div><small>Location</small><strong>Guimba, Nueva Ecija</strong></div>
 </div>
-<div class="portal-grid">
-<article class="portal-card"><span class="symbol" aria-hidden="true">◎</span><h2>Member portal</h2>
-<p>Log in with the existing facial challenge, review your eligible ballot, and view your server-issued receipt.</p>
-<a href="/member-preview">Open member access →</a></article>
-<article class="portal-card"><span class="symbol" aria-hidden="true">▣</span><h2>Election administration</h2>
-<p>Sign in with Super Admin password and email OTP, register members, configure candidates, and review turnout.</p>
-<a id="adminLink" href="/admin-auth-preview">Administrator sign in →</a><a href="/admin-password-recovery" style="font-size:13px;font-weight:650">Recover administrator account</a></article>
-<article class="portal-card"><span class="symbol" aria-hidden="true">✳</span><h2>Key custodian access</h2>
-<p>Independently confirm custody of the designated election key share. Never share your secret token with others.</p>
+<div class="portal-grid home-portal-grid">
+<article class="portal-card portal-card-member"><span class="symbol" aria-hidden="true">◉</span><h2>Member Portal</h2>
+<p>Verify your identity, view your eligible ballot, receive election announcements and download your receipt.</p>
+<a href="/member-preview">Go to Member Portal →</a></article>
+<article class="portal-card portal-card-admin"><span class="symbol" aria-hidden="true">▣</span><h2>Admin Portal</h2>
+<p>Manage membership, register biometric identities, configure elections and monitor verified analytics.</p>
+<a id="adminLink" href="/admin-auth-preview">Go to Admin Portal →</a><a href="/admin-password-recovery" class="recovery-link">Recover admin account</a></article>
+<article class="portal-card"><span class="symbol" aria-hidden="true">⌑</span><h2>Key Custodian</h2>
+<p>Independently confirm receipt of your designated cryptographic election key share.</p>
 <a href="/custodian-confirm">Confirm key receipt →</a></article>
-<article class="portal-card"><span class="symbol" aria-hidden="true">▥</span><h2>Published results</h2>
-<p>Browse finalized aggregate election reports, verify their integrity, and download a shareable PDF without personal ballot details.</p>
-<a href="/results">View finalized results →</a></article>
+<article class="portal-card"><span class="symbol" aria-hidden="true">▥</span><h2>Published Reports</h2>
+<p>Browse finalized aggregate election reports, confirm report integrity and export verified results.</p>
+<a href="/results">View election results →</a></article>
 </div>
 <div class="portal-announcement" role="note"><strong>System under development.</strong>
 Actual vote submission is disabled unless specifically enabled in a controlled test environment. Public availability does not mean the platform is approved for a real election.</div>
