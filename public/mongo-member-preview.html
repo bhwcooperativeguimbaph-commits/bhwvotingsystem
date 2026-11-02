@@ -1,262 +1,324 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BHW Member Voting — Rehearsal Preview</title>
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Member Portal | BHW Guimba Voting System</title>
 <link rel="stylesheet" href="/css/mongo-portal.css">
 <style>
-body{font:16px system-ui;max-width:760px;padding:18px;margin:22px auto;color:#173454}
-h1{font-size:1.7rem}section{background:#f3f7fa;border:1px solid #cddae5;padding:16px;border-radius:8px;margin:18px 0}
-video{width:100%;max-width:480px;background:#222;min-height:220px;transform:scaleX(-1);border-radius:8px}
-button{font:inherit;background:#164c83;color:#fff;border:0;border-radius:6px;padding:12px;cursor:pointer;margin:10px 0}
-button:disabled{opacity:.5}.hidden{display:none}
-label{display:block;padding:8px;margin:5px 0}
-fieldset{border:1px solid #d1dfd6;border-radius:12px;padding:14px;margin:17px 0}fieldset legend{font-weight:800;padding:4px 8px}.ballot-choice{display:flex;align-items:center;gap:14px;border:1px solid #d5e3da;border-radius:10px;background:#fff;margin:8px 0;padding:10px 14px}.ballot-choice img{width:64px;height:64px;object-fit:cover;border-radius:9px;background:#e9f3ed}.ballot-choice input{width:18px;height:18px}.ballot-choice span{font-weight:650}
-.warning{color:#99421f;font-weight:bold}
-#face-direction-cue{font-weight:bold;font-size:1.2rem}
-#status{white-space:pre-wrap}
-#confirmVote,#voteSuccess{border:0;border-radius:16px;max-width:min(440px,95vw);width:100%;padding:25px;text-align:center;color:#173454;box-shadow:0 20px 65px #10231b55}
-#confirmVote::backdrop,#voteSuccess::backdrop{background:rgba(0,17,12,.58)}
-.modal-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
-.modal-actions button{min-width:120px}
-#receiptHistory p{margin:7px 0;word-break:break-word}
-.receipt-history-item{border:1px solid #d1dfd6;border-radius:10px;padding:12px;margin:10px 0;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
-.receipt-history-item button{margin:0}
-
-</style>
-<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
-
-<h1>BHW member voting — rehearsal</h1>
-<p class="warning">Development test only. Do not use for an official election until all safety checks pass. Browser gesture verification is not certified liveness detection.</p>
-<section id="auth"><h2>Face login</h2><video id="webcam" autoplay muted playsinline></video>
+body.member-portal{margin:0;min-height:100vh;background:#f4f8f6;color:#19394b;font:16px system-ui}
+.member-portal main{max-width:1120px;margin:auto;padding:clamp(18px,4vw,46px)}
+.member-portal .portal-top{max-width:none}
+.member-portal section{background:#fff;border:1px solid #d9e9de;border-radius:23px;box-shadow:0 16px 45px #1747350e;padding:clamp(22px,4vw,34px);margin:0}
+.member-portal button{font:inherit;padding:13px 24px;background:#137d53;border:0;border-radius:12px;color:#fff;cursor:pointer;font-weight:750}
+.member-portal button.ghost{background:#fff;color:#135942;border:1px solid #badcc8}
+.member-portal button:disabled{opacity:.5;cursor:not-allowed}
+.member-portal [hidden],.member-portal .hidden{display:none!important}
+#auth{max-width:520px;margin:clamp(15px,5vh,50px) auto;text-align:center}
+#auth h1{font-size:clamp(1.7rem,4vw,2.25rem);margin:6px 0 8px}
+#auth p{color:#687d75}
+#webcam{width:100%;max-width:420px;aspect-ratio:4/3;object-fit:cover;transform:scaleX(-1);background:#14271f;border-radius:18px;margin:17px auto 12px;display:block}
+#login{display:block;width:100%;max-width:420px;margin:18px auto 0}
+#face-direction-cue{font-weight:750;font-size:1.1rem}
+#status{max-width:800px;margin:14px auto;text-align:center;white-space:pre-wrap}
+.profile-header{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.profile-header button{min-width:0}
+.profile-actions{display:flex;align-items:center;gap:10px}
+#notificationBell{position:relative;font-size:22px;padding:11px 17px}
+#notificationCount{display:inline-block;min-width:19px;font-size:11px;vertical-align:top;background:#b62929;color:#fff;border-radius:99px;margin-left:4px;padding:2px 5px}
+.profile-info{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin:25px 0}
+#memberPhoto{width:124px;height:124px;border-radius:22px;border:4px solid #e5f4e9;object-fit:cover;background:#e5f0eb}
+#avatarInitials{display:grid;place-items:center;width:124px;height:124px;border-radius:22px;background:#dcefe4;color:#0e6546;font-size:38px;font-weight:850}
+.profile-info h1{font-size:clamp(1.6rem,3vw,2.35rem);margin:0 0 8px}
+.member-details{color:#61787a;font-size:14px;line-height:1.8;overflow-wrap:anywhere}
+.election-card{padding:24px;background:#eef7f0;border:1px solid #cde4d3;border-radius:18px;margin-top:24px}
+.election-card h2{margin:8px 0 9px}.election-card p{color:#4c665c}
+#readyToVote{min-width:210px;margin-top:8px}
+#notifications{position:absolute;right:0;top:100%;width:min(375px,calc(100vw - 36px));max-height:390px;overflow:auto;z-index:40;border:1px solid #d5e6df;background:#fff;border-radius:16px;padding:15px;box-shadow:0 16px 55px #102d2740}
+.notifications-anchor{position:relative}
+.notice{padding:13px 4px;border-bottom:1px solid #e7efeb;font-size:13px;line-height:1.6}
+.notice button{font-size:12px;padding:7px 10px;margin-top:7px}
+#voting h1{margin:4px 0 10px}.ballot-choice{display:flex;align-items:center;gap:13px;background:#fff;padding:13px 16px;margin:10px 0;border:1px solid #d7e6dd;border-radius:12px;cursor:pointer}
+.ballot-choice:has(input:checked){background:#e9f8ee;border-color:#25895b}
+.ballot-choice img{width:70px;height:70px;border-radius:11px;object-fit:cover;background:#e0efe7}
+.ballot-choice input{width:20px;height:20px}
+.ballot-choice span{font-weight:700}
+#positions fieldset{border:1px solid #d9e9e0;border-radius:15px;margin:20px 0;padding:16px}
+#positions legend{font-weight:800;font-size:1.05rem;padding:0 9px}
+.ballot-actions{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;margin-top:18px}
+.member-portal dialog{border:0;border-radius:20px;padding:26px;max-width:min(480px,calc(100vw - 28px));width:100%;box-shadow:0 26px 80px #0c231b77;color:#19394b}
+.member-portal dialog::backdrop{background:#0b2925a8}
+.modal-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.modal-actions button{flex:1}
+#selectionSummary{text-align:left;max-height:250px;overflow:auto;background:#f1f8f3;border-radius:12px;padding:12px 18px}
+#selectionSummary li{margin:7px 0}
+#receipt-no,#receipt-date{display:none}
+#receiptHistorySection{display:none!important}
+</style></head><body class="member-portal">
+<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member Portal</small></span></a></header>
+<main>
+<section id="auth"><h1>Member login</h1><p>Position your face inside the camera frame to sign in.</p>
+<video id="webcam" autoplay muted playsinline aria-label="Face recognition camera"></video>
 <div id="face-direction-cue" class="hidden"></div><div id="face-action-status" class="hidden"></div>
-<button id="camera">Start camera and load face models</button>
-<button id="login" disabled>Complete facial challenge and log in</button>
+<button id="login" disabled>Login</button></section>
+
+<section id="memberHome" class="hidden">
+ <div class="profile-header"><strong>My member profile</strong>
+  <div class="profile-actions"><div class="notifications-anchor">
+   <button type="button" id="notificationBell" class="ghost" aria-expanded="false" aria-controls="notifications" aria-label="Open notifications">🔔 <span id="notificationCount" hidden>0</span></button>
+   <div id="notifications" hidden><h3>Notifications</h3><div id="notificationList"></div><button id="refreshNotifications" type="button" class="ghost">Refresh</button></div>
+  </div><button id="logout" type="button" class="ghost">Log out</button></div>
+ </div>
+ <div class="profile-info">
+  <img id="memberPhoto" alt="My enrollment profile photo" hidden>
+  <div id="avatarInitials" aria-hidden="true">BHW</div>
+  <div><h1 id="welcome">Welcome</h1><div id="memberDetails" class="member-details"></div></div>
+ </div>
+ <div class="election-card"><small>Current election</small><h2 id="homeElectionTitle">Checking election…</h2>
+  <p id="homeElectionStatus">Loading your voting eligibility.</p><button type="button" id="readyToVote" disabled>Ready to vote</button>
+ </div>
 </section>
-<section id="voting" class="hidden"><h2 id="welcome">Member ballot</h2>
-<p id="electionStatus"></p><div id="positions"></div>
-<button id="vote" disabled>Review and submit rehearsal vote</button>
-<p id="receipt" role="status" aria-live="polite"></p><label>Receipt confirmation number <input id="receiptInput" placeholder="BHW-..." style="width:100%;padding:9px"></label><button id="verifyReceipt">Verify my receipt</button><button id="downloadReceipt" disabled>Download secret-ballot receipt PDF</button><span id="receipt-no" hidden></span><span id="receipt-date" hidden></span>
+
+<section id="voting" class="hidden">
+ <h1>Official ballot</h1><p id="electionStatus"></p>
+ <div id="positions"></div>
+ <div class="ballot-actions"><button id="backToProfile" type="button" class="ghost">Back to my profile</button><button id="vote" disabled>Review my selections</button></div>
+ <span id="receipt-no" hidden></span><span id="receipt-date" hidden></span>
 </section>
-<section id="receiptHistorySection" class="hidden"><h2>My receipt history</h2>
-<p>These confirm ballot acceptance only. They never disclose candidate selections.</p>
-<div id="receiptHistory"></div><button type="button" id="refreshReceipts">Refresh receipts</button></section>
+<section id="receiptHistorySection" class="hidden"><h2>My receipts</h2><div id="receiptHistory"></div><button id="refreshReceipts">Refresh</button></section>
+
 <dialog id="confirmVote" aria-labelledby="confirmTitle" aria-describedby="confirmText">
-<h2 id="confirmTitle">Submit this ballot?</h2>
-<p id="confirmText">Your selections will be encrypted. A submitted ballot cannot be edited.</p>
-<div class="modal-actions"><button id="cancelVote" type="button" class="ghost">Review again</button><button id="confirmSubmit" type="button">Confirm and cast</button></div>
+ <h2 id="confirmTitle">Review your selections</h2><p id="confirmText">Please check all your selections before submitting.</p>
+ <div id="selectionSummary"></div>
+ <div class="modal-actions"><button id="cancelVote" type="button" class="ghost">Cancel, I have to change my vote</button><button id="confirmSubmit" type="button">Confirm vote</button></div>
 </dialog>
 <dialog id="voteSuccess" aria-labelledby="voteSuccessTitle" aria-describedby="voteSuccessText">
-<h2 id="voteSuccessTitle">Ballot securely recorded</h2>
-<p id="voteSuccessText"></p>
-<button id="closeVoteSuccess" type="button">View my receipt</button>
+ <h2 id="voteSuccessTitle">Your vote has been recorded</h2><p id="voteSuccessText"></p>
+ <p>Your receipt should download automatically. Keep it for your records; it does not reveal your selections.</p>
+ <div class="modal-actions"><button id="downloadReceipt" type="button">Download receipt again</button><button id="closeVoteSuccess" type="button" class="ghost">Back to my profile</button></div>
 </dialog>
-<section id="notifications" class="hidden"><h2>My election notifications</h2><div id="notificationList"></div><button id="refreshNotifications">Refresh notifications</button></section>
-<button id="session">Check current session</button>
-<button id="logout">Log out</button>
-<p id="status" role="status" aria-live="polite">No active session.</p>
+<dialog id="loginFeedback" aria-labelledby="feedbackTitle"><h2 id="feedbackTitle">Member login</h2><p id="feedbackText"></p><button id="closeFeedback" type="button">OK</button></dialog>
+<p id="status" role="status" aria-live="polite"></p>
+</main>
 <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script defer src="/js/mongo-face-challenge.js"></script>
 <script defer src="/js/receipt-pdf.js"></script>
 <script>
 'use strict';
 const by=id=>document.getElementById(id),video=by('webcam');
-let modelsReady=false,working=false,info=null;
-function showReceipt(receipt){
- const code=receipt?.receiptNo;
- if(typeof code!=='string'||!code)return;
- by('receiptInput').value=code;
- by('receipt-no').textContent=code;
- by('receipt-date').textContent=receipt.recordedAt?new Date(receipt.recordedAt).toLocaleString():'';
- by('downloadReceipt').disabled=false;
- by('receipt').textContent='Receipt available: '+code+' — no candidate selections are recorded on it.';
+let modelsReady=false,working=false,info=null,currentSession=null,latestReceipt=null;
+function feedback(message,success=false){
+ by('feedbackTitle').textContent=success?'Login successful':'Login issue';
+ by('feedbackText').textContent=message;
+ if(!by('loginFeedback').open)by('loginFeedback').showModal();
 }
-async function loadReceipts(){
- try{
-  const data=await request('/api/member/receipts');
-  const view=by('receiptHistory');view.replaceChildren();
-  if(data.receipts?.length){
-   by('receiptHistorySection').classList.remove('hidden');
-   if(!by('receipt-no').textContent)showReceipt(data.receipts[0]);
-   for(const item of data.receipts){
-    const row=document.createElement('div');row.className='receipt-history-item';
-    const text=document.createElement('span');
-    text.textContent=item.electionId+' — '+new Date(item.recordedAt).toLocaleString();
-    const button=document.createElement('button');button.className='ghost';button.type='button';
-    button.textContent='Use this receipt';
-    button.onclick=()=>showReceipt(item);
-    row.append(text,button);view.appendChild(row);
-   }
-  }else{
-   by('receiptHistorySection').classList.add('hidden');
-   by('downloadReceipt').disabled=true;
-  }
- }catch(e){by('status').textContent='Receipt history: '+e.message}
-}
-by('refreshReceipts').onclick=loadReceipts;
-by('cancelVote').onclick=()=>by('confirmVote').close();
-by('closeVoteSuccess').onclick=()=>by('voteSuccess').close();
-
-function stopCamera(){video.srcObject?.getTracks().forEach(t=>t.stop());video.srcObject=null}
+by('closeFeedback').onclick=()=>by('loginFeedback').close();
+function stopCamera(){video.srcObject?.getTracks().forEach(t=>t.stop());video.srcObject=null;modelsReady=false}
 async function request(url,body){
  const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),20000);
- try{const r=await fetch(url,{credentials:'same-origin',method:body===undefined?'GET':'POST',
-  headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
-  const d=await r.json();if(!r.ok||d.success===false)throw Error(d.message||'Request failed');return d}
- finally{clearTimeout(timeout)}
+ try{
+  const r=await fetch(url,{credentials:'same-origin',method:body===undefined?'GET':'POST',
+   headers:{'Content-Type':'application/json'},body:body===undefined?undefined:JSON.stringify(body),signal:controller.signal});
+  const d=await r.json();if(!r.ok||d.success===false)throw Error(d.message||'Request failed');return d;
+ }finally{clearTimeout(timeout)}
+}
+async function startCamera(){
+ if(modelsReady||working||by('auth').classList.contains('hidden'))return;
+ working=true;by('login').disabled=true;by('status').textContent='Preparing camera…';
+ try{
+  await Promise.all([faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+   faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+   faceapi.nets.faceRecognitionNet.loadFromUri('/models')]);
+  video.srcObject=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:640,height:480}});
+  await video.play();modelsReady=true;by('login').disabled=false;by('status').textContent='Camera ready. Select Login.';
+ }catch(e){
+  by('status').textContent='Camera unavailable. Select Login to retry.';
+  feedback(e?.name==='NotAllowedError'?'Allow camera access in your browser to log in.':
+   'Unable to start the camera. Check camera permissions and try again.');
+ }finally{working=false}
 }
 async function displayBallot(){
  const auth=await request('/api/session');
  if(auth.role!=='member')throw Error('Member login required');
- stopCamera();by('auth').classList.add('hidden');by('voting').classList.remove('hidden');
- by('welcome').textContent='Welcome, '+auth.fullName;
+ currentSession=auth;stopCamera();by('auth').classList.add('hidden');
+ by('memberHome').classList.remove('hidden');by('voting').classList.add('hidden');
+ by('welcome').textContent=auth.fullName;
+ const details=by('memberDetails');details.textContent='Member ID: '+auth.memberId;
+ try{
+  const data=await request('/api/member/profile');
+  details.textContent='Member ID: '+data.member.memberId+' · Area: '+(data.member.area||'—');
+  if(data.member.portrait){
+   by('memberPhoto').src=data.member.portrait;by('memberPhoto').hidden=false;
+   by('avatarInitials').hidden=true;
+  }else{
+   by('avatarInitials').textContent=(auth.fullName||'BHW').split(/\s+/).map(x=>x[0]).slice(0,2).join('').toUpperCase();
+   by('avatarInitials').hidden=false;
+  }
+ }catch(_){by('avatarInitials').textContent=(auth.fullName||'BHW').slice(0,2).toUpperCase()}
  info=await request('/api/election-info');
+ const active=Boolean(info.active&&info.config?.length);
+ by('homeElectionTitle').textContent=active?info.title:'No current election';
+ const now=Date.now();
+ const isOpen=active&&now>=new Date(info.startTime).getTime()&&now<new Date(info.endTime).getTime();
+ const eligible=active&&auth.eligibleThisElection&&!auth.hasVoted&&info.voteSubmissionEnabled&&isOpen;
+ by('readyToVote').disabled=!eligible;
+ by('homeElectionStatus').textContent=!active?'There is no active ballot at the moment.':
+  auth.hasVoted?'You have already voted in this election.':
+  !auth.eligibleThisElection?'You are not eligible for this election.':
+  !isOpen?'Voting is not open at this time.':
+  !info.voteSubmissionEnabled?'Voting is currently unavailable.':'You may now proceed to cast your vote.';
+ await Promise.all([loadReceipts(),loadNotifications()]);
+}
+async function loadReceipts(){
+ try{
+  const data=await request('/api/member/receipts');
+  if(data.receipts?.length&&!latestReceipt)showReceipt(data.receipts[0]);
+ }catch(_){}
+}
+function showReceipt(receipt){
+ const code=receipt?.receiptNo;if(typeof code!=='string'||!code)return;
+ latestReceipt=receipt;by('receipt-no').textContent=code;
+ by('receipt-date').textContent=receipt.recordedAt?new Date(receipt.recordedAt).toLocaleString('en-PH'):'';
+ by('downloadReceipt').disabled=false;
+}
+function renderBallot(){
  const container=by('positions');container.replaceChildren();
- if(!info.active||!info.config?.length){
-  by('electionStatus').textContent='No current election. Previous receipts remain available.';by('vote').disabled=true;
-  await Promise.all([loadReceipts(),loadNotifications()]);return;
- }
- by('electionStatus').textContent=info.title+(auth.hasVoted?' — your vote is already recorded':'');
  for(const pos of info.config){
   const field=document.createElement('fieldset'),legend=document.createElement('legend');
-  legend.textContent=pos.title+' — choose up to '+pos.maxVotes;field.appendChild(legend);
-  for(const c of pos.candidates){
+  legend.textContent=pos.title+' — select up to '+pos.maxVotes;field.appendChild(legend);
+  for(const candidate of pos.candidates){
    const label=document.createElement('label'),input=document.createElement('input');
-   label.className='ballot-choice';
-   input.type='checkbox';input.value=c.candidateId;input.dataset.position=pos.title;
+   label.className='ballot-choice';input.type='checkbox';input.value=candidate.candidateId;input.dataset.position=pos.title;
    input.addEventListener('change',()=>{
-    const selected=[...field.querySelectorAll('input:checked')];
-    if(selected.length>pos.maxVotes){input.checked=false;by('status').textContent='Selection limit reached for '+pos.title}
+    if([...field.querySelectorAll('input:checked')].length>pos.maxVotes){
+     input.checked=false;feedback('You may select at most '+pos.maxVotes+' candidate(s) for '+pos.title+'.');
+    }
    });
-   if(c.photo){const photo=document.createElement('img');photo.alt='Photo of '+c.name;photo.src=c.photo;label.appendChild(photo)}
-   const name=document.createElement('span');name.textContent=c.name;
+   if(candidate.photo){const img=document.createElement('img');img.src=candidate.photo;img.alt='Photo of '+candidate.name;label.appendChild(img)}
+   const name=document.createElement('span');name.textContent=candidate.name;
    label.append(input,name);field.appendChild(label);
   }container.appendChild(field);
  }
- const now=Date.now(),isOpen=now>=new Date(info.startTime).getTime()&&now<new Date(info.endTime).getTime();
- by('vote').disabled=Boolean(auth.hasVoted)||!auth.eligibleThisElection||!info.voteSubmissionEnabled||!isOpen;
- if(info.voteSubmissionEnabled&&!auth.eligibleThisElection)by('electionStatus').textContent+=' — Your membership is outside the frozen electorate.';
- if(!isOpen)by('electionStatus').textContent+=' — Voting schedule is not currently open.';
- if(!info.voteSubmissionEnabled)by('electionStatus').textContent+=' — Voting disabled during development.';
- await Promise.all([loadReceipts(),loadNotifications()]);
 }
-by('camera').onclick=async()=>{
- if(working)return;working=true;by('camera').disabled=true;by('status').textContent='Loading face models...';
- try{
-  await Promise.all([
-   faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-   faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-   faceapi.nets.faceRecognitionNet.loadFromUri('/models')]);
-  video.srcObject=await navigator.mediaDevices.getUserMedia({audio:false,video:{width:640,height:480,facingMode:'user'}});
-  await video.play();modelsReady=true;by('login').disabled=false;by('status').textContent='Face recognition ready';
- }catch(e){by('status').textContent=e.message;by('camera').disabled=false}finally{working=false}
+by('readyToVote').onclick=()=>{
+ if(by('readyToVote').disabled||!info?.active)return;
+ renderBallot();by('electionStatus').textContent=info.title;
+ by('memberHome').classList.add('hidden');by('voting').classList.remove('hidden');
+ by('vote').disabled=false;window.scrollTo(0,0);
 };
+by('backToProfile').onclick=()=>{by('voting').classList.add('hidden');by('memberHome').classList.remove('hidden')};
 by('login').onclick=async()=>{
- if(working||!modelsReady)return;working=true;by('login').disabled=true;
+ if(working)return;
+ if(!modelsReady){await startCamera();return}
+ working=true;by('login').disabled=true;by('status').textContent='Verifying your face…';
  try{
   const initial=await faceapi.detectSingleFace(video).withFaceLandmarks();
-  if(!initial)throw Error('No face detected');
-  // Never reveal the existence of an enrolled biometric before the challenge.
+  if(!initial)throw Error('No face detected. Face the camera in good lighting and try again.');
   const challenge=await window.runBHWFaceChallenge(video);
   const final=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
-  if(!final)throw Error('Face was lost after challenge');
+  if(!final)throw Error('Your face was not detected after the challenge. Please try again.');
   await request('/api/login-face',{descriptor:Array.from(final.descriptor),...challenge});
-  await displayBallot();by('status').textContent='Member session verified';
- }catch(e){by('status').textContent=e.message}finally{working=false;by('login').disabled=!modelsReady}
+  await displayBallot();feedback('Welcome! Your identity was verified successfully.',true);
+  by('status').textContent='';
+ }catch(e){by('status').textContent=e.message;feedback(e.message)}
+ finally{working=false;by('login').disabled=!modelsReady}
 };
 by('vote').onclick=()=>{
  if(working||!info?.active||by('vote').disabled)return;
- let text='You are about to cast an encrypted, non-editable ballot. ';
- for(const position of info.config){
-  const count=[...document.querySelectorAll('input:checked')].filter(i=>i.dataset.position===position.title).length;
-  text+=position.title+': '+count+' of '+position.maxVotes+' selected. ';
+ const summary=by('selectionSummary');summary.replaceChildren();
+ for(const pos of info.config){
+  const selected=[...document.querySelectorAll('#positions input:checked')]
+   .filter(i=>i.dataset.position===pos.title).map(i=>{
+    const match=pos.candidates.find(c=>c.candidateId===i.value);return match?.name||'Unknown';
+   });
+  const h=document.createElement('h3');h.textContent=pos.title+' ('+selected.length+'/'+pos.maxVotes+')';
+  const list=document.createElement('ul');
+  for(const name of selected.length?selected:['No selection']){const li=document.createElement('li');li.textContent=name;list.appendChild(li)}
+  summary.append(h,list);
  }
- by('confirmText').textContent=text;
  by('confirmVote').showModal();
 };
+by('cancelVote').onclick=()=>by('confirmVote').close();
 by('confirmSubmit').onclick=async()=>{
  if(working||!info?.active)return;
- by('confirmVote').close();
+ by('confirmVote').close();working=true;by('vote').disabled=true;by('confirmSubmit').disabled=true;
  const choices={};
  for(const pos of info.config){
-  choices[pos.title]=[...document.querySelectorAll('input:checked')].
-   filter(i=>i.dataset.position===pos.title).map(i=>i.value);
+  choices[pos.title]=[...document.querySelectorAll('#positions input:checked')]
+   .filter(i=>i.dataset.position===pos.title).map(i=>i.value);
  }
- working=true;by('vote').disabled=true;by('confirmSubmit').disabled=true;
- by('status').textContent='Submitting an encrypted rehearsal ballot…';
  try{
   const result=await request('/api/vote',{choices});
   showReceipt({receiptNo:result.receiptNo,recordedAt:new Date().toISOString()});
-  by('voteSuccessText').textContent='Your confirmation number is '+result.receiptNo+
-   '. It contains no candidate selections. You can download your receipt below.';
+  by('voteSuccessText').textContent='Receipt number: '+result.receiptNo;
   by('voteSuccess').showModal();
-  by('status').textContent='Your rehearsal vote was securely recorded.';
+  window.downloadReceipt?.();
+  by('status').textContent='Your ballot was securely recorded.';
   for(const input of document.querySelectorAll('#positions input'))input.disabled=true;
   await Promise.all([loadReceipts(),loadNotifications()]);
  }catch(e){
   by('status').textContent=e.message+' Checking your server-recorded voting status…';
-  // A timeout or dropped response does not prove the transaction failed.
-  // Re-check the server before allowing another submission.
   try{
    const session=await request('/api/session');
    if(session.hasVoted){
     by('vote').disabled=true;
     by('status').textContent='Your ballot is recorded. The receipt has been restored.';
     await loadReceipts();
+    if(latestReceipt){by('voteSuccessText').textContent='Receipt number: '+latestReceipt.receiptNo;
+     by('voteSuccess').showModal();window.downloadReceipt?.()}
    }else{
     const now=Date.now();
     by('vote').disabled=!session.eligibleThisElection||!info.voteSubmissionEnabled||
       now<new Date(info.startTime).getTime()||now>=new Date(info.endTime).getTime();
-    by('status').textContent=e.message;
+    feedback(e.message);
    }
   }catch(_){
    by('vote').disabled=true;
-   by('status').textContent='Voting status is uncertain. Refresh and check your receipt before retrying.';
+   feedback('The submission result is uncertain. Refresh your profile before trying again.');
   }
  }finally{working=false;by('confirmSubmit').disabled=false}
 };
-by('verifyReceipt').onclick=async()=>{
- const code=by('receiptInput').value.trim();
- try{
-  const data=await request('/api/receipts/'+encodeURIComponent(code));
-  showReceipt(data);
-  by('receipt').textContent='Receipt verified for your member account. No candidate selections are disclosed.';
- }catch(e){by('receipt').textContent=e.message;by('downloadReceipt').disabled=true}
-};
 by('downloadReceipt').onclick=()=>window.downloadReceipt?.();
+by('closeVoteSuccess').onclick=()=>{by('voteSuccess').close();displayBallot().catch(e=>feedback(e.message))};
 async function loadNotifications(){
  try{
-  const result=await request('/api/member/notifications');
-  const section=by('notifications'),list=by('notificationList');
-  section.classList.remove('hidden');list.replaceChildren();
-  for(const note of result.notifications){
-   const p=document.createElement('p'),text=document.createElement('span');
-   text.textContent=new Date(note.createdAt).toLocaleString()+' — '+note.message;
-   p.appendChild(text);
+  const result=await request('/api/member/notifications'),list=by('notificationList');
+  list.replaceChildren();
+  const unread=(result.notifications||[]).filter(n=>!n.read).length;
+  by('notificationCount').hidden=unread===0;by('notificationCount').textContent=String(unread);
+  for(const note of result.notifications||[]){
+   const item=document.createElement('div');item.className='notice';
+   const text=document.createElement('div');
+   text.textContent=new Date(note.createdAt).toLocaleString('en-PH')+' · '+note.message;
+   item.appendChild(text);
    if(note.type==='RESULTS_PUBLISHED'&&/^ELEC-[0-9a-f-]{36}$/i.test(note.electionId||'')){
-    const link=document.createElement('a');
-    link.href='/results?electionId='+encodeURIComponent(note.electionId);
-    link.textContent=' View verified results';
-    link.style.marginLeft='8px';
-    p.appendChild(link);
+    const link=document.createElement('a');link.href='/results?electionId='+encodeURIComponent(note.electionId);
+    link.textContent='View results';item.appendChild(link);
    }
-   if(!note.read){const button=document.createElement('button');button.textContent='Mark as read';
-    button.onclick=async()=>{
+   if(!note.read){
+    const btn=document.createElement('button');btn.type='button';btn.className='ghost';
+    btn.textContent='Mark as read';btn.onclick=async()=>{
      try{await request('/api/member/notifications/'+encodeURIComponent(note.notificationId)+'/read',{});await loadNotifications()}
-     catch(e){by('status').textContent=e.message}
-    };
-    p.appendChild(button);
-   }
-   list.appendChild(p);
+     catch(e){feedback(e.message)}
+    };item.appendChild(btn);
+   }list.appendChild(item);
   }
-  if(!result.notifications.length)list.textContent='No notifications yet';
- }catch(e){by('status').textContent=e.message}
+  if(!result.notifications?.length)list.textContent='No notifications yet.';
+ }catch(e){by('notificationList').textContent='Notifications are unavailable.'}
 }
+by('notificationBell').onclick=()=>{
+ const panel=by('notifications'),open=panel.hidden;
+ panel.hidden=!open;by('notificationBell').setAttribute('aria-expanded',String(open));
+};
 by('refreshNotifications').onclick=loadNotifications;
-by('session').onclick=()=>request('/api/session').then(d=>by('status').textContent='Authenticated as '+d.role).catch(e=>by('status').textContent=e.message);
-by('logout').onclick=()=>request('/api/logout',{}).then(()=>location.reload()).catch(e=>by('status').textContent=e.message);
+by('logout').onclick=async()=>{try{await request('/api/logout',{});location.reload()}catch(e){feedback(e.message)}};
 window.addEventListener('pagehide',stopCamera);
-request('/api/session').then(d=>{
- if(d.role==='member')return displayBallot();
- if(d.role==='admin'||d.role==='superadmin')
-  by('status').textContent='An administrator is signed in. Log out to use member facial login.';
-}).catch(()=>{});
-</script><footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
-</html>
+document.addEventListener('DOMContentLoaded',async()=>{
+ try{
+  const auth=await request('/api/session');
+  if(auth.role==='member')return displayBallot();
+  if(auth.role==='admin'||auth.role==='superadmin'){
+   by('status').textContent='Please sign out of your administrator account before member login.';
+   by('login').disabled=true;return;
+  }
+ }catch(_){}
+ startCamera();
+});
+</script></body></html>
