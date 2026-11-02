@@ -6,6 +6,7 @@
 
 <h1>Administrator sign in</h1><p><a href="/admin-console">Open protected administration console</a></p><p>Use your administrator credentials and the email verification code. Member enrollment is limited to synthetic rehearsal accounts, and real voting is disabled.</p>
 <form id="credentials"><label>Username<input id="username" required autocomplete="username"></label><label>Password<input id="password" type="password" required autocomplete="current-password"></label><button>Send verification code</button></form>
+<p><a href="/admin-password-recovery">Forgot password? Recover your administrator account by email OTP.</a></p>
 <form id="otpForm" hidden><label>Six-digit email code<input id="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code"></label><button>Verify login</button></form>
 <button id="session" type="button">Check session</button><button id="logout" type="button">Log out</button><p id="message" role="status" aria-live="polite"></p>
 <script>
@@ -26,7 +27,7 @@ document.getElementById('credentials').addEventListener('submit',async ev=>{
  document.getElementById('password').value='';
  if(data.mfaRequired&&data.challenge){challenge=data.challenge;document.getElementById('otpForm').hidden=false;msg.textContent='Verification code sent. Check your email.'}
  else msg.textContent=(data.message||'Authentication unavailable')+(data.code?' ('+data.code+')':'');
- }catch(e){msg.textContent=e.name==='AbortError'?'Request timed out. Check Render logs for SMTP or database delays.':'Request failed. Check Render logs.'}
+ }catch(e){msg.textContent=e.name==='AbortError'?'Request timed out. Check your connection or Render logs for Brevo or database delays.':'Request failed. Check Render logs.'}
 });
 document.getElementById('otpForm').addEventListener('submit',async ev=>{
  ev.preventDefault();
