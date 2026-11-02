@@ -4,8 +4,8 @@
  if(!main)return;
  const mainSections=[...main.querySelectorAll(':scope > section')];
  const viewNames={dashboard:'Dashboard',registration:'Registration',setup:'Setup election',
-  history:'History & reports',members:'Members table',audit:'Audit logs',
-  users:'Users & roles',operations:'Election operations'};
+  history:'Election results & reports',members:'Members table',audit:'Audit logs',
+  users:'Users & roles'};
  const views={};
  for(const [id,label] of Object.entries(viewNames)){
   const div=document.createElement('div');div.id='view-'+id;div.className='admin-view';div.hidden=true;
@@ -67,17 +67,32 @@
  move('membersSection','members');
  move('electionSetupSection','setup');
  move('adminManagement','users');
+ // Election setup owns candidate edits. Published results, custody status and
+ // finalization belong in Election results & reports, not a separate operations tab.
+ move('candidateManagement','setup');
  for(const section of mainSections){
   if(section.id==='sessionPanel'){section.hidden=true;continue}
-  if(['adminDashboard','membersSection','electionSetupSection','adminManagement'].includes(section.id))continue;
-  views.operations.appendChild(section);
+  if(['adminDashboard','membersSection','electionSetupSection','adminManagement','candidateManagement'].includes(section.id))continue;
+  views.history.appendChild(section);
  }
  const reg=document.createElement('section');reg.className='registration-frame-panel';
- reg.innerHTML='<h2>Member registration</h2><iframe title="Member enrollment form" src="/member-enrollment-preview?embedded=1" loading="lazy"></iframe>';
+ reg.innerHTML='<iframe title="Member enrollment form" src="/member-enrollment-preview?embedded=1" loading="lazy" scrolling="no" style="display:block;box-sizing:border-box;width:100%;max-width:none;min-width:0;height:1450px;border:0"></iframe>';
+ const registrationFrame=reg.querySelector('iframe');
+ registrationFrame.addEventListener('load',()=>{
+  try{
+   const doc=registrationFrame.contentDocument;
+   const resize=()=>{
+    if(!doc)return;
+    const height=Math.max(doc.documentElement.scrollHeight,doc.body.scrollHeight,850);
+    registrationFrame.style.height=(height+32)+'px';
+   };
+   resize();new ResizeObserver(resize).observe(doc.body);
+  }catch(_){registrationFrame.style.height='1500px'}
+ });
  const replacement=new URLSearchParams(location.search).get('replace');
  if(/^MEM-[0-9a-f-]{36}$/i.test(replacement||'')){
-  reg.querySelector('h2').textContent='Update member biometrics';
-  reg.querySelector('iframe').src='/member-enrollment-preview?embedded=1&replace='+encodeURIComponent(replacement);
+  registrationFrame.title='Update member biometrics';
+  registrationFrame.src='/member-enrollment-preview?embedded=1&replace='+encodeURIComponent(replacement);
  }
  views.registration.appendChild(reg);
  const toolbar=document.createElement('div');toolbar.className='admin-toolbar';
@@ -93,16 +108,14 @@
  for(const link of [...nav.querySelectorAll('a')]){
   if(link.textContent.trim()==='Registration')link.href='#view-registration';
   if(link.textContent.trim()==='Setup election')link.href='#view-setup';
-  if(link.textContent.trim().startsWith('History'))link.href='#view-history';
+  if(link.textContent.trim().startsWith('History')){link.href='#view-history';link.textContent='Election results & reports'}
   if(link.textContent.trim()==='Members table')link.href='#view-members';
   if(link.textContent.trim()==='Audit logs')link.href='#view-audit';
   if(link.textContent.trim().startsWith('Users'))link.href='#view-users';
   if(link.textContent.trim()==='Dashboard')link.href='#view-dashboard';
   link.setAttribute('data-view-link','');
  }
- const operations=document.createElement('a');
- operations.href='#view-operations';operations.textContent='Election operations';
- operations.setAttribute('data-view-link','');nav.appendChild(operations);
+ const obsolete=nav.querySelector('a[href="#view-operations"]');if(obsolete)obsolete.remove();
  function activate(){
   const requested=location.hash.replace(/^#view-/,'');
   let id=viewNames[requested]?requested:'dashboard';
