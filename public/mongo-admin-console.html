@@ -71,20 +71,46 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <button id="saveMember">Save member profile</button>
 <button id="cancelMemberEdit" class="ghost">Cancel</button><pre id="editMemberResult"></pre>
 </section>
-<section><h2>Create election</h2>
-<label>Election title<input id="title" value="Rehearsal election" maxlength="150"></label>
-<div class="cols"><label>Start — Philippine time (UTC+08:00)<input type="datetime-local" id="start"></label><label>End — Philippine time (UTC+08:00)<input type="datetime-local" id="end"></label></div>
-<div class="cols"><label>Kagawad candidates (one name per line)<textarea id="kagawad" rows="4" placeholder="Candidate A&#10;Candidate B"></textarea></label>
-<label>Kapitan candidates (one name per line; at least two)<textarea id="kapitan" rows="4" placeholder="Candidate C&#10;Candidate D"></textarea></label></div>
-<small>Kagawad maximum selections: 1; Kapitan maximum selections: 2. Use fictitious names for testing.</small>
-<button id="create">Create rehearsal election</button><pre id="createResult">Not created</pre></section>
+<section id="electionSetupSection" class="wizard-panel">
+<h2>Configure election</h2>
+<p>Build a new election in four steps. Positions and vote limits are fully configurable.</p>
+<div class="wizard-progress" role="status" aria-live="polite">
+ <span data-step="1" class="current">1. Details</span><span data-step="2">2. Positions</span>
+ <span data-step="3">3. Candidates</span><span data-step="4">4. Review</span>
+</div>
+<div id="setupStep1" class="wizard-step">
+ <label>Election title <input id="title" maxlength="150" required placeholder="e.g. 2027 Cooperative Board Election"></label>
+ <label>Description (optional)<textarea id="electionDescription" maxlength="1000" rows="3" placeholder="Purpose or scope of this election"></textarea></label>
+ <div class="cols"><label>Start — Philippine time (UTC+08:00)<input type="datetime-local" id="start" required></label>
+ <label>End — Philippine time (UTC+08:00)<input type="datetime-local" id="end" required></label></div>
+</div>
+<div id="setupStep2" class="wizard-step" hidden>
+ <h3>Election positions</h3>
+ <p>Add the positions to elect. Each position has its own maximum number of selections.</p>
+ <div id="wizardPositions"></div>
+ <button type="button" id="wizardAddPosition" class="ghost">+ Add position</button>
+</div>
+<div id="setupStep3" class="wizard-step" hidden>
+ <h3>Register candidates</h3><p>Add at least as many candidates as the selection limit for each position. Optional photographs must be JPG or PNG.</p>
+ <div id="wizardCandidates"></div>
+</div>
+<div id="setupStep4" class="wizard-step" hidden>
+ <h3>Review before creation</h3>
+ <div id="wizardReview" aria-live="polite"></div>
+ <p class="warning">Once key custodian provisioning starts, candidate configuration is locked. Use synthetic election data in staging.</p>
+</div>
+<p id="wizardError" class="warning" role="alert" aria-live="polite"></p>
+<div class="wizard-controls"><button id="wizardBack" type="button" class="ghost" hidden>Back</button>
+<button id="wizardNext" type="button">Continue</button><button id="create" type="button" hidden>Create election</button></div>
+<pre id="createResult">No election created.</pre>
+</section>
 <section><h2>Candidate management (before election starts)</h2>
 <label>Election ID<input id="candidateElection" placeholder="ELEC-..."></label>
 <button id="listCandidates">List individual candidates</button>
 <div id="candidateList" aria-live="polite"></div>
-<div class="cols"><label>Position<select id="candidatePosition"><option>Kagawad</option><option>Kapitan</option></select></label>
+<div class="cols"><label>Position<select id="candidatePosition"><option value="">Choose election position</option></select></label>
 <label>New candidate name<input id="candidateName" maxlength="100"></label></div><label>Candidate image (optional JPG/PNG; resized in browser)<input id="candidatePhoto" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label>
-<small>New candidates can be added or removed individually only before the start time and before any ballot is recorded. JPG/PNG image support is available through the API; this test page adds names only.</small>
+<small>Candidate editing locks when custodians begin key provisioning. JPG/PNG photo uploads are available before that point.</small>
 <button id="addCandidate">Add candidate</button><pre id="candidateResult">Not changed</pre></section>
 <section id="keyProvisionSection" hidden><h2>Assign two election key custodians</h2>
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
@@ -311,19 +337,167 @@ function guimbaLocalToUtcIso(value){
   throw Error('Invalid Philippine election date or time');
  return new Date(stamp).toISOString();
 }
-by('create').onclick=async()=>{
- if(!by('start').value||!by('end').value)return by('createResult').textContent='Choose both schedule dates';
- let startTime,endTime;
+
+let wizardStep=1;
+const electionDraft={positions:[]};
+const positionId=()=>Math.random().toString(36).slice(2,12);
+function positionRow(pos={}){
+ const id=pos.id||positionId();
+ const card=document.createElement('div');card.className='wizard-position';card.dataset.positionId=id;
+ card.innerHTML='<div class="cols"><label>Position name<input class="positionName" maxlength="50" required placeholder="e.g. Board Member"></label>'+
+  '<label>Maximum votes per member<input class="positionLimit" type="number" min="1" max="100" required value="1"></label></div>'+
+  '<button type="button" class="ghost removePosition">Remove position</button>';
+ card.querySelector('.positionName').value=pos.title||'';
+ card.querySelector('.positionLimit').value=String(pos.maxVotes||1);
+ card.querySelector('.removePosition').onclick=()=>{
+  if(document.querySelectorAll('#wizardPositions .wizard-position').length===1){
+   by('wizardError').textContent='At least one election position is required.';return;
+  }card.remove();
+ };
+ by('wizardPositions').appendChild(card);
+}
+by('wizardAddPosition').onclick=()=>{by('wizardError').textContent='';positionRow()};
+positionRow();
+function readWizardPositions(){
+ const rows=[...document.querySelectorAll('#wizardPositions .wizard-position')],names=new Set(),positions=[];
+ if(!rows.length)throw Error('Add at least one position');
+ for(const row of rows){
+  const title=row.querySelector('.positionName').value.trim().replace(/\s+/g,' ');
+  const maxVotes=Number(row.querySelector('.positionLimit').value);
+  if(!title||title.length>50)throw Error('Enter each position name (50 characters maximum)');
+  if(names.has(title.toLowerCase()))throw Error('Each position must have a unique name');
+  if(!Number.isInteger(maxVotes)||maxVotes<1||maxVotes>100)throw Error('Maximum votes must be from 1 to 100');
+  names.add(title.toLowerCase());
+  const prev=electionDraft.positions.find(p=>p.id===row.dataset.positionId);
+  positions.push({id:row.dataset.positionId,title,maxVotes,candidates:prev?.candidates||[]});
+ }
+ electionDraft.positions=positions;
+}
+function candidateRow(position,candidate={}){
+ const row=document.createElement('div');row.className='wizard-candidate';
+ row.innerHTML='<label>Candidate name<input class="wizardCandidateName" maxlength="100" required placeholder="Candidate full name"></label>'+
+  '<label>Photo (optional) <input class="wizardCandidatePhoto" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label>'+
+  '<button type="button" class="ghost removeCandidate">Remove candidate</button>';
+ row.querySelector('.wizardCandidateName').value=candidate.name||'';
+ row.dataset.savedPhoto=candidate.photo||'';
+ row.querySelector('.removeCandidate').onclick=()=>row.remove();
+ position.appendChild(row);
+}
+function renderWizardCandidates(){
+ const root=by('wizardCandidates');root.replaceChildren();
+ for(const pos of electionDraft.positions){
+  const card=document.createElement('div');card.className='wizard-position';card.dataset.positionId=pos.id;
+  const title=document.createElement('h4');title.textContent=pos.title+' — select up to '+pos.maxVotes;
+  card.appendChild(title);
+  const list=document.createElement('div');list.className='wizard-candidate-list';card.appendChild(list);
+  const stored=pos.candidates.length?pos.candidates:Array.from({length:Math.max(2,pos.maxVotes)},()=>({name:'',photo:null}));
+  for(const c of stored)candidateRow(list,c);
+  const add=document.createElement('button');add.className='ghost';add.type='button';add.textContent='+ Add candidate';
+  add.onclick=()=>candidateRow(list);
+  card.appendChild(add);root.appendChild(card);
+ }
+}
+async function photoToDataUri(file){
+ if(!file)return null;
+ if(!['image/png','image/jpeg'].includes(file.type)||file.size>5*1024*1024)
+  throw Error('Photos must be JPG/PNG and under 5 MB');
+ const url=URL.createObjectURL(file);
  try{
-  startTime=guimbaLocalToUtcIso(by('start').value);
-  endTime=guimbaLocalToUtcIso(by('end').value);
-  if(new Date(endTime)<=new Date(startTime))throw Error('Election end must be after the start');
- }catch(e){by('createResult').textContent=e.message;return}
- const data=await action('createResult',()=>call('/api/admin/initialize-election','POST',{
-  title:by('title').value,startTime,endTime,
-  config:[{title:'Kagawad',maxVotes:1,candidates:list('kagawad')},
-   {title:'Kapitan',maxVotes:2,candidates:list('kapitan')}] }));
- if(data?.success){for(const id of ['keyElection','turnoutId','reportId','candidateElection','lifecycleId'])by(id).value=data.electionId;showLifecycle()}
+  const img=new Image();img.src=url;await img.decode();
+  const canvas=document.createElement('canvas'),scale=Math.min(1,300/Math.max(img.width,img.height));
+  canvas.width=Math.max(1,Math.round(img.width*scale));
+  canvas.height=Math.max(1,Math.round(img.height*scale));
+  canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+  const data=canvas.toDataURL(file.type==='image/png'?'image/png':'image/jpeg',.77);
+  if(data.length>680000)throw Error('Photo exceeds 500 KB after resizing');
+  return data;
+ }finally{URL.revokeObjectURL(url)}
+}
+async function readWizardCandidates(){
+ for(const group of document.querySelectorAll('#wizardCandidates .wizard-position')){
+  const pos=electionDraft.positions.find(p=>p.id===group.dataset.positionId);
+  if(!pos)continue;
+  const rows=[...group.querySelectorAll('.wizard-candidate')],seen=new Set(),out=[];
+  for(const row of rows){
+   const name=row.querySelector('.wizardCandidateName').value.trim().replace(/\s+/g,' ');
+   if(!name||name.length>100)throw Error('Each candidate needs a name (100 characters maximum)');
+   if(seen.has(name.toLowerCase()))throw Error('Duplicate candidate under '+pos.title);
+   seen.add(name.toLowerCase());
+   const file=row.querySelector('.wizardCandidatePhoto').files[0];
+   const photo=file?await photoToDataUri(file):(row.dataset.savedPhoto||null);
+   out.push({name,photo});
+  }
+  if(out.length<pos.maxVotes)throw Error(pos.title+' needs at least '+pos.maxVotes+' candidates');
+  pos.candidates=out;
+ }
+}
+function renderWizardReview(){
+ const root=by('wizardReview');root.replaceChildren();
+ const dates=document.createElement('p');
+ dates.textContent=by('title').value.trim()+' · '+by('start').value+' – '+by('end').value+' (Philippine time)';
+ root.appendChild(dates);
+ for(const pos of electionDraft.positions){
+  const card=document.createElement('div');card.className='wizard-position';
+  const h=document.createElement('strong');h.textContent=pos.title+' — up to '+pos.maxVotes+' vote(s)';
+  const p=document.createElement('p');p.textContent=pos.candidates.map(c=>c.name).join(' · ');
+  card.append(h,p);root.appendChild(card);
+ }
+}
+function showWizardStep(n){
+ wizardStep=n;
+ for(let k=1;k<=4;k++){
+  by('setupStep'+k).hidden=k!==n;
+  const label=document.querySelector('.wizard-progress [data-step="'+k+'"]');
+  label.classList.toggle('current',k===n);
+  label.classList.toggle('complete',k<n);
+ }
+ by('wizardBack').hidden=n===1;
+ by('wizardNext').hidden=n===4;
+ by('create').hidden=n!==4;
+ by('wizardError').textContent='';
+}
+by('wizardBack').onclick=()=>{
+ if(wizardStep===3){
+  // Preserve candidate inputs before changing stage, but avoid requiring valid
+  // data merely to navigate backward.
+  readWizardCandidates().catch(()=>{});
+ }
+ showWizardStep(Math.max(1,wizardStep-1));
+};
+by('wizardNext').onclick=async()=>{
+ try{
+  if(wizardStep===1){
+   if(!by('title').value.trim())throw Error('Election title is required');
+   const start=guimbaLocalToUtcIso(by('start').value),end=guimbaLocalToUtcIso(by('end').value);
+   if(new Date(end)<=new Date(start))throw Error('Election end must follow election start');
+  }else if(wizardStep===2){
+   readWizardPositions();
+   renderWizardCandidates();
+  }else if(wizardStep===3){
+   await readWizardCandidates();
+   renderWizardReview();
+  }
+  showWizardStep(Math.min(4,wizardStep+1));
+ }catch(e){by('wizardError').textContent=e.message}
+};
+by('create').onclick=async()=>{
+ let payload;
+ try{
+  payload={title:by('title').value.trim(),description:by('electionDescription').value.trim(),
+   startTime:guimbaLocalToUtcIso(by('start').value),
+   endTime:guimbaLocalToUtcIso(by('end').value),
+   config:electionDraft.positions.map(({title,maxVotes,candidates})=>({title,maxVotes,candidates}))};
+  if(!payload.config.length)throw Error('At least one position is required');
+ }catch(e){by('wizardError').textContent=e.message;return}
+ by('create').disabled=true;
+ try{
+  const data=await action('createResult',()=>call('/api/admin/initialize-election','POST',payload));
+  if(data?.success){
+   for(const id of ['keyElection','turnoutId','reportId','candidateElection','lifecycleId'])by(id).value=data.electionId;
+   showLifecycle();showWizardStep(1);
+   by('wizardError').textContent='Election created successfully. Review before issuing custodian keys.';
+  }
+ }finally{by('create').disabled=false}
 };
 async function showCandidates(){
  const id=by('candidateElection').value.trim();
