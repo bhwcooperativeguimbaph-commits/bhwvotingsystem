@@ -8,6 +8,8 @@ async function check(path,method='GET',body=undefined,cookieHeader=undefined){
  try{
   const r=await fetch(base+path,{method,redirect:'manual',
    headers:{...(body===undefined?{'Accept':'application/json'}:{'Content-Type':'application/json'}),
+    ...(!['GET','HEAD','OPTIONS'].includes(method)?{
+     'Origin':new URL(base).origin,'Sec-Fetch-Site':'same-origin'}:{}),
     ...(cookieHeader?{'Cookie':cookieHeader}:{})},
    body:body===undefined?undefined:JSON.stringify(body),
    signal:controller.signal});
