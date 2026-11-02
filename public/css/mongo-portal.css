@@ -55,3 +55,38 @@ small{color:var(--muted)}
 @media (max-width:800px){.portal-grid{grid-template-columns:1fr 1fr}.portal-hero{padding:28px}.portal-nav{justify-content:flex-end}}
 @media (max-width:580px){body{padding:13px!important}.portal-top{align-items:flex-start;flex-direction:column}.portal-nav{justify-content:flex-start}.portal-grid{grid-template-columns:1fr}.portal-hero{padding:24px 20px}section,body>form{padding:16px!important}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+
+/* Screenshot-aligned administrative shell: navy sidebar + emerald controls */
+.admin-workspace{max-width:1500px;display:grid;grid-template-columns:212px minmax(0,1fr);gap:0;min-height:calc(100vh - 140px);margin:0 auto;background:#f7f9fb;border:1px solid #dfe8e6;border-radius:18px;overflow:hidden;box-shadow:0 15px 45px rgba(14,41,39,.08)}
+.admin-sidebar{background:#101d34;color:#f4f8fd;padding:25px 14px;display:flex;flex-direction:column;gap:19px;min-width:0}
+.sidebar-caption{font-size:15px;font-weight:850;padding:8px 10px}
+.sidebar-caption small{display:block;color:#a8bdc9;font-size:10px;letter-spacing:.12em;font-weight:700;margin-top:11px}
+.sidebar-links{display:flex;flex-direction:column;gap:6px}
+.sidebar-links a{display:block;padding:12px 13px;font-weight:650;font-size:13px;color:#d4e3ee;border-radius:9px;text-decoration:none;transition:background .15s,color .15s,transform .15s}
+.sidebar-links a:hover,.sidebar-links a.active{background:#137d53;color:#fff;transform:translateX(2px)}
+.sidebar-logout{margin-top:auto;background:transparent!important;color:#f0a9a6!important;text-align:left;padding-left:13px;border:0!important;min-height:36px!important}
+.sidebar-footer{font-size:11px;color:#a1b2c4;line-height:1.55;margin:0 10px}
+.admin-main{min-width:0;padding:25px clamp(16px,3vw,38px) 38px;background:#f8fafb}
+.admin-main>h1{letter-spacing:-.04em}
+.admin-main>section{max-width:none!important;padding:25px!important;border-radius:15px!important}
+.admin-main section h2{font-size:1.19rem!important}
+.admin-main pre{max-height:180px;overflow:auto}
+.admin-main input,.admin-main textarea,.admin-main select{width:100%}
+.admin-main .portal-meta>div{min-width:145px;box-shadow:0 4px 17px rgba(23,60,47,.035)}
+.admin-main .portal-meta>div strong{color:#115f48}
+.mobile-menu{display:none}
+.wizard-panel{background:#fff}
+.wizard-progress{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin:18px 0 24px}
+.wizard-progress span{padding:11px 9px;font-size:12px;text-align:center;background:#edf3f0;border-radius:9px;color:#657a6e;font-weight:750}
+.wizard-progress span.current{background:#137d53;color:#fff}
+.wizard-progress span.complete{background:#d5eddf;color:#115b42}
+.wizard-position{border:1px solid #dbe7e2;background:#fbfdfc;border-radius:12px;padding:16px;margin:12px 0}
+.wizard-position h4{margin:0 0 12px;font-size:1.07rem}
+.wizard-candidate{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) auto;align-items:end;gap:10px;padding:8px 0;border-bottom:1px solid #e5eeea}
+.wizard-candidate button{width:auto!important;min-width:120px}
+.wizard-controls{display:flex;justify-content:flex-end;gap:10px;margin-top:20px}
+.wizard-controls button{width:auto!important;min-width:140px}
+.admin-main>section>.portal-meta{max-width:none}
+@media (max-width:960px){.admin-workspace{grid-template-columns:180px minmax(0,1fr)}.wizard-candidate{grid-template-columns:1fr 1fr}.wizard-candidate button{grid-column:2;justify-self:end}}
+@media (max-width:720px){.admin-workspace{display:block;overflow:visible}.admin-sidebar{display:none;border-radius:13px}.admin-sidebar.mobile-open{display:flex}.admin-main{padding:13px}.mobile-menu{display:block!important;margin:0 0 15px!important}.wizard-progress{grid-template-columns:1fr 1fr}.wizard-candidate{grid-template-columns:1fr}.wizard-candidate button{grid-column:auto}.sidebar-logout{margin-top:15px}}
+@media (prefers-reduced-motion:reduce){.sidebar-links a{transition:none;transform:none!important}}
