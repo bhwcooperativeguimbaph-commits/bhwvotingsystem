@@ -16,7 +16,7 @@ for(const id of ['region','province','city']){
 assert.match(html,/blank\.value=''/,'Barangay must start without a selected code');
 assert.match(html,/blank\.disabled=true;blank\.selected=true/,'Barangay placeholder must be explicitly selected');
 assert.match(html,/select\.value=''/,'Barangay must stay unselected until picked');
-assert.match(html,/by\('birthdate'\)\.max=dateText\(oldestAllowed\)/,
+assert.match(html,/by\('birthdate'\)\.max=oldestAllowed\.toISOString\(\)\.slice\(0,10\)/,
  'DOB picker must prevent dates younger than 18');
 assert.match(html,/field\.setCustomValidity\(message\)/,'Date validation must be visible');
 assert.match(html,/<dialog id="successDialog"[^>]*aria-labelledby=/,'Accessible success modal missing');
