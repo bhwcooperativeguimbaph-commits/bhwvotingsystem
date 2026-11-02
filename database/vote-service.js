@@ -16,12 +16,17 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
  let accepted=false;
  try{
   await session.withTransaction(async()=>{
-   const member=await db.collection('members').findOne({memberId,status:'Active'},{session,projection:{memberId:1}});
-   if(!member)throw voteError('NOT_AUTHORIZED','Member is not eligible');
    const election=await db.collection('elections').findOne({
     status:'Active',startTime:{$lte:now},endTime:{$gt:now}
    },{session,sort:{createdAt:-1}});
    if(!election)throw voteError('VOTING_CLOSED','Voting is not currently open');
+   if(!(election.eligibilityFrozenAt instanceof Date)||
+      !Number.isInteger(election.eligibleMembersSnapshot))
+    throw voteError('ENCRYPTION_UNAVAILABLE','Election eligibility snapshot is not ready');
+   const member=await db.collection('members').findOne({
+    memberId,status:'Active',createdAt:{$lte:election.eligibilityFrozenAt}
+   },{session,projection:{memberId:1}});
+   if(!member)throw voteError('NOT_AUTHORIZED','Member is not eligible for this election');
    if(election.keyDeliveryConfirmed!==true||election.keyProvisioningState!=='Ready')
     throw voteError('ENCRYPTION_UNAVAILABLE','Both election custodians must confirm receipt of their key shares');
    if(typeof election.ballotPublicKeyPem!=='string'||!election.ballotPublicKeyPem)
