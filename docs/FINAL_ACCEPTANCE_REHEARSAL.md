@@ -82,3 +82,16 @@ Implemented and validated by offline tests and static browser checks:
 - CI now includes member receipt-owner isolation and member ballot confirmation/receipt restoration contracts. **These are offline checks, not evidence of a real camera login or live ballot transaction.**
 
 **Next acceptance**: verify a previously enrolled consenting test member can sign in through the camera and remain signed in after a refresh. If no election is active, the member portal should show the no-current-election state and any prior receipts; this does not require enabling or casting ballots.
+
+
+## Election setup and tally-readiness hardening
+
+The following development controls were added after the member portal work:
+- Candidates can be added/removed only **before key provisioning starts**, not merely before the scheduled start. A key-issuance reservation also refuses an active candidate-edit lease.
+- Authorized staff see an election readiness summary (Setup, Awaiting custodians, Ready, Open, Blocked, Closed, Finalized) with confirmed custodian count, eligible voter count, recorded ballots and available actions; it never exposes key shares.
+- Scheduled date/time inputs are explicitly interpreted as **Asia/Manila UTC+08:00**. Backend election creation rejects dates without an explicit timezone.
+- Before aggregate results are published, the finalization transaction compares accepted participation records against anonymous encrypted ballots. A mismatch stops finalization with an integrity failure.
+- The member directory supports validated, literal searches by full name, member ID or membership area, retaining server-authorized pagination and count results.
+- Activation of inactive members is blocked while an election has a frozen electorate; account deactivation remains available for security reasons. A complete per-member freeze and transaction concurrency audit is still required before production election use.
+
+**Additional acceptance needed:** time-zone boundary test on a non-Manila administrator computer, key-provisioning/candidate-edit concurrency on live Atlas, independent custodian deliveries, intentionally mismatched synthetic ballot/participation counts in an isolated disposable test database, and confirmation that no roster state changes can improperly introduce an eligible voter.
