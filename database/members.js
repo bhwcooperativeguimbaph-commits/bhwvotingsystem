@@ -39,7 +39,7 @@ function validateMember(input,{now=new Date()}={}){
  const birthdate=input?.birthdate||null,gender=input?.gender||null;
  if(input?.address!==undefined&&(!address||address.length>500))
   throw new TypeError('Street or house address is required');
- if(input?.birthdate!==undefined&&!isAdultBirthdate(birthdate,now))
+ if(input?.birthdate!==undefined&&input?.birthdate!==null&&!isAdultBirthdate(birthdate,now))
   throw new TypeError('Member must be at least 18 years old');
  if(input?.gender!==undefined&&!['Male','Female'].includes(gender))
   throw new TypeError('Valid gender selection is required');
