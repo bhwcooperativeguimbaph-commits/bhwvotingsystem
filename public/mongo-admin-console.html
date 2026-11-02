@@ -183,7 +183,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
 <small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
 <p class="warning">Final review: sending key shares freezes the eligible voter count and locks all candidate additions, edits and removals. A lost share cannot be recovered from the database. Do not proceed with a real election; use isolated synthetic staging data only.</p>
-<button id="provision">Send separate custodian shares (test only)</button><pre id="provisionResult">Not provisioned</pre></section>
+<button id="provision">Send separate custodian shares (test only)</button><pre id="provisionResult">Not provisioned</pre>
+<button id="checkCustodianStatus" class="ghost" type="button">Check delivery and custodian confirmations</button>
+<div id="custodianStatus" role="status" aria-live="polite">No election status requested.</div></section>
 <section><h2>Election turnout</h2>
 <label>Election ID<input id="turnoutId" placeholder="ELEC-..."></label>
 <button id="turnout">Load turnout</button><pre id="turnoutResult">Not loaded</pre></section>
@@ -828,6 +830,35 @@ by('addCandidate').onclick=async()=>{
   position:by('candidatePosition').value,name:by('candidateName').value,photo}));
  if(r?.success){by('candidateName').value='';by('candidatePhoto').value='';showCandidates()}
 };
+async function showCustodianStatus(){
+ const id=by('keyElection').value.trim();
+ const root=by('custodianStatus');root.replaceChildren();
+ if(!/^ELEC-[a-f0-9-]{36}$/i.test(id)){
+  root.textContent='Choose a valid election first.';return;
+ }
+ try{
+  const data=await call('/api/superadmin/elections/'+encodeURIComponent(id)+'/custodians');
+  if(!data.success){root.textContent=data.message||'Custodian status unavailable';return}
+  const summary=document.createElement('p');
+  summary.textContent='Key setup: '+data.provisioning+' · Both confirmed: '+(data.bothConfirmed?'Yes':'No');
+  root.appendChild(summary);
+  if(!data.custodians.length){
+   const none=document.createElement('p');none.textContent='No shares have been issued.';
+   root.appendChild(none);return;
+  }
+  for(const entry of data.custodians){
+   const line=document.createElement('p');
+   line.textContent='Custodian '+entry.shareIndex+': '+entry.email+
+    ' · '+entry.status+
+    ' · Provider accepted: '+(entry.providerAcceptedAt?
+     new Date(entry.providerAcceptedAt).toLocaleString('en-PH'):'Unknown')+
+    ' · Confirmed: '+(entry.confirmedAt?
+     new Date(entry.confirmedAt).toLocaleString('en-PH'):'Pending');
+   root.appendChild(line);
+  }
+ }catch(_){root.textContent='Custodian status could not be loaded.'}
+}
+by('checkCustodianStatus').onclick=showCustodianStatus;
 by('provision').onclick=async()=>{
  const id=by('keyElection').value.trim();
  const emails=[by('email1').value.trim().toLowerCase(),by('email2').value.trim().toLowerCase()];
@@ -845,6 +876,7 @@ by('provision').onclick=async()=>{
   if(result?.success){
    by('lifecycleId').value=id;
    await showLifecycle();
+   await showCustodianStatus();
   }
  }finally{button.disabled=false}
 };
