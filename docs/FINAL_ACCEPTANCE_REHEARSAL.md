@@ -95,3 +95,22 @@ The following development controls were added after the member portal work:
 - Activation of inactive members is blocked while an election has a frozen electorate; account deactivation remains available for security reasons. A complete per-member freeze and transaction concurrency audit is still required before production election use.
 
 **Additional acceptance needed:** time-zone boundary test on a non-Manila administrator computer, key-provisioning/candidate-edit concurrency on live Atlas, independent custodian deliveries, intentionally mismatched synthetic ballot/participation counts in an isolated disposable test database, and confirmation that no roster state changes can improperly introduce an eligible voter.
+
+
+## Verified local MongoDB replica-set integration
+
+**PASS (automated, disposable database; no Render/Atlas credentials):** GitHub Actions starts a single-node MongoDB replica set and initializes all indexes in a local `BHWVotingDB_Integration` database. The test generates synthetic members and an election, uses a mocked Brevo delivery to two separate custodians, confirms both shares, records AES-GCM/RSA-encrypted votes and member receipts, then publishes only candidate totals after the election end.
+
+The integration test also proves:
+- a sequential duplicate vote is rejected;
+- two concurrent submissions by the same member produce **exactly one accepted ballot**;
+- no member ID, receipt code, or receipt timestamp is stored in encrypted ballot documents;
+- each member can retrieve only their own acceptance receipt;
+- the frozen eligible count and turnout percentages agree with the accepted ballot count;
+- deliberately inserting an orphan participation record **blocks finalization** until the mismatch is removed;
+- finalized results cannot be disclosed twice; and
+- member session revocation invalidates authentication.
+
+These tests exercise real MongoDB transactions and indexes. They do **not** replace a live staging test with camera login, Brevo deliveries, actual Atlas topology, browser PDF rendering, network interruptions, operational backups or independent election security review.
+
+The latest serialized report is published under `ci-reports/LATEST_TEST_REPORT.json`, including independent `testExit`, `integrationExit`, and `stagingExit` fields.
