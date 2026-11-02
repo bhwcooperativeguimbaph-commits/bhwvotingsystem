@@ -9,7 +9,17 @@ h1{font-size:1.7rem}h2{font-size:1.2rem}
 section{background:#fff;border:1px solid #d7e0e9;border-radius:10px;padding:18px;margin:18px 0}
 label{display:block;font-weight:600;margin:11px 0}
 input,textarea,button{box-sizing:border-box;font:inherit;padding:10px;width:100%;border-radius:6px}
-input,textarea{border:1px solid #9aabc0;margin-top:5px}
+input,textarea,select{border:1px solid #a4bcb1;margin-top:5px;background:#fff;color:#152d2e;min-height:44px;outline-offset:2px}
+input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid #278c65}
+input[type="datetime-local"]{min-width:0;font-variant-numeric:tabular-nums}
+.form-status{color:#125c44;font-weight:650}
+.member-row-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+.member-row-actions .member-icon-button{width:40px!important;height:40px!important;min-height:40px!important;padding:9px!important;margin:0!important;display:grid;place-items:center;border-radius:11px;background:#ecf5ef;color:#14563e;border:1px solid #cbded2}
+.member-row-actions .member-icon-button svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.member-row-actions .member-icon-button.danger{background:#fff2f0;color:#aa3934;border-color:#eed1cb}
+.member-row-actions .member-icon-button:disabled{opacity:.4}
+.wizard-key-custodians{background:#eff8f2;padding:18px 20px;border-radius:14px;margin-top:18px;border:1px solid #cfdfd3}
+.wizard-key-custodians label{min-width:0}
 button{background:#154b82;border:0;color:white;cursor:pointer;margin-top:10px}
 button:disabled{opacity:.5}
 small{display:block;color:#4e6177}
@@ -24,7 +34,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
   <a href="#view-dashboard" class="active" data-admin-nav>Dashboard</a>
   <a href="#view-registration" data-admin-nav>Registration</a>
   <a href="#view-setup" data-admin-nav>Setup election</a>
-  <a href="#view-history" data-admin-nav>History &amp; reports</a>
+  <a href="#view-history" data-admin-nav>Election results &amp; reports</a>
   <a href="#view-members" data-admin-nav>Members table</a>
   <a href="#view-audit" data-admin-nav>Audit logs</a>
   <a href="#view-users" id="usersAndRolesLink" data-admin-nav hidden>Users &amp; roles</a>
@@ -91,7 +101,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Initial secure password (16+ characters)<input id="newAdminPassword" type="password" minlength="16" autocomplete="new-password"></label></div>
 <button id="createAdmin">Create administrator account</button>
 <button id="refreshAdmins" class="ghost">Refresh staff directory</button>
-<div id="adminDirectory" aria-live="polite"></div><pre id="adminResult">No staff changes.</pre>
+<div id="adminDirectory" aria-live="polite"></div><p id="adminResult" class="form-status" role="status" aria-live="polite"></p>
 <details id="superadminRecovery" class="account-recovery-settings">
  <summary>Change Super Admin recovery / OTP email</summary>
  <p>For account security, confirm one code sent to the existing email and a different code sent to the new email. The change logs out all sessions.</p>
@@ -126,7 +136,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <p>Build a new election in four steps. Positions and vote limits are fully configurable.</p>
 <div class="wizard-progress" role="status" aria-live="polite">
  <span data-step="1" class="current">1. Details</span><span data-step="2">2. Positions</span>
- <span data-step="3">3. Candidates</span><span data-step="4">4. Review</span>
+ <span data-step="3">3. Candidates</span><span data-step="4">4. Review &amp; custodians</span>
 </div>
 <div id="setupStep1" class="wizard-step">
  <label>Election title <input id="title" maxlength="150" required placeholder="e.g. 2027 Cooperative Board Election"></label>
@@ -147,12 +157,20 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div id="setupStep4" class="wizard-step" hidden>
  <h3>Review before creation</h3>
  <div id="wizardReview" aria-live="polite"></div>
- <p class="warning">Once key custodian provisioning starts, candidate configuration is locked.</p>
+ <div class="wizard-key-custodians" id="wizardCustodians">
+  <h3>Key custodians</h3>
+  <p>Enter two different email addresses. Each custodian receives a separate private share after election creation.</p>
+  <div class="cols">
+   <label>Custodian 1 email<input id="wizardCustodian1" type="email" autocomplete="off" maxlength="254" placeholder="First custodian email" required></label>
+   <label>Custodian 2 email<input id="wizardCustodian2" type="email" autocomplete="off" maxlength="254" placeholder="Second custodian email" required></label>
+  </div>
+  <p class="warning">Issuing shares freezes eligibility and candidate changes. Lost shares cannot be retrieved.</p>
+ </div>
 </div>
 <p id="wizardError" class="warning" role="alert" aria-live="polite"></p>
 <div class="wizard-controls"><button id="wizardBack" type="button" class="ghost" hidden>Back</button>
-<button id="wizardNext" type="button">Continue</button><button id="create" type="button" hidden>Create election</button></div>
-<pre id="createResult">No election created.</pre>
+<button id="wizardNext" type="button">Continue</button><button id="create" type="button" hidden>Create election &amp; send custodian shares</button></div>
+<p id="createResult" hidden role="status" aria-live="polite"></p>
 </section>
 <section><h2>Candidate management (before election starts)</h2>
 <label>Election ID<input id="candidateElection" placeholder="ELEC-..."></label>
