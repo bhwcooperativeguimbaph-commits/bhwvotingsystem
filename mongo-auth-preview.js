@@ -12,13 +12,13 @@ const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
 const {beginAdminLogin,completeAdminLogin}=require('./database/admin-auth');
 const {createElection}=require('./database/elections');
 const {sendBrevoEmail}=require('./services/brevo-email');
+const {issueFaceChallenge,consumeFaceChallenge}=require('./database/face-challenges');
 const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',1);
 // Allow one resized 500 KB JPG/PNG candidate image as base64 while rejecting oversized payloads.
 app.use(express.json({limit:'850kb'}));
-const challenges=new Map(),attempts=new Map();
-const challengeTTL=120000;
+const attempts=new Map();
 function decodeStoredTemplate(value){return decryptDescriptor(value,keyFromEnv());}
 function token(req){return /(?:^|; )bhw_session=([0-9a-f]{64})(?:;|$)/.exec(req.headers.cookie||'')?.[1]||null}
 function cookie(res,value,maxAge){res.cookie('bhw_session',value,{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge});}
@@ -113,15 +113,12 @@ app.get('/api/election-info',async(req,res)=>{
  try{const data=await getPublicElectionInfo(connection.db);return res.json({...data,voteSubmissionEnabled:process.env.ENABLE_MONGODB_VOTE_TEST==='true'})}
  catch(_){return res.status(503).json({active:false,error:'Election information unavailable'})}
 });
-app.post('/api/face-challenge',rateLimit,(req,res)=>{
- const now=Date.now();
- for(const [id,c]of challenges)if(c.expires<=now)challenges.delete(id);
- if(challenges.size>=1000)return res.status(503).json({success:false,message:'Challenge service busy'});
- const id=crypto.randomBytes(24).toString('hex');
- const actions=crypto.randomInt(2)===0?['turn-left','turn-right','blink']:['turn-right','turn-left','blink'];
- challenges.set(id,{actions,expires:now+challengeTTL,ip:req.ip});
- res.set('Cache-Control','no-store');
- res.json({success:true,challengeId:id,actions,expiresInSeconds:120});
+app.post('/api/face-challenge',rateLimit,async(req,res)=>{
+ try{
+  const challenge=await issueFaceChallenge(connection.db,req.ip);
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...challenge});
+ }catch(_){return res.status(503).json({success:false,message:'Facial challenge temporarily unavailable'})}
 });
 app.post('/api/face-prescan',rateLimit,async(req,res)=>{
  if(!validDescriptor(req.body?.descriptor))return res.status(400).json({success:false,message:'Invalid face data'});
@@ -134,11 +131,11 @@ app.post('/api/face-prescan',rateLimit,async(req,res)=>{
 });
 app.post('/api/login-face',rateLimit,async(req,res)=>{
  if(!validDescriptor(req.body?.descriptor))return res.status(400).json({success:false,message:'Invalid face data'});
- const id=req.body?.challengeId,c=typeof id==='string'?challenges.get(id):null;
- if(c)challenges.delete(id);
- if(!c||c.expires<=Date.now()||c.ip!==req.ip||!Array.isArray(req.body?.completedActions)||
-  JSON.stringify(req.body.completedActions)!==JSON.stringify(c.actions))
-  return res.status(401).json({success:false,message:'Facial challenge expired or incomplete'});
+ let verified=false;
+ try{verified=await consumeFaceChallenge(connection.db,{challengeId:req.body?.challengeId,
+  completedActions:req.body?.completedActions,ip:req.ip})}
+ catch(_){return res.status(503).json({success:false,message:'Facial challenge verification unavailable'})}
+ if(!verified)return res.status(401).json({success:false,message:'Facial challenge expired or incomplete'});
  try{
   const found=await findFaceMatch(connection.db,req.body.descriptor,decodeStoredTemplate);
   if(found.ambiguous)return res.status(409).json({success:false,message:'Ambiguous face match'});
@@ -236,13 +233,11 @@ async function superadminOnly(req,res,next){
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
 app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
-  const challengeId=req.body?.challengeId;
-  const ch=typeof challengeId==='string'?challenges.get(challengeId):null;
-  if(ch)challenges.delete(challengeId);
-  if(!ch||ch.expires<=Date.now()||ch.ip!==req.ip||
-     !Array.isArray(req.body?.completedActions)||
-     JSON.stringify(req.body.completedActions)!==JSON.stringify(ch.actions))
-    return res.status(401).json({success:false,message:'Enrollment facial challenge expired or incomplete'});
+  let verified=false;
+  try{verified=await consumeFaceChallenge(connection.db,{
+    challengeId:req.body?.challengeId,completedActions:req.body?.completedActions,ip:req.ip})}
+  catch(_){return res.status(503).json({success:false,message:'Enrollment facial challenge unavailable'})}
+  if(!verified)return res.status(401).json({success:false,message:'Enrollment facial challenge expired or incomplete'});
   const {registerMemberWithFace}=require('./database/member-enrollment');
   const {verifyGuimbaLocation}=require('./database/guimba-location');
   try{
