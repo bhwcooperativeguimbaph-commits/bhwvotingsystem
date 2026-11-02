@@ -24,6 +24,8 @@ const indexSpecs = {
   biometricRegistrations: [[{biometricId:1},{unique:true}], [{memberId:1},{sparse:true}]],
   keyCustodians: [[{electionId:1,email:1},{unique:true}]],
   finalReports: [[{electionId:1},{unique:true}]],
+  resultAnnouncements: [[{electionId:1},{unique:true}], [{notificationId:1},{unique:true}], [{createdAt:-1},{}]],
+  announcementReads: [[{notificationId:1,memberId:1},{unique:true}]],
   memberInbox: [[{notificationId:1},{unique:true}], [{memberId:1,createdAt:-1},{}]],
   auditLogs: [[{createdAt:-1},{}]],
   receiptCodes: [[{receiptCode:1},{unique:true}],[{electionId:1,memberId:1},{unique:true}]]
