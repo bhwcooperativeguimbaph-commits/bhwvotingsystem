@@ -4,6 +4,9 @@ const {isAdultBirthdate,validateMember}=require('../database/members');
 const at=new Date('2026-11-02T12:00:00Z');
 assert.equal(isAdultBirthdate('2008-11-02',at),true,'Exact 18th birthday is allowed');
 assert.equal(isAdultBirthdate('2008-11-03',at),false,'One day below 18 is denied');
+assert.equal(isAdultBirthdate('2008-11-02',new Date('2026-11-01T16:05:00Z')),true,
+ 'Philippine midnight must use November 2 even when server UTC is November 1');
+assert.equal(isAdultBirthdate('2008-11-03',new Date('2026-11-01T16:05:00Z')),false);
 assert.equal(isAdultBirthdate('2007-09-17',at),true);
 assert.equal(isAdultBirthdate('2008-02-30',at),false);
 assert.equal(isAdultBirthdate('2026-11-03',at),false);
