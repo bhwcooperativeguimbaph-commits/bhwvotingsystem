@@ -13,6 +13,14 @@ small{color:#52657a;display:block}
 #status{white-space:pre-wrap;line-height:1.5}
 .warning{color:#903e22}
 #face-direction-cue{font-weight:700;font-size:1.2rem;margin-top:8px}
+.age-help{font-size:.9rem;color:#9b2937;margin:5px 0 0;font-weight:700}
+#successDialog{border:0;border-radius:19px;padding:30px;max-width:min(440px,calc(100vw - 28px));width:100%;box-shadow:0 22px 80px #12382b55;color:#20384b;text-align:center}
+#successDialog::backdrop{background:rgba(8,25,20,.64)}
+.success-symbol{margin:auto;width:64px;height:64px;border-radius:50%;background:#d9f5e6;color:#14774c;font-size:40px;display:grid;place-items:center}
+#successDialog h2{margin:16px 0 7px;font-size:1.5rem}
+#successDetail{font-size:.96rem;line-height:1.65;overflow-wrap:anywhere}
+#successDialog button{max-width:190px;margin-top:18px}
+
 .hidden{display:none}
 </style>
 <header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
@@ -21,14 +29,17 @@ small{color:#52657a;display:block}
 <p class="warning">Restricted to authorized administrators. Register synthetic test accounts only until privacy and election security reviews are complete.</p>
 <p><a href="/admin-console">Back to admin console</a></p>
 <form id="register">
-<label>Member full name<input id="name" required maxlength="100" autocomplete="off"></label>
+<label>First name <input id="firstName" required maxlength="60" autocomplete="off" placeholder="Required"></label>
+<label>Middle name <small>(optional)</small><input id="middleName" maxlength="60" autocomplete="off" placeholder="Optional"></label>
+<label>Last name <input id="lastName" required maxlength="60" autocomplete="off" placeholder="Required"></label>
 <label>Membership area<input id="area" required maxlength="100" autocomplete="off"></label>
 <label>Street / house / sitio address<input id="address" required maxlength="500" autocomplete="off"></label>
-<label>Date of birth<input id="birthdate" required type="date"></label>
+<label>Date of birth (18 years old or above)<input id="birthdate" required type="date" aria-describedby="ageHelp"></label>
+<p id="ageHelp" class="age-help" role="status" aria-live="polite"></p>
 <label>Gender<select id="gender" required><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option></select></label>
-<label>Region<select id="region" required></select></label>
-<label>Province<select id="province" required></select></label>
-<label>City / Municipality<select id="city" required></select></label>
+<label>Region<select id="region" required disabled aria-label="Fixed Guimba region"></select></label>
+<label>Province<select id="province" required disabled aria-label="Fixed Guimba province"></select></label>
+<label>City / Municipality<select id="city" required disabled aria-label="Fixed Guimba city"></select></label>
 <label>Guimba barangay<select id="barangay" required></select></label>
 <label><input type="checkbox" id="consent" required style="width:auto"> The test participant has consented to biometric capture and encrypted storage.</label>
 </form>
@@ -39,6 +50,12 @@ small{color:#52657a;display:block}
 <button id="camera">1. Load face models and start camera</button>
 <button id="enroll" disabled>2. Complete facial challenge and register</button>
 <p id="status" role="status" aria-live="polite">Camera is off.</p>
+<dialog id="successDialog" aria-labelledby="successTitle" aria-describedby="successDetail">
+ <div class="success-symbol" aria-hidden="true">✓</div>
+ <h2 id="successTitle">Member successfully registered!</h2>
+ <p id="successDetail"></p>
+ <button type="button" id="closeSuccess">Done</button>
+</dialog>
 <script defer src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <script defer src="/js/mongo-face-challenge.js"></script>
 <script>
@@ -51,17 +68,58 @@ async function api(url,options={}){
  if(!r.ok||d.success===false)throw new Error(d.message||'Request unavailable');
  return d;
 }
-const fill=(id,rows)=>{const select=by(id);select.replaceChildren();
- for(const row of rows){const option=document.createElement('option');option.value=row.code;option.textContent=row.name;select.appendChild(option)}
- if(!rows.length)throw Error('Geographic reference data unavailable');
+const fill=(id,rows,{placeholder=false}={})=>{
+ const select=by(id);select.replaceChildren();
+ if(placeholder){
+  const blank=document.createElement('option');
+  blank.value='';blank.textContent='— Select your barangay —';
+  blank.disabled=true;blank.selected=true;select.appendChild(blank);
+ }
+ for(const row of rows){
+  const option=document.createElement('option');
+  option.value=row.code;option.textContent=row.name;select.appendChild(option);
+ }
+ if(!rows.length)throw new Error('Guimba reference data unavailable');
+ if(placeholder)select.value='';
  return select.value;
 };
 async function geography(){
  const r=fill('region',await api('/api/geo/regions'));
  const p=fill('province',await api('/api/geo/provinces/'+encodeURIComponent(r)));
  const c=fill('city',await api('/api/geo/cities/'+encodeURIComponent(p)));
- fill('barangay',await api('/api/geo/barangays/'+encodeURIComponent(c)));
+ fill('barangay',await api('/api/geo/barangays/'+encodeURIComponent(c)),{placeholder:true});
 }
+const dateText=date=>[
+ date.getFullYear(),String(date.getMonth()+1).padStart(2,'0'),
+ String(date.getDate()).padStart(2,'0')
+].join('-');
+const today=new Date();
+const oldestAllowed=new Date(today.getFullYear()-18,today.getMonth(),today.getDate());
+by('birthdate').max=dateText(oldestAllowed);
+function validateAge(){
+ const field=by('birthdate'),value=field.value;
+ let message='';
+ if(value){
+  const parts=value.split('-').map(Number);
+  const b=new Date(parts[0],parts[1]-1,parts[2]);
+  if(parts.length!==3||b.getFullYear()!==parts[0]||b.getMonth()+1!==parts[1]||
+     b.getDate()!==parts[2]||b>oldestAllowed)
+   message='Member must be at least 18 years old.';
+ }
+ field.setCustomValidity(message);
+ by('ageHelp').textContent=message;
+ return !message;
+}
+function refreshEnrollmentButton(){
+ by('enroll').disabled=busy||!started||!validateAge();
+}
+for(const id of ['firstName','lastName','area','address']){
+ by(id).addEventListener('input',()=>by(id).setCustomValidity(''));
+}
+by('birthdate').addEventListener('input',refreshEnrollmentButton);
+by('birthdate').addEventListener('change',refreshEnrollmentButton);
+by('closeSuccess').onclick=()=>by('successDialog').close();
+
 by('camera').onclick=async()=>{
  if(busy||started)return;busy=true;by('camera').disabled=true;by('status').textContent='Loading local face models...';
  try{
@@ -70,36 +128,45 @@ by('camera').onclick=async()=>{
    faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
    faceapi.nets.faceRecognitionNet.loadFromUri('/models')]);
   video.srcObject=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:640,height:480}});
-  await video.play();started=true;by('enroll').disabled=false;
+  await video.play();started=true;refreshEnrollmentButton();
   by('status').textContent='Camera ready. Fill the fields and begin the facial challenge.';
  }catch(e){by('status').textContent=e.message||'Camera/model initialization failed';by('camera').disabled=false}
  finally{busy=false}
 };
 by('enroll').onclick=async()=>{
  if(busy||!started)return;
+ if(!validateAge())return;
+ for(const id of ['firstName','lastName','area','address']){
+  const field=by(id);
+  field.setCustomValidity(field.value.trim()?'':'This field is required.');
+ }
  if(!by('register').reportValidity())return;
- busy=true;by('enroll').disabled=true;by('status').textContent='Complete the head-turn and blink actions shown below.';
+ busy=true;refreshEnrollmentButton();by('status').textContent='Complete the head-turn and blink actions shown below.';
  try{
   const verification=await window.runBHWFaceChallenge(video);
   const detection=await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
   if(!detection)throw new Error('No face detected after the challenge');
   const result=await api('/api/admin/register-member',{
    method:'POST',headers:{'Content-Type':'application/json'},
-   body:JSON.stringify({fullName:by('name').value,area:by('area').value,
+   body:JSON.stringify({firstName:by('firstName').value.trim(),
+    middleName:by('middleName').value.trim(),lastName:by('lastName').value.trim(),area:by('area').value.trim(),
     address:by('address').value,birthdate:by('birthdate').value,gender:by('gender').value,
     consent:by('consent').checked,
     location:{country:'Philippines',regionCode:by('region').value,
      provinceCode:by('province').value,province:'Nueva Ecija',
      cityCode:by('city').value,city:'Guimba',barangayCode:by('barangay').value},
     descriptor:Array.from(detection.descriptor),...verification})});
-  by('status').textContent='Test member enrolled: '+result.memberId;
+  by('status').textContent='Member successfully registered: '+result.memberId;
+  by('successDetail').textContent='Registration complete. Member ID: '+result.memberId;
+  by('successDialog').showModal();
   video.srcObject?.getTracks().forEach(t=>t.stop());video.srcObject=null;started=false;
+  by('register').reset();
+  by('barangay').value='';
   by('camera').disabled=false;
  }catch(e){by('status').textContent=e.message||'Enrollment failed'}
- finally{busy=false;by('enroll').disabled=!started}
+ finally{busy=false;refreshEnrollmentButton()}
 };
 window.addEventListener('pagehide',()=>video.srcObject?.getTracks().forEach(t=>t.stop()));
-by('birthdate').max=new Date().toISOString().slice(0,10);
 geography().catch(e=>{by('status').textContent=e.message||'Guimba reference data unavailable'});
 </script>
 <footer class="portal-footer">BHW Guimba Voting System · Confidential information is restricted by role · Rehearsal use until accepted.</footer>
