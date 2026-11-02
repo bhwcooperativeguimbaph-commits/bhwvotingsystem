@@ -468,6 +468,41 @@ app.patch('/api/admin/members/:memberId',staffOnly,async(req,res)=>{
   return res.status(503).json({success:false,message:'Member profile update unavailable'});
  }
 });
+app.post('/api/admin/members/:memberId/biometrics',staffOnly,async(req,res)=>{
+ const {updateMemberBiometrics}=require('./database/member-biometric-replacement');
+ if(typeof req.body?.reason!=='string'||req.body.reason.trim().length<12||
+    req.body.reason.trim().length>500)
+  return res.status(400).json({success:false,message:'A reason of 12–500 characters is required'});
+ if(!validDescriptor(req.body?.descriptor))
+  return res.status(400).json({success:false,message:'Valid biometric descriptor required'});
+ let verified=false;
+ try{
+  verified=await consumeFaceChallenge(connection.db,{
+   challengeId:req.body?.challengeId,completedActions:req.body?.completedActions,
+   binding:faceBinding(req)
+  });
+ }catch(_){return res.status(503).json({success:false,message:'Biometric challenge unavailable'})}
+ clearFaceBinding(res);
+ if(!verified)return res.status(401).json({success:false,message:'Facial challenge expired or incomplete'});
+ try{
+  const result=await updateMemberBiometrics(connection,{
+   memberId:req.params.memberId,descriptor:req.body.descriptor,
+   reason:req.body.reason,operatorId:req.staff?.accountId,key:keyFromEnv()
+  });
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...result});
+ }catch(e){
+  const codes={REASON_REQUIRED:[400,'Reason is required'],
+   INVALID_BIOMETRIC:[400,'Invalid biometric data'],
+   MEMBER_NOT_FOUND:[404,'Active member with biometric enrollment not found'],
+   ENROLLMENT_BUSY:[423,'Another biometric update is in progress'],
+   ELECTORATE_FROZEN:[409,'Cannot replace a biometric template during a frozen election'],
+   DUPLICATE_BIOMETRIC:[409,'This face is enrolled to another member'],
+   UNREADABLE_BIOMETRIC:[503,'Biometric verification is unavailable']};
+  const [status,message]=codes[e.code]||[503,'Biometric update unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
 app.patch('/api/admin/members/:memberId/status',staffOnly,async(req,res)=>{
  const memberId=req.params.memberId,status=req.body?.status;
  if(!/^MEM-[0-9a-f-]{36}$/i.test(memberId)||!['Active','Inactive'].includes(status))
