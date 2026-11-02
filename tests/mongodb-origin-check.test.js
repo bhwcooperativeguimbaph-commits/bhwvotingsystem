@@ -31,4 +31,10 @@ const res={status(code){denied=code;return this},json(data){assert.equal(data.su
 originCheck(good,res,next);assert.equal(nextCalled,true);
 nextCalled=false;originCheck(request({origin:null}),res,next);
 assert.equal(nextCalled,false);assert.equal(denied,403);
+const fs=require('node:fs'),path=require('node:path');
+for(const script of ['check-staging-deployment.js','smoke-mongo-preview.js']){
+ const content=fs.readFileSync(path.join(__dirname,'..','scripts',script),'utf8');
+ assert.match(content,/'Origin':new URL\(base\)\.origin/,
+  'Staging mutation probes must send the same-origin browser header in '+script);
+}
 console.log('PASS: Unsafe requests require exact same-origin Origin and safe Fetch Metadata');
