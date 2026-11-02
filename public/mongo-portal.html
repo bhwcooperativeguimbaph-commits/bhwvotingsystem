@@ -1,112 +1,44 @@
 <!doctype html>
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>BHW Guimba Voting System | Cooperative Election Portal</title>
-<meta name="description" content="BHW Guimba election management, protected member access and encrypted voting.">
+<title>BHW Guimba Voting System | Secure Access</title>
+<meta name="description" content="Sign in securely to the BHW Guimba Cooperative Voting System.">
 <link rel="stylesheet" href="/css/mongo-portal.css">
-</head><body class="public-home">
-<header class="portal-top">
-<a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · Election Management</small></span></a>
-<nav class="portal-nav" aria-label="Main navigation">
-<a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Administration</a><a href="/custodian-confirm">Key custodians</a><a href="/results">Results</a>
-</nav>
+</head><body class="public-home access-home">
+<header class="portal-top access-header">
+ <a class="portal-brand" href="/" aria-label="BHW Guimba Voting System home">
+  <span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span>
+  <span>BHW Guimba Voting System<small>Guimba, Nueva Ecija</small></span>
+ </a>
 </header>
-<main>
-<div class="portal-hero home-hero">
-<div class="home-hero-copy">
-<span class="status-chip">Guimba BHW Cooperative • Secure election portal</span>
-<h1>Your voice.<br><em>Your vote.</em><br>Our future.</h1>
-<p>A clear, convenient way to participate in cooperative elections, with identity verification, confidential ballots and accessible election information.</p>
-<div class="portal-actions">
- <a id="primaryLink" href="/member-preview">Enter Member Portal <span aria-hidden="true">→</span></a>
- <a class="secondary" href="/admin-auth-preview">Administrator Portal</a>
-</div>
-<p class="home-hero-footnote">Two secure portals. One trusted cooperative election experience.</p>
-</div>
-<div class="home-hero-art" aria-hidden="true">
- <div class="floating-note note-one">✓ Identity verified <small>Protected participation</small></div>
- <div class="home-vote-card">
-  <div class="home-vote-logo">G</div>
-  <span>GUIMBA BHW MULTIPURPOSE COOPERATIVE</span>
-  <h2>Every vote<br>matters.</h2>
-  <p>Secure. Private. Accountable.</p>
-  <div class="vote-card-bottom"><span>YOUR VOICE • YOUR FUTURE</span><span>↗</span></div>
+<main class="access-landing">
+ <div class="portal-hero home-hero">
+  <div class="home-hero-copy">
+   <span class="status-chip">BHW Guimba Cooperative</span>
+   <h1>Your voice.<br><em>Your vote.</em><br>Our future.</h1>
+   <p>A secure and convenient way for members to take part in cooperative elections.</p>
+   <div class="portal-actions">
+    <a id="primaryLink" href="/member-preview">Member login <span aria-hidden="true">→</span></a>
+    <a class="secondary" href="/admin-auth-preview">Administrator login</a>
+   </div>
+   <p class="home-hero-footnote">Choose your access portal to continue.</p>
+  </div>
+  <div class="home-hero-art" aria-hidden="true">
+   <div class="home-vote-card">
+    <div class="home-vote-logo">G</div>
+    <span>GUIMBA BHW MULTIPURPOSE COOPERATIVE</span>
+    <h2>Every vote<br>matters.</h2>
+    <p>Secure. Private. Accountable.</p>
+    <div class="vote-card-bottom"><span>YOUR VOICE • YOUR FUTURE</span><span>✓</span></div>
+   </div>
+  </div>
  </div>
- <div class="floating-note note-two">▣ Ballot submitted <small>Encrypted confirmation</small></div>
-</div>
-</div>
-<div class="portal-meta" aria-label="Platform status">
-<div><small>Session</small><strong id="roleStatus">Checking…</strong></div>
-<div><small>Current election</small><strong id="electionStatus">Checking…</strong></div>
-<div><small>Location</small><strong>Guimba, Nueva Ecija</strong></div>
-</div>
-<div class="portal-grid home-portal-grid">
-<article class="portal-card portal-card-member"><span class="symbol" aria-hidden="true">◉</span><h2>Member Portal</h2>
-<p>Verify your identity, view your eligible ballot, receive election announcements and download your receipt.</p>
-<a href="/member-preview">Go to Member Portal →</a></article>
-<article class="portal-card portal-card-admin"><span class="symbol" aria-hidden="true">▣</span><h2>Admin Portal</h2>
-<p>Manage membership, register biometric identities, configure elections and monitor verified analytics.</p>
-<a id="adminLink" href="/admin-auth-preview">Go to Admin Portal →</a><a href="/admin-password-recovery" class="recovery-link">Recover admin account</a></article>
-<article class="portal-card"><span class="symbol" aria-hidden="true">⌑</span><h2>Key Custodian</h2>
-<p>Independently confirm receipt of your designated cryptographic election key share.</p>
-<a href="/custodian-confirm">Confirm key receipt →</a></article>
-<article class="portal-card"><span class="symbol" aria-hidden="true">▥</span><h2>Published Reports</h2>
-<p>Browse finalized aggregate election reports, confirm report integrity and export verified results.</p>
-<a href="/results">View election results →</a></article>
-</div>
-<div class="portal-announcement" role="note"><strong>System under development.</strong>
-Actual vote submission is disabled unless specifically enabled in a controlled test environment. Public availability does not mean the platform is approved for a real election.</div>
-<section aria-labelledby="electionTitle">
-<h2 id="electionTitle">Election information</h2>
-<p id="electionDetail">Checking the current election schedule…</p>
-<div id="electionPositions"></div>
-<p id="resultsArea"></p>
-<button class="ghost" id="refresh" type="button" style="max-width:260px">Refresh election status</button>
-</section>
 </main>
-<footer class="portal-footer">BHW Guimba Voting System · MongoDB Atlas and Brevo transactional notifications · Rehearsal environment. Confidential ballots must never be shared or displayed on public dashboards.</footer>
+<footer class="portal-footer">© BHW Guimba Cooperative Voting System · Authorized access only.</footer>
 <script>
 'use strict';
-const el=id=>document.getElementById(id);
-async function api(url){
- const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
- try{
-  const response=await fetch(url,{headers:{Accept:'application/json'},credentials:'same-origin',signal:controller.signal});
-  const data=await response.json();
-  if(!response.ok||data.error)throw Error('Information unavailable');
-  return data;
- }finally{clearTimeout(timer)}
-}
-async function loadSession(){
- try{
-  const session=await api('/api/session');
-  el('roleStatus').textContent=session.role==='superadmin'?'Super Admin':session.role==='member'?'Member':'Signed in';
-  if(session.role==='superadmin'){
-   el('primaryLink').href='/admin-console';el('primaryLink').textContent='Open admin console';
-   el('adminLink').href='/admin-console';el('adminLink').textContent='Open administration console →';
-  }
-  if(session.role==='member'){el('primaryLink').href='/member-preview';el('primaryLink').textContent='Continue to my ballot'}
- }catch(_){el('roleStatus').textContent='Not signed in'}
-}
-async function loadElection(){
- const container=el('electionPositions');container.replaceChildren();
- try{
-  const info=await api('/api/election-info');
-  if(!info.active){
-   el('electionStatus').textContent='No active election';
-   el('electionDetail').textContent='No active election has been published. Please check again later.';
-   return;
-  }
-  const start=new Date(info.startTime),end=new Date(info.endTime),now=new Date();
-  el('electionStatus').textContent=now<start?'Scheduled':now<end?'In progress':'Closed';
-  el('electionDetail').textContent=info.title+' · '+start.toLocaleString()+' – '+end.toLocaleString();
-  for(const position of info.config||[]){
-   const p=document.createElement('p'),names=(position.candidates||[]).map(c=>c.name).join(', ');
-   p.textContent=position.title+' (select up to '+position.maxVotes+'): '+names;
-   container.appendChild(p);
-  }
- }catch(_){el('electionStatus').textContent='Unavailable';el('electionDetail').textContent='Election data could not be loaded.'}
-}
-el('refresh').onclick=loadElection;
-loadSession();loadElection();
-</script></body></html>
+// This page is an access gateway; it never requests private sessions, ballots
+// or election metadata. Election details appear only after sign-in.
+document.querySelector('#primaryLink')?.addEventListener('click',()=>{});
+</script>
+</body></html>
