@@ -13,7 +13,7 @@ const indexSpecs = {
     [{ballotId:1},{unique:true}],
     [{electionId:1,status:1}]
   ],
-  voterParticipation: [[{electionId:1,memberId:1},{unique:true}], [{receiptCode:1},{unique:true}]],
+  voterParticipation: [[{electionId:1,memberId:1},{unique:true}], [{receiptCode:1},{unique:true}], [{memberId:1,createdAt:-1},{}]],
   authSessions: [[{tokenHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   faceChallenges: [[{challengeHash:1},{unique:true}], [{expiresAt:1},{expireAfterSeconds:0}]],
   enrollmentLocks: [[{expiresAt:1},{expireAfterSeconds:0}]],
