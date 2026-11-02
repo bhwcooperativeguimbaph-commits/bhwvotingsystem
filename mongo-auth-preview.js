@@ -443,6 +443,7 @@ app.get('/api/admin/logs',staffOnly,async(req,res)=>{
   const [logs,total]=await Promise.all([
    db.collection('auditLogs').find(filter,{projection:{
     _id:0,eventId:1,actorRole:1,action:1,electionId:1,memberId:1,
+    candidateId:1,targetAdminId:1,outcome:1,
     operatorId:1,actorId:1,reason:1,createdAt:1},
     sort:{createdAt:-1},skip:(page-1)*perPage,limit:perPage}).toArray(),
    db.collection('auditLogs').countDocuments(filter)
