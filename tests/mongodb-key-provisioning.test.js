@@ -12,6 +12,10 @@ async function main(){
   if(name==='elections')return {
    findOne:async()=>e,
    updateOne:async(q,u)=>{
+    if(q.keyProvisioningState?.$exists===false){
+     assert.ok(q.$or?.some(x=>x.candidateEditLeaseUntil?.$exists===false));
+     assert.ok(q.$or?.some(x=>x.candidateEditLeaseUntil?.$lte instanceof Date));
+    }
     if(q.keyProvisioningState==='Initializing'&&e.keyProvisioningState!=='Initializing')return {modifiedCount:0};
     if(q.keyProvisioningState?.$exists===false&&e.keyProvisioningState!==undefined)return {modifiedCount:0};
     Object.assign(e,u.$set||{});
