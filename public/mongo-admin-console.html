@@ -17,12 +17,30 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 .warning{color:#9a3d19;font-weight:700}
 .cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}
 </style>
-<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
+<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header><div class="admin-workspace">
+<aside class="admin-sidebar" id="adminSidebar" aria-label="Administration sections">
+ <div class="sidebar-caption">ADMIN PORTAL <small>MANAGEMENT</small></div>
+ <nav class="sidebar-links" aria-label="Administrative navigation">
+  <a href="#adminDashboard" class="active" data-admin-nav>Dashboard</a>
+  <a href="/member-enrollment-preview">Registration</a>
+  <a href="/member-enrollment-preview#capture">Test biometrics</a>
+  <a href="#electionSetupSection" data-admin-nav>Setup election</a>
+  <a href="#historyReportsSection" data-admin-nav>History &amp; reports</a>
+  <a href="#membersSection" data-admin-nav>Members table</a>
+  <a href="#auditSection" data-admin-nav>Audit logs</a>
+  <a href="#adminManagement" id="usersAndRolesLink" data-admin-nav hidden>Users &amp; roles</a>
+ </nav>
+ <button type="button" id="sidebarLogout" class="sidebar-logout">Log out</button>
+ <p class="sidebar-footer">BHW Guimba<br>Election management</p>
+</aside>
+<main id="adminContent" class="admin-main">
+<button id="mobileMenu" class="ghost mobile-menu" type="button" aria-controls="adminSidebar" aria-expanded="false">☰ Admin menu</button>
+
 
 <h1>BHW Guimba — Election Administration</h1>
 <p class="warning">Development/rehearsal only. Do not create a real election or enroll real members until the full system passes acceptance testing.</p>
 <p>Use the <a href="/admin-auth-preview">administrator login</a> first. Administrative views require a verified staff session. Key custody, result finalization, and staff-account changes require the Super Admin.</p><p><a href="/member-enrollment-preview">Register a test member with the camera</a> · <a href="/member-preview">Open member voting rehearsal</a> · <a href="/custodian-confirm">Custodian receipt confirmation</a></p>
-<section><h2>Election overview</h2>
+<section id="adminDashboard"><h2>Election overview</h2>
 <div class="portal-meta" style="margin:0">
 <div><small>Registered members</small><strong id="summaryMembers">—</strong></div>
 <div><small>Active members</small><strong id="summaryActive">—</strong></div>
@@ -30,9 +48,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <div><small>Elections</small><strong id="summaryElections">—</strong></div>
 </div>
 <button id="refreshOverview" class="ghost">Refresh overview</button>
-<h2 style="margin-top:22px!important">Election history</h2>
+<h2 id="historyReportsSection" style="margin-top:22px!important">Election history &amp; reports</h2>
 <div id="historyList">Loading…</div>
-<h2 style="margin-top:22px!important">Audit activity</h2>
+<h2 id="auditSection" style="margin-top:22px!important">Audit activity</h2>
 <div id="auditList">Loading…</div></section>
 <section aria-labelledby="lifecycleTitle"><h2 id="lifecycleTitle">Election readiness</h2>
 <p>Select an election from History or paste its ID to see whether the ballot is editable, custodians are ready, and results can be finalized.</p>
@@ -56,7 +74,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <button id="createAdmin">Create administrator account</button>
 <button id="refreshAdmins" class="ghost">Refresh staff directory</button>
 <div id="adminDirectory" aria-live="polite"></div><pre id="adminResult">No staff changes.</pre></section>
-<section><h2>Registered members</h2><label>Search name, member ID, or membership area<input id="memberSearch" maxlength="80" placeholder="Type to search registered members" autocomplete="off"></label><button id="members">Search / refresh members</button><p id="memberTotal">No members loaded.</p><div id="memberDirectory" aria-live="polite"></div><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
+<section id="membersSection"><h2>Registered members</h2><label>Search name, member ID, or membership area<input id="memberSearch" maxlength="80" placeholder="Type to search registered members" autocomplete="off"></label><button id="members">Search / refresh members</button><p id="memberTotal">No members loaded.</p><div id="memberDirectory" aria-live="polite"></div><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
 <section id="memberEditor" hidden><h2>Edit member profile</h2>
 <small>Member IDs and prior ballots never change. This form only updates the member's name, membership area and verified Guimba address.</small>
 <input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
@@ -126,6 +144,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>Custodian 2 share<textarea id="share2" rows="2" autocomplete="off" spellcheck="false"></textarea></label></div>
 <small>Requires both valid shares and a closed election. Shares are transmitted via HTTPS but are never shown in the report. Clear them from this browser afterward.</small>
 <button id="disclose">Finalize aggregate results (test only)</button><pre id="discloseResult">Not finalized</pre></section>
+</main></div>
 <script>
 'use strict';
 const by=id=>document.getElementById(id);
@@ -194,7 +213,7 @@ by('checkLifecycle').onclick=showLifecycle;
 by('refreshOverview').onclick=refreshOverview;
 by('check').onclick=async()=>{
  const data=await action('sessionResult',()=>call('/api/session'));
- if(data?.success){stagingCleanupAllowed=data.role==='superadmin'&&data.staging===true;await refreshOverview();if(data.role==='superadmin'){by('adminManagement').hidden=false;by('keyProvisionSection').hidden=false;by('resultFinalizationSection').hidden=false;await listAdmins()}}
+ if(data?.success){stagingCleanupAllowed=data.role==='superadmin'&&data.staging===true;await refreshOverview();if(data.role==='superadmin'){by('usersAndRolesLink').hidden=false;by('adminManagement').hidden=false;by('keyProvisionSection').hidden=false;by('resultFinalizationSection').hidden=false;await listAdmins()}}
 };
 async function listAdmins(){
  const data=await action('adminResult',()=>call('/api/superadmin/admins'));
@@ -546,6 +565,19 @@ by('disclose').onclick=async()=>{
  await action('discloseResult',()=>call('/api/admin/elections/'+encodeURIComponent(by('reportId').value)+'/disclose-results','POST',{shares}));
  by('share1').value='';by('share2').value='';
 };
+by('sidebarLogout').onclick=()=>by('logoutAdmin').click();
+by('mobileMenu').onclick=()=>{
+ const open=by('adminSidebar').classList.toggle('mobile-open');
+ by('mobileMenu').setAttribute('aria-expanded',String(open));
+};
+for(const link of document.querySelectorAll('[data-admin-nav]')){
+ link.addEventListener('click',()=>{
+  for(const a of document.querySelectorAll('[data-admin-nav]'))a.classList.remove('active');
+  link.classList.add('active');
+  by('adminSidebar').classList.remove('mobile-open');
+  by('mobileMenu').setAttribute('aria-expanded','false');
+ });
+}
 // Identify role and show authorized admin controls on every page load.
 by('check').click();
 </script>
