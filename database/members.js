@@ -7,9 +7,12 @@ function isAdultBirthdate(value,now=new Date()){
  const birth=new Date(value+'T00:00:00Z');
  if(!Number.isFinite(birth.getTime())||birth.toISOString().slice(0,10)!==value)return false;
  if(!(now instanceof Date)||!Number.isFinite(now.getTime()))return false;
- const y=now.getUTCFullYear(),m=now.getUTCMonth(),d=now.getUTCDate();
- // A February 29 birthday turns 18 on March 1 in a non-leap year.
- const adultCutoff=new Date(Date.UTC(y-18,m,d));
+ // Registration eligibility uses the Philippine calendar day, not server UTC.
+ const parts=Object.fromEntries(new Intl.DateTimeFormat('en-US',{
+  timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit'
+ }).formatToParts(now).filter(p=>p.type!=='literal').map(p=>[p.type,Number(p.value)]));
+ // February 29 turns 18 on March 1 in a non-leap year.
+ const adultCutoff=new Date(Date.UTC(parts.year-18,parts.month-1,parts.day));
  return birth.getTime()<=adultCutoff.getTime();
 }
 function validateMember(input,{now=new Date()}={}){
