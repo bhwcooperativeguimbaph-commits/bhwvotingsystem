@@ -188,3 +188,46 @@ small{color:var(--muted)}
 .history-actions button{width:auto!important;margin:0!important;min-width:135px}
 .history-report-link{font-size:13px;font-weight:800;padding:10px 0}
 .history-actions small{font-size:12px}
+
+/* Clean access gateway and discrete administrative views. */
+.access-home .access-header{padding:20px clamp(18px,5vw,68px)!important}
+.access-home .access-landing{padding:12px clamp(14px,3vw,35px) 34px}
+.access-home .home-hero{border-radius:26px!important}
+.access-home .portal-footer{margin-top:0}
+body:has(.admin-workspace){max-width:none!important;margin:0!important;padding:0!important;background:#f4f7f5}
+body:has(.admin-workspace)>.portal-top{max-width:none;margin:0;padding:12px 32px;background:white;border-bottom:1px solid #e2ece6}
+body:has(.admin-workspace) .admin-workspace{max-width:none;margin:0;border:0;border-radius:0;min-height:calc(100vh - 72px);box-shadow:none;grid-template-columns:238px minmax(0,1fr)}
+body:has(.admin-workspace) .admin-sidebar{border-radius:0;background:#101f32;padding:28px 16px;position:sticky;top:0;height:calc(100vh - 72px);box-sizing:border-box;overflow:auto}
+body:has(.admin-workspace) .admin-main{padding:32px clamp(20px,4vw,55px);min-width:0;max-width:none}
+.admin-toolbar{display:flex;justify-content:space-between;gap:18px;flex-wrap:wrap;align-items:center;margin:0 0 24px}
+.admin-toolbar small{letter-spacing:.16em;font-size:11px;color:#648777;font-weight:800}
+.admin-toolbar h1{font-size:clamp(1.6rem,2.5vw,2.25rem);margin:6px 0;color:#133d35;letter-spacing:-.04em}
+.admin-identity{display:inline-flex;align-items:center;gap:8px;padding:12px 18px;border-radius:99px;background:#e2f2e9;color:#12583c;border:1px solid #c2e3ce;font-size:14px}
+.admin-identity:before{content:"";height:9px;width:9px;border-radius:50%;background:#20a471}
+.admin-view[hidden]{display:none!important}
+.admin-view>section{background:#fff;border:1px solid #dce8e1;border-radius:16px;padding:25px;margin:0 0 20px}
+.admin-view>h2{margin:6px 0 14px}
+.admin-view .analytics-grid{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);gap:17px}
+.admin-view .analytics-card{border:1px solid #e2ece6}
+.modern-table{width:100%;border-collapse:collapse;margin:8px 0 20px;font-size:14px}
+.modern-table th,.modern-table td{padding:12px 14px;text-align:left;border-bottom:1px solid #e4eee9}
+.modern-table th{color:#426756;background:#f1f8f4;font-weight:750}
+.modern-table tbody tr:hover{background:#f7fbf8}
+.registration-frame-panel{padding:0!important;overflow:hidden}
+.registration-frame-panel h2{padding:18px 25px 0}
+.registration-frame-panel iframe{width:100%;min-height:1120px;border:0;background:white}
+body:has(.admin-workspace) .admin-view .wizard-panel{max-width:none}
+body:has(.admin-workspace) .sidebar-links{gap:5px}
+body:has(.admin-workspace) .sidebar-links a{font-size:14px}
+@media(max-width:950px){
+ body:has(.admin-workspace) .admin-workspace{grid-template-columns:195px minmax(0,1fr)}
+ .admin-view .analytics-grid{grid-template-columns:1fr}
+}
+@media(max-width:720px){
+ body:has(.admin-workspace) .admin-workspace{display:block}
+ body:has(.admin-workspace) .admin-sidebar{display:none;height:auto;position:relative}
+ body:has(.admin-workspace) .admin-sidebar.mobile-open{display:flex}
+ body:has(.admin-workspace) .admin-main{padding:15px}
+ .admin-toolbar{align-items:flex-start}
+ .registration-frame-panel iframe{min-height:1350px}
+}
