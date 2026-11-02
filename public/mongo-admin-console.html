@@ -802,24 +802,56 @@ by('wizardNext').onclick=async()=>{
   showWizardStep(Math.min(4,wizardStep+1));
  }catch(e){by('wizardError').textContent=e.message}
 };
+let createdElectionId=null;
 by('create').onclick=async()=>{
+ if(wizardStep!==4)return;
+ const first=by('wizardCustodian1'),second=by('wizardCustodian2');
+ const emails=[first.value.trim().toLowerCase(),second.value.trim().toLowerCase()];
+ first.value=emails[0];second.value=emails[1];
+ for(const element of [first,second]){if(!element.reportValidity())return}
+ if(emails[0]===emails[1]){
+  by('wizardError').textContent='Enter two different custodian email addresses.';return;
+ }
  let payload;
  try{
+  refreshElectionDateLimits();
+  const start=guimbaLocalToUtcIso(by('start').value),end=guimbaLocalToUtcIso(by('end').value);
+  if(new Date(start)<=new Date()||new Date(end)<=new Date(start))
+   throw Error('The election schedule must start in the future and end after it starts.');
+  const session=await call('/api/session');
+  if(!session.success||session.role!=='superadmin')
+   throw Error('A Super Admin session is required to issue the two private key shares.');
   payload={title:by('title').value.trim(),description:by('electionDescription').value.trim(),
-   startTime:guimbaLocalToUtcIso(by('start').value),
-   endTime:guimbaLocalToUtcIso(by('end').value),
+   startTime:start,endTime:end,
    config:electionDraft.positions.map(({title,maxVotes,candidates})=>({title,maxVotes,candidates}))};
   if(!payload.config.length)throw Error('At least one position is required');
  }catch(e){by('wizardError').textContent=e.message;return}
- by('create').disabled=true;
+ const description=createdElectionId?
+  'Retry issuing key shares to the two recipients for election '+createdElectionId+'?':
+  'Create this election, then send one private key share to EACH listed custodian? Sending shares freezes voter eligibility and candidate edits. Lost shares cannot be recovered.';
+ if(!window.confirm(description))return;
+ const submit=by('create');submit.disabled=true;by('wizardError').textContent='Saving election and verifying custodian delivery…';
  try{
-  const data=await action('createResult',()=>call('/api/admin/initialize-election','POST',payload));
-  if(data?.success){
-   for(const id of ['keyElection','turnoutId','reportId','candidateElection','lifecycleId'])by(id).value=data.electionId;
-   showLifecycle();showWizardStep(1);
-   by('wizardError').textContent='Election created successfully. Review before issuing custodian keys.';
+  if(!createdElectionId){
+   const created=await call('/api/admin/initialize-election','POST',payload);
+   if(!created.success)throw Error(created.message||'Election creation failed');
+   createdElectionId=created.electionId;
+   for(const id of ['keyElection','turnoutId','reportId','candidateElection','lifecycleId'])
+    by(id).value=createdElectionId;
   }
- }finally{by('create').disabled=false}
+  const issued=await call('/api/admin/elections/'+encodeURIComponent(createdElectionId)+
+   '/provision-keys','POST',{emails});
+  if(!issued.success)throw Error(issued.message||'Key delivery could not be completed');
+  by('wizardError').textContent='Election created. Key shares accepted for delivery to two custodians. Both must confirm receipt independently before voting opens.';
+  submit.textContent='Election and custodian invitations saved';
+  await refreshOverview();
+  await showLifecycle();
+ }catch(e){
+  by('wizardError').textContent=(createdElectionId?
+   'Election '+createdElectionId+' was created, but custodian provisioning was not confirmed. '+
+   'Check its status in Election results & reports before retrying; do not create another election. ':
+   'Election could not be created. ')+(e.message||'Request unavailable');
+ }finally{submit.disabled=Boolean(createdElectionId&&by('wizardError').textContent.startsWith('Election created.'))}
 };
 async function showCandidates(){
  const id=by('candidateElection').value.trim();
