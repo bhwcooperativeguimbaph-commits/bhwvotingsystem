@@ -1,4 +1,4 @@
-name: Publish Sanitized Offline Test Report
+name: Publish Sanitized Unit and MongoDB Replica Test Report
 on:
   push:
     branches: [main]
@@ -11,7 +11,7 @@ concurrency:
 jobs:
   report:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 18
     steps:
       - uses: actions/checkout@v4
         with:
@@ -36,11 +36,34 @@ jobs:
             test_exit=99
             echo "Tests not executed because npm ci failed." > /tmp/bhw-test.log
           fi
+          # Real local MongoDB replica set; all election data is synthetic and disposable.
+          integration_exit=99
+          echo "MongoDB replica-set test not started." > /tmp/bhw-integration.log
+          if [ "$install_exit" -eq 0 ]; then
+            docker run -d --name bhw-mongo-integration -p 127.0.0.1:27017:27017 mongo:7 --replSet rs0 --bind_ip_all > /tmp/bhw-docker.log 2>&1
+            docker_exit=$?
+            if [ "$docker_exit" -eq 0 ]; then
+              for i in $(seq 1 35); do
+                docker exec bhw-mongo-integration mongosh --quiet --eval "rs.initiate({_id:'rs0',members:[{_id:0,host:'127.0.0.1:27017'}]})" >> /tmp/bhw-docker.log 2>&1 && break
+                sleep 2
+              done
+              for i in $(seq 1 35); do
+                state=$(docker exec bhw-mongo-integration mongosh --quiet --eval "rs.status().myState" 2>/dev/null)
+                if [ "$state" = "1" ]; then break; fi
+                sleep 2
+              done
+              node tests/mongodb-replica-integration.test.js > /tmp/bhw-integration.log 2>&1
+              integration_exit=$?
+              docker rm -f bhw-mongo-integration > /dev/null 2>&1 || true
+            else
+              echo "Local MongoDB container could not start." > /tmp/bhw-integration.log
+            fi
+          fi
           # Separate staging uses no credentials. Failed public checks are reported
           # but never treated as an election authorization or a production release.
           node scripts/check-staging-deployment.js > /tmp/bhw-staging.log 2>&1
           staging_exit=$?
-          BHW_INSTALL_EXIT="$install_exit" BHW_TEST_EXIT="$test_exit" BHW_STAGING_EXIT="$staging_exit" node - <<'NODE'
+          BHW_INSTALL_EXIT="$install_exit" BHW_TEST_EXIT="$test_exit" BHW_STAGING_EXIT="$staging_exit" BHW_INTEGRATION_EXIT="$integration_exit" node - <<'NODE'
           const fs=require('fs');
           const tail=p=>{
             const s=fs.readFileSync(p,'utf8');
@@ -50,11 +73,14 @@ jobs:
             commit:process.env.GITHUB_SHA,
             installExit:Number(process.env.BHW_INSTALL_EXIT),
             testExit:Number(process.env.BHW_TEST_EXIT),
+            integrationExit:Number(process.env.BHW_INTEGRATION_EXIT),
+            integrationPassed:process.env.BHW_INTEGRATION_EXIT==='0',
+            integrationTail:tail('/tmp/bhw-integration.log'),
             stagingUrl:'https://secongvoting.onrender.com',
             stagingExit:Number(process.env.BHW_STAGING_EXIT),
             stagingPublicGatePassed:process.env.BHW_STAGING_EXIT==='0',
             stagingTail:tail('/tmp/bhw-staging.log'),
-            passed:process.env.BHW_INSTALL_EXIT==='0'&&process.env.BHW_TEST_EXIT==='0',
+            passed:process.env.BHW_INSTALL_EXIT==='0'&&process.env.BHW_TEST_EXIT==='0'&&process.env.BHW_INTEGRATION_EXIT==='0',
             installTail:process.env.BHW_INSTALL_EXIT==='0'?'':tail('/tmp/bhw-install.log'),
             testTail:tail('/tmp/bhw-test.log')
           };
