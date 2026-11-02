@@ -3,7 +3,8 @@
 const base=(process.env.BHW_STAGING_URL||'https://bhwguimba.onrender.com').replace(/\/$/,'');
 async function checked(path,{method='GET',body}={}){
  const r=await fetch(base+path,{method,
-  headers:body?{'Content-Type':'application/json'}:{},
+  headers:body?{'Content-Type':'application/json',
+   'Origin':new URL(base).origin,'Sec-Fetch-Site':'same-origin'}:{},
   body:body?JSON.stringify(body):undefined,
   signal:AbortSignal.timeout(90000)});
  const text=await r.text();let data;
