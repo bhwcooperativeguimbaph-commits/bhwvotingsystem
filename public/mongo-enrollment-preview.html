@@ -206,6 +206,17 @@ by('camera').onclick=async()=>{
  }catch(e){by('status').textContent=e.message||'Camera/model initialization failed';by('camera').disabled=false}
  finally{busy=false;refreshEnrollmentButton()}
 };
+function capturePortrait(){
+ const canvas=document.createElement('canvas');canvas.width=180;canvas.height=180;
+ const ctx=canvas.getContext('2d');
+ const size=Math.min(video.videoWidth||640,video.videoHeight||480);
+ const x=Math.max(0,((video.videoWidth||640)-size)/2);
+ const y=Math.max(0,((video.videoHeight||480)-size)/2);
+ ctx.drawImage(video,x,y,size,size,0,0,180,180);
+ const photo=canvas.toDataURL('image/jpeg',.7);
+ if(photo.length>205000)throw Error('Portrait exceeds the secure size limit');
+ return photo;
+}
 by('enroll').onclick=async()=>{
  if(busy||!started)return;
  if(!replacementMode&&!validateAge())return;
@@ -235,7 +246,7 @@ by('enroll').onclick=async()=>{
     location:{country:'Philippines',regionCode:by('region').value,
      provinceCode:by('province').value,province:'Nueva Ecija',
      cityCode:by('city').value,city:'Guimba',barangayCode:by('barangay').value},
-    descriptor:Array.from(detection.descriptor),...verification
+    descriptor:Array.from(detection.descriptor),profilePhoto:capturePortrait(),...verification
   };
   const result=await api(target,{method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify(formData)});
