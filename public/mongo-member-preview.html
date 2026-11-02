@@ -76,7 +76,7 @@ async function displayBallot(){
  }
  const now=Date.now(),isOpen=now>=new Date(info.startTime).getTime()&&now<new Date(info.endTime).getTime();
  by('vote').disabled=Boolean(auth.hasVoted)||!auth.eligibleThisElection||!info.voteSubmissionEnabled||!isOpen;
- if(!auth.eligibleThisElection)by('electionStatus').textContent+=' — Not eligible: registered after the election roster was frozen.';
+ if(info.voteSubmissionEnabled&&!auth.eligibleThisElection)by('electionStatus').textContent+=' — Your membership is outside the frozen electorate.';
  if(!isOpen)by('electionStatus').textContent+=' — Voting schedule is not currently open.';
  if(!info.voteSubmissionEnabled)by('electionStatus').textContent+=' — Voting disabled during development.';
  await loadNotifications();
