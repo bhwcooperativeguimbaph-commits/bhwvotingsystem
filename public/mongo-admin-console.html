@@ -492,7 +492,7 @@ async function showMembers(){
   biometricButton.type='button';biometricButton.className='ghost';
   biometricButton.textContent='Update biometrics';
   biometricButton.onclick=()=>window.location.assign(
-   '/member-enrollment-preview?replace='+encodeURIComponent(member.memberId));
+   '/admin-console?replace='+encodeURIComponent(member.memberId)+'#view-registration');
   panel.append(title,editButton,biometricButton,actionButton);
   if(stagingCleanupAllowed){
    const purge=document.createElement('button');
