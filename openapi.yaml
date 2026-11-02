@@ -11,6 +11,56 @@ tags:
   - name: Administration
   - name: SuperAdmin
 paths:
+  /api/admin/areas:
+    get:
+      summary: "List membership area dropdown options"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: JSON array of area names
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, areas]
+                properties:
+                  success: {type: boolean}
+                  areas: {type: array, items: {type: string}}
+        '403':
+          description: Administrator session required
+        '503':
+          description: Area lookup unavailable
+    post:
+      summary: "Create an area for member registration"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: {type: string, maxLength: 100}
+      responses:
+        '201':
+          description: Area created
+        '400':
+          description: Invalid name
+        '403':
+          description: Administrator session required
+        '409':
+          description: Area already exists
+        '503':
+          description: Area storage unavailable
   /api/admin/analytics:
     get:
       summary: "Aggregate-only latest-election daily and area participation"
@@ -1033,6 +1083,35 @@ paths:
           description: Duplicate or election lifecycle conflict
         '503':
           description: Service or MongoDB dependency unavailable
+  /api/member/profile:
+    get:
+      summary: "Read signed-in member profile and decrypted consented portrait"
+      tags: [Member]
+      x-required-role: "member"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      responses:
+        '200':
+          description: Owner-only profile
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, member]
+                properties:
+                  success: {type: boolean}
+                  member:
+                    type: object
+                    properties:
+                      memberId: {type: string}
+                      fullName: {type: string}
+                      area: {type: string}
+                      portrait: {type: [string, 'null']}
+        '403':
+          description: Member login required
+        '503':
+          description: Profile unavailable
   /api/member/notifications:
     get:
       summary: "GET member notifications"
