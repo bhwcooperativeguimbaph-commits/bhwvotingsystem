@@ -62,6 +62,20 @@ async function getMember(db,memberId){
 }
 async function setMemberStatus(db,memberId,status,{now=new Date()}={}){
  if(!['Active','Inactive'].includes(status))throw new TypeError('Invalid status');
+ if(status==='Active'){
+  const current=await db.collection('members').findOne({memberId},
+   {projection:{_id:0,status:1}});
+  if(!current)return false;
+  if(current.status!=='Active'){
+   // Do not add a previously inactive member to a frozen electorate.
+   // Deactivation remains available for security. A fuller per-member frozen
+   // roster and concurrency audit are required before real elections.
+   const frozen=await db.collection('elections').findOne({
+    status:'Active',eligibilityFrozenAt:{$exists:true},endTime:{$gt:now}
+   },{projection:{_id:1}});
+   if(frozen)throw Object.assign(new Error('Election electorate is frozen'),{code:'ELECTORATE_FROZEN'});
+  }
+ }
  const r=await db.collection('members').updateOne({memberId},{$set:{status,updatedAt:now}});
  return r.matchedCount===1;
 }
