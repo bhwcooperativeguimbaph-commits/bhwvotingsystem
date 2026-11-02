@@ -1,14 +1,14 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>BHW Admin Authentication Preview</title>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Administrator Login | BHW Guimba</title>
 <link rel="stylesheet" href="/css/mongo-portal.css">
-<style>body{font:16px system-ui;max-width:440px;margin:8vh auto;padding:20px;color:#142235}input,button{display:block;width:100%;box-sizing:border-box;padding:12px;margin:10px 0;font:inherit}button{background:#184780;color:#fff;border:0;border-radius:6px}input{border:1px solid #aaa;border-radius:6px}p{line-height:1.5}#message{white-space:pre-wrap}</style>
-<header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
+<style>body{font:16px system-ui;margin:0;min-height:100vh;color:#17354b;background:#f4f8f6}.auth-card{box-sizing:border-box;max-width:470px;margin:clamp(30px,9vh,110px) auto;padding:clamp(24px,4vw,42px);border:1px solid #d6e5dc;border-radius:22px;background:white;box-shadow:0 24px 65px #163b3017}.auth-card h1{margin-top:0}.auth-card label{display:block;font-weight:650;margin-top:17px}.auth-card input,.auth-card button{box-sizing:border-box;display:block;width:100%;padding:14px;margin:10px 0;font:inherit;border-radius:10px}.auth-card button{background:#17664e;color:white;border:0;cursor:pointer;font-weight:750}.auth-card input{border:1px solid #b8cfc3}.auth-card p{line-height:1.6}#message{white-space:pre-wrap}form[hidden]{display:none!important}@media(max-width:520px){.auth-card{margin:16px;padding:24px}}</style>
+<header class="portal-top access-header"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Administration</small></span></a></header>
 
-<h1>Administrator sign in</h1><p><a href="/admin-console">Open protected administration console</a></p><p>Use your administrator credentials and the email verification code. Member enrollment is limited to synthetic rehearsal accounts, and real voting is disabled.</p>
+<main class="auth-card"><h1>Administrator login</h1><p id="authInstruction">Enter your username and password. We’ll send a one-time verification code to your registered email.</p>
 <form id="credentials"><label>Username<input id="username" required autocomplete="username"></label><label>Password<input id="password" type="password" required autocomplete="current-password"></label><button>Send verification code</button></form>
 <p><a href="/admin-password-recovery">Forgot password? Recover your administrator account by email OTP.</a></p>
-<form id="otpForm" hidden><label>Six-digit email code<input id="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code"></label><button>Verify login</button></form>
-<button id="session" type="button">Check session</button><button id="logout" type="button">Log out</button><p id="message" role="status" aria-live="polite"></p>
+<form id="otpForm" hidden><p>Enter the six-digit code sent to your registered email address.</p><label>Six-digit email code<input id="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code"></label><button>Verify login</button></form>
+<p id="message" role="status" aria-live="polite"></p></main>
 <script>
 'use strict';
 let challenge=null;
@@ -25,7 +25,7 @@ document.getElementById('credentials').addEventListener('submit',async ev=>{
  ev.preventDefault();msg.textContent='Checking credentials...';
  try{const {data}=await request('/api/admin/login-password',{username:document.getElementById('username').value,password:document.getElementById('password').value});
  document.getElementById('password').value='';
- if(data.mfaRequired&&data.challenge){challenge=data.challenge;document.getElementById('otpForm').hidden=false;msg.textContent='Verification code sent. Check your email.'}
+ if(data.mfaRequired&&data.challenge){challenge=data.challenge;document.getElementById('credentials').hidden=true;document.getElementById('otpForm').hidden=false;document.getElementById('authInstruction').textContent='Identity verification';document.getElementById('otp').focus();msg.textContent='Verification code sent. Check your email.'}
  else msg.textContent=(data.message||'Authentication unavailable')+(data.code?' ('+data.code+')':'');
  }catch(e){msg.textContent=e.name==='AbortError'?'Request timed out. Check your connection or Render logs for Brevo or database delays.':'Request failed. Check Render logs.'}
 });
@@ -35,11 +35,5 @@ document.getElementById('otpForm').addEventListener('submit',async ev=>{
  document.getElementById('otp').value='';if(data.success){msg.textContent='Administrator login successful. Opening the dashboard…';window.location.assign('/admin-console')}
  else msg.textContent=data.message||'Verification failed';
  }catch(_){msg.textContent='Request failed'}
-});
-document.getElementById('session').addEventListener('click',async()=>{
- try{const r=await fetch('/api/session',{credentials:'same-origin'});const d=await r.json();msg.textContent=d.success?'Authenticated role: '+d.role:'No active session';}catch(_){msg.textContent='Request failed'}
-});
-document.getElementById('logout').addEventListener('click',async()=>{
- try{const {data}=await request('/api/logout',{});msg.textContent=data.success?'Logged out':data.message;}catch(_){msg.textContent='Request failed'}
 });
 </script>
