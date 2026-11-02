@@ -11,7 +11,7 @@ const timingMatch=(actual,guess)=>typeof actual==='string'&&
  crypto.timingSafeEqual(Buffer.from(actual,'hex'),Buffer.from(digest(guess),'hex'));
 async function requestSuperadminEmailChange(db,{adminId,newEmail,deliver=sendBrevoEmail,now=new Date()}){
  const email=safeEmail(newEmail);
- if(!/^ADM-[0-9a-f-]{36}$/i.test(adminId||'')||!EMAIL.test(email)||email.length>254||
+ if(adminId!=='SUPERADMIN'||!EMAIL.test(email)||email.length>254||
     !(now instanceof Date)||!Number.isFinite(now.getTime()))
   throw fail('INVALID_EMAIL_CHANGE');
  const admin=await db.collection('admins').findOne(
@@ -46,7 +46,7 @@ async function requestSuperadminEmailChange(db,{adminId,newEmail,deliver=sendBre
  return {challenge,expiresInSeconds:300};
 }
 async function completeSuperadminEmailChange(connection,{adminId,challenge,oldCode,newCode,now=new Date()}){
- if(!/^ADM-[0-9a-f-]{36}$/i.test(adminId||'')||
+ if(adminId!=='SUPERADMIN'||
     !/^[a-f0-9]{64}$/.test(challenge||'')||!/^[0-9]{6}$/.test(oldCode||'')||
     !/^[0-9]{6}$/.test(newCode||'')||!(now instanceof Date))
   throw fail('INVALID_EMAIL_CHANGE');
