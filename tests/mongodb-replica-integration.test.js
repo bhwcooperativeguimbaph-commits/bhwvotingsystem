@@ -33,7 +33,7 @@ async function main(){
   };
   const syntheticMember={memberId:fakeId(1),firstName:'Synthetic',lastName:'Person',
    fullName:'Synthetic Person',status:'Active',createdAt:initial};
-  await db.collection('members').insertOne(syntheticMember);
+  await db.collection('members').insertOne({...syntheticMember});
   await db.collection('members').insertOne({...syntheticMember,memberId:fakeId(2),fullName:'Other Synthetic'});
   const login=await issueSession(db,{accountId:fakeId(1),role:'member',now});
   assert.equal((await authenticateSession(db,login.token,now)).accountId,fakeId(1));
