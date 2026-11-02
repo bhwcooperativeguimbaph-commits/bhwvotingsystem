@@ -126,11 +126,17 @@
   by('activePageTitle').textContent=viewNames[id];
   sidebar.classList.remove('mobile-open');
   by('mobileMenu').setAttribute('aria-expanded','false');
-  window.scrollTo({top:0,behavior:'instant'});
+  window.scrollTo(0,0);
  }
+ // Prevent the browser from jumping to a hash anchor halfway down the page.
+ // Sidebar transitions change the URL without native anchor scrolling.
  window.addEventListener('hashchange',activate);
- for(const link of nav.querySelectorAll('[data-view-link]'))link.addEventListener('click',()=>{
-  if(location.hash===link.getAttribute('href'))activate();
+ window.addEventListener('popstate',activate);
+ for(const link of nav.querySelectorAll('[data-view-link]'))link.addEventListener('click',event=>{
+  event.preventDefault();
+  const next=link.getAttribute('href');
+  if(location.hash!==next)history.pushState(null,'',next);
+  activate();
  });
  activate();
  // Staff identity is read from the existing authenticated session endpoint only.
