@@ -73,7 +73,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 </section>
 <section><h2>Create election</h2>
 <label>Election title<input id="title" value="Rehearsal election" maxlength="150"></label>
-<div class="cols"><label>Start date and time<input type="datetime-local" id="start"></label><label>End date and time<input type="datetime-local" id="end"></label></div>
+<div class="cols"><label>Start — Philippine time (UTC+08:00)<input type="datetime-local" id="start"></label><label>End — Philippine time (UTC+08:00)<input type="datetime-local" id="end"></label></div>
 <div class="cols"><label>Kagawad candidates (one name per line)<textarea id="kagawad" rows="4" placeholder="Candidate A&#10;Candidate B"></textarea></label>
 <label>Kapitan candidates (one name per line; at least two)<textarea id="kapitan" rows="4" placeholder="Candidate C&#10;Candidate D"></textarea></label></div>
 <small>Kagawad maximum selections: 1; Kapitan maximum selections: 2. Use fictitious names for testing.</small>
@@ -298,14 +298,30 @@ by('saveMember').onclick=async()=>{
 
 by('logoutAdmin').onclick=async()=>{const result=await call('/api/logout','POST',{});if(result.success)window.location.assign('/')};
 const list=id=>by(id).value.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(name=>({name}));
+function guimbaLocalToUtcIso(value){
+ const match=/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+ if(!match)throw Error('Choose a valid Philippine start and end date');
+ const [y,m,d,h,min]=match.slice(1).map(Number);
+ const stamp=Date.UTC(y,m-1,d,h-8,min);
+ const local=new Date(stamp+8*3600000);
+ if(!Number.isFinite(stamp)||local.getUTCFullYear()!==y||local.getUTCMonth()!==m-1||
+    local.getUTCDate()!==d||local.getUTCHours()!==h||local.getUTCMinutes()!==min)
+  throw Error('Invalid Philippine election date or time');
+ return new Date(stamp).toISOString();
+}
 by('create').onclick=async()=>{
  if(!by('start').value||!by('end').value)return by('createResult').textContent='Choose both schedule dates';
+ let startTime,endTime;
+ try{
+  startTime=guimbaLocalToUtcIso(by('start').value);
+  endTime=guimbaLocalToUtcIso(by('end').value);
+  if(new Date(endTime)<=new Date(startTime))throw Error('Election end must be after the start');
+ }catch(e){by('createResult').textContent=e.message;return}
  const data=await action('createResult',()=>call('/api/admin/initialize-election','POST',{
-  title:by('title').value,startTime:new Date(by('start').value).toISOString(),
-  endTime:new Date(by('end').value).toISOString(),
+  title:by('title').value,startTime,endTime,
   config:[{title:'Kagawad',maxVotes:1,candidates:list('kagawad')},
    {title:'Kapitan',maxVotes:2,candidates:list('kapitan')}] }));
- if(data?.success){for(const id of ['keyElection','turnoutId','reportId','candidateElection'])by(id).value=data.electionId}
+ if(data?.success){for(const id of ['keyElection','turnoutId','reportId','candidateElection','lifecycleId'])by(id).value=data.electionId;showLifecycle()}
 };
 async function showCandidates(){
  const id=by('candidateElection').value.trim();
