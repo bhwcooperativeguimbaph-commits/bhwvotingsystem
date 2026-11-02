@@ -1,0 +1,23 @@
+name: Second Render Staging Deployment Gate
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/second-render-staging-gate.yml'
+      - 'scripts/check-staging-deployment.js'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  staging-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify second Render staging URL (no secrets, no writes)
+        env:
+          BHW_STAGING_URL: https://secongvoting.onrender.com
+        run: node scripts/check-staging-deployment.js
