@@ -1,0 +1,46 @@
+# BHW Guimba — Coordinated Final Acceptance Rehearsal
+
+**Status: not yet executed.** Run this checklist only after latest commit is deployed and the automated test report is green.
+
+## Environment isolation
+
+- Keep the main Render app on `BHWVotingDB` with `ENABLE_MONGODB_VOTE_TEST` **unset**.
+- Create a separate, nonproduction Render service and Atlas database named `BHWVotingDB_Staging` for the full rehearsal.
+- Staging uses distinct encryption and superadmin secrets, synthetic member identities, and **only two consenting custodian email recipients controlled by the testers**.
+- In staging only, set `ENABLE_MONGODB_AUTH_PREVIEW=true` and `ENABLE_MONGODB_VOTE_TEST=true`. The server refuses the vote-test flag on a database without `_Staging` or `_Test` suffix.
+- Do not copy real biometric samples, passwords, personal addresses, member rosters or election ballots into staging. Do not send key shares to real election officials until approved.
+
+## Coordinated test script
+
+| # | Scenario | Expected result |
+| --- | --- | --- |
+| 1 | Start site and open `/`, `/results`, `/admin-auth-preview` | Branded pages load; no real ballots displayed; no console errors |
+| 2 | Submit staff login with bad password | Generic rejection, no OTP sent |
+| 3 | Superadmin login with valid password then expired/incorrect email code | Rejected, attempts bounded, no session |
+| 4 | Superadmin login with correct email OTP | Admin console appears; session persists after refresh |
+| 5 | Create a regular administrator using staff manager | Password never echoed back; OTP sent to correct address |
+| 6 | Regular admin attempts staff-management, key issuance or finalization APIs | HTTP 403, controls hidden |
+| 7 | Enroll a synthetic member, valid Guimba PSGC dropdown and explicit consent | Member, encrypted face descriptor, consent and audit inserted atomically |
+| 8 | Attempt non-Guimba location, unsupported image, or repeated facial descriptor | Rejected; no partially created member |
+| 9 | Turn head and blink in member login challenge | Challenge accepted once; duplicate/replayed/expired challenge rejected |
+| 10 | Create future election with Kagawad 1, Kapitan 2, multiple synthetic candidates | Election and candidate records present; no second overlapping active election |
+| 11 | Add/remove individual candidate before opening; attempt removal after opening | Valid pre-start edit succeeds; late edits fail |
+| 12 | Provision two custodian shares to distinct synthetic-controlled recipients | Two independent Brevo deliveries; only share hashes in database |
+| 13 | Verify share 1 then share 2 on separate custodian pages | First alone insufficient; after both, election marked custody-confirmed |
+| 14 | Check electorate freeze; enroll an additional member afterward | Existing frozen members eligible; newly enrolled member ineligible |
+| 15 | Select too many candidates (Kagawad 2 or Kapitan 3) | Browser AND backend reject choices |
+| 16 | Two concurrent submissions from same synthetic member | Exactly one participation record, encrypted ballot, receipt and notification |
+| 17 | Compare encrypted ballots to participation records | No memberId or receipt code in encrypted ballot; randomized `_id` |
+| 18 | Refresh voter session; inspect notifications; verify and download receipt PDF | No logout on refresh; owner-only receipt; no selections exposed |
+| 19 | Close election; try finalization with incorrect/one share | Rejected without partial results |
+| 20 | Finalize with correct two shares, review `/results`, download results PDF | Candidate totals correct; only aggregates shown; report hash validated |
+| 21 | Deactivate a staff member and reset another staff password | Old sessions revoked; recovery OTP expires and cannot be reused |
+| 22 | Perform authorized audit and disaster-recovery checks | No votes, biometric templates, OTPs or shares leak in logs |
+
+## Test evidence and acceptance
+
+Collect only sanitized evidence: deploy commit SHA, CI pass/fail status, HTTP response codes, counts and screenshots without personal data or secrets. Record each result as **Pass / Fail / Not Run**. Do not include actual OTPs, tokens, share text, encryption keys or raw facial descriptors.
+
+**Go-live remains blocked** if any test fails or until independent reviewers approve biometric consent/retention, presentation-attack controls or alternative identity verification, ballot secrecy, access-control review, availability, backups and official election procedures.
+
+After the staging rehearsal passes, promote code by reviewed release; **do not** simply switch the production vote-test flag to true.
