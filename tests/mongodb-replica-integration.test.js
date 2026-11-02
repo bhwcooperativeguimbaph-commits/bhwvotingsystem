@@ -12,6 +12,7 @@ const {discloseElectionResults}=require('../database/results-disclosure');
 const {listMemberReceipts}=require('../database/member-receipts');
 const {getElectionTurnout}=require('../database/turnout');
 const {getElectionLifecycle}=require('../database/election-lifecycle');
+const {getAdminAnalytics}=require('../database/admin-analytics');
 const {issueSession,authenticateSession,revokeSession}=require('../database/sessions');
 const localUri='mongodb://127.0.0.1:27017/?replicaSet=rs0&directConnection=true';
 const dbName='BHWVotingDB_Integration';
@@ -93,6 +94,11 @@ async function main(){
   assert.equal(turnout.eligibleMembers,2);
   assert.equal(turnout.ballotsCast,2);
   assert.equal(turnout.turnoutPercent,100);
+  const analytics=await getAdminAnalytics(db);
+  assert.equal(analytics.ballotsCast,2);
+  assert.equal(analytics.turnoutPercent,100);
+  assert.equal(analytics.daily.reduce((sum,item)=>sum+item.count,0),2);
+  assert.deepEqual(analytics.areas,[],'Small member areas must not be disclosed in analytics');
   // Insert a deliberately orphaned synthetic participation record; final
   // report MUST fail rather than silently publishing mismatched totals.
   const orphanMember=fakeId(99);
