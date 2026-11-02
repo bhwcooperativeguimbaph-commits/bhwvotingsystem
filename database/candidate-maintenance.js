@@ -22,7 +22,8 @@ async function editCandidate(db,{electionId,candidateId,position,candidateName,p
  if(operation==='add'&&(!clean(position)||clean(position).length>50||!clean(candidateName)||clean(candidateName).length>100))throw error('INVALID_CANDIDATE');
  const owner=crypto.randomUUID(),expiresAt=new Date(now.getTime()+120000);
  const election=await db.collection('elections').findOneAndUpdate({
-  electionId,status:'Active',startTime:{$gt:now},$or:[
+  electionId,status:'Active',startTime:{$gt:now},
+  keyProvisioningState:{$exists:false},ballotPublicKeyPem:{$exists:false},$or:[
    {candidateEditLeaseUntil:{$exists:false}},{candidateEditLeaseUntil:{$lte:now}}
   ]
  },{$set:{candidateEditOwner:owner,candidateEditLeaseUntil:expiresAt}},{returnDocument:'after'});
