@@ -442,7 +442,11 @@ app.patch('/api/admin/members/:memberId/status',staffOnly,async(req,res)=>{
   if(!updated)return res.status(404).json({success:false,message:'Member not found'});
   res.set('Cache-Control','no-store');
   return res.json({success:true});
- }catch(_){return res.status(503).json({success:false,message:'Member update unavailable'})}
+ }catch(e){
+  if(e?.code==='ELECTORATE_FROZEN')
+   return res.status(409).json({success:false,message:'Cannot activate members while the election roster is frozen'});
+  return res.status(503).json({success:false,message:'Member update unavailable'});
+ }
 });
 app.post('/api/admin/elections/:electionId/provision-keys',superadminOnly,async(req,res)=>{
  try{
