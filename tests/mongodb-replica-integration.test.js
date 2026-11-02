@@ -70,8 +70,17 @@ async function main(){
   assert.match(accepted.receiptNo,/^BHW-[A-F0-9]{32}$/);
   await assert.rejects(castEncryptedVote({client,db},{memberId:fakeId(1),choices,now:voteTime}),
     e=>e.code==='DUPLICATE_BALLOT');
-  assert.equal(await db.collection('ballots').countDocuments({electionId}),1);
-  assert.equal(await db.collection('voterParticipation').countDocuments({electionId}),1);
+  // Race two simultaneous requests for another synthetic voter.
+  const secondChoices={Kagawad:[cand('Kagawad',1)],Kapitan:[cand('Kapitan',2)]};
+  const race=await Promise.allSettled([
+   castEncryptedVote({client,db},{memberId:fakeId(2),choices:secondChoices,now:voteTime}),
+   castEncryptedVote({client,db},{memberId:fakeId(2),choices:secondChoices,now:voteTime})
+  ]);
+  assert.equal(race.filter(x=>x.status==='fulfilled').length,1,
+   'Concurrent duplicate ballots must produce exactly one accepted submission');
+  assert.equal(race.filter(x=>x.status==='rejected').length,1);
+  assert.equal(await db.collection('ballots').countDocuments({electionId}),2);
+  assert.equal(await db.collection('voterParticipation').countDocuments({electionId}),2);
   const ballot=await db.collection('ballots').findOne({electionId});
   assert.equal('memberId' in ballot,false);
   assert.equal('receiptCode' in ballot,false);
@@ -79,23 +88,37 @@ async function main(){
   assert.equal(ballot._id,ballot.ballotId);
   const receipts=await listMemberReceipts(db,fakeId(1));
   assert.equal(receipts.length,1);assert.equal(receipts[0].receiptNo,accepted.receiptNo);
-  assert.equal((await listMemberReceipts(db,fakeId(2))).length,0);
+  assert.equal((await listMemberReceipts(db,fakeId(2))).length,1);
   const turnout=await getElectionTurnout(db,electionId,voteTime);
   assert.equal(turnout.eligibleMembers,2);
-  assert.equal(turnout.ballotsCast,1);
-  assert.equal(turnout.turnoutPercent,50);
+  assert.equal(turnout.ballotsCast,2);
+  assert.equal(turnout.turnoutPercent,100);
+  // Insert a deliberately orphaned synthetic participation record; final
+  // report MUST fail rather than silently publishing mismatched totals.
+  const orphanMember=fakeId(99);
+  await db.collection('voterParticipation').insertOne({
+   electionId,memberId:orphanMember,receiptCode:'BHW-'+'F'.repeat(32),
+   status:'Valid',createdAt:voteTime
+  });
+  await assert.rejects(discloseElectionResults({client,db},{
+   electionId,shares:keys,now:new Date(end.getTime()+2000)
+  }),e=>e.code==='INTEGRITY_FAILURE');
+  assert.equal(await db.collection('finalReports').countDocuments({electionId}),0);
+  await db.collection('voterParticipation').deleteOne({electionId,memberId:orphanMember});
   const report=await discloseElectionResults({client,db},{
    electionId,shares:keys,now:new Date(end.getTime()+2000)});
-  assert.equal(report.ballotsCast,1);
+  assert.equal(report.ballotsCast,2);
   assert.equal(report.results.find(x=>x.candidateId===cand('Kagawad',0)).votes,1);
   assert.equal(report.results.find(x=>x.candidateId===cand('Kapitan',0)).votes,1);
   assert.equal(report.results.find(x=>x.candidateId===cand('Kapitan',1)).votes,1);
+  assert.equal(report.results.find(x=>x.candidateId===cand('Kagawad',1)).votes,1);
+  assert.equal(report.results.find(x=>x.candidateId===cand('Kapitan',2)).votes,1);
   assert.equal((await getElectionLifecycle(db,electionId,new Date(end.getTime()+3000))).phase,'Finalized');
   await assert.rejects(discloseElectionResults({client,db},{
    electionId,shares:keys,now:new Date(end.getTime()+4000)}),e=>e.code==='NOT_DISCLOSABLE');
   assert.equal(await revokeSession(db,login.token),true);
   assert.equal(await authenticateSession(db,login.token,now),null);
-  console.log('PASS: Real MongoDB replica-set transactions, isolated voter, key custody, encrypted ballot, unique receipt, duplicate rejection, final aggregate report');
+  console.log('PASS: Real MongoDB transactions, concurrent one-vote guard, orphan participation rejection, two-share finalization and anonymous aggregate tallies');
  }finally{
   await db.dropDatabase().catch(()=>{});
   await client.close();
