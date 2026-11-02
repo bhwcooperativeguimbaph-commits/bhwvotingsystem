@@ -19,9 +19,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 </style>
 <header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Guimba, Nueva Ecija · MongoDB</small></span></a><nav class="portal-nav" aria-label="Portal navigation"><a href="/">Overview</a><a href="/member-preview">Member access</a><a href="/admin-auth-preview">Admin login</a><a href="/admin-console">Admin console</a><a href="/custodian-confirm">Key custody</a></nav></header>
 
-<h1>BHW MongoDB — Administration Preview</h1>
+<h1>BHW Guimba — Election Administration</h1>
 <p class="warning">Development/rehearsal only. Do not create a real election or enroll real members until the full system passes acceptance testing.</p>
-<p>Use the <a href="/admin-auth-preview">administrator login</a> first. All administrative requests require a Super Admin session.</p><p><a href="/member-enrollment-preview">Register a test member with the camera</a> · <a href="/member-preview">Open member voting rehearsal</a> · <a href="/custodian-confirm">Custodian receipt confirmation</a></p>
+<p>Use the <a href="/admin-auth-preview">administrator login</a> first. Administrative views require a verified staff session. Key custody, result finalization, and staff-account changes require the Super Admin.</p><p><a href="/member-enrollment-preview">Register a test member with the camera</a> · <a href="/member-preview">Open member voting rehearsal</a> · <a href="/custodian-confirm">Custodian receipt confirmation</a></p>
 <section><h2>Election overview</h2>
 <div class="portal-meta" style="margin:0">
 <div><small>Registered members</small><strong id="summaryMembers">—</strong></div>
@@ -57,7 +57,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <button id="saveMember">Save member profile</button>
 <button id="cancelMemberEdit" class="ghost">Cancel</button><pre id="editMemberResult"></pre>
 </section>
-<section><h2>1. Create rehearsal election</h2>
+<section><h2>Create election</h2>
 <label>Election title<input id="title" value="Rehearsal election" maxlength="150"></label>
 <div class="cols"><label>Start date and time<input type="datetime-local" id="start"></label><label>End date and time<input type="datetime-local" id="end"></label></div>
 <div class="cols"><label>Kagawad candidates (one name per line)<textarea id="kagawad" rows="4" placeholder="Candidate A&#10;Candidate B"></textarea></label>
@@ -72,15 +72,15 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <label>New candidate name<input id="candidateName" maxlength="100"></label></div><label>Candidate image (optional JPG/PNG; resized in browser)<input id="candidatePhoto" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></label>
 <small>New candidates can be added or removed individually only before the start time and before any ballot is recorded. JPG/PNG image support is available through the API; this test page adds names only.</small>
 <button id="addCandidate">Add candidate</button><pre id="candidateResult">Not changed</pre></section>
-<section><h2>2. Assign two election key custodians</h2>
+<section><h2>Assign two election key custodians</h2>
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
 <small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
 <button id="provision">Send separate custodian shares (test only)</button><pre id="provisionResult">Not provisioned</pre></section>
-<section><h2>3. Check protected turnout</h2>
+<section><h2>Election turnout</h2>
 <label>Election ID<input id="turnoutId" placeholder="ELEC-..."></label>
 <button id="turnout">Load turnout</button><pre id="turnoutResult">Not loaded</pre></section>
-<section><h2>4. Disclose rehearsal results (after close)</h2>
+<section><h2>Finalize election results (after close)</h2>
 <label>Election ID<input id="reportId" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 share<textarea id="share1" rows="2" autocomplete="off" spellcheck="false"></textarea></label>
 <label>Custodian 2 share<textarea id="share2" rows="2" autocomplete="off" spellcheck="false"></textarea></label></div>
