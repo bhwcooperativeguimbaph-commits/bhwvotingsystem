@@ -306,7 +306,7 @@ app.get('/api/superadmin/admins',superadminOnly,async(req,res)=>{
 app.post('/api/superadmin/admins',superadminOnly,async(req,res)=>{
  try{
   const {createAdmin}=require('./database/admin-users');
-  const admin=await createAdmin(connection.db,req.body||{});
+  const admin=await createAdmin(connection,req.body||{},{operatorId:req.staff.accountId});
   res.set('Cache-Control','no-store');
   return res.status(201).json({success:true,admin});
  }catch(e){
