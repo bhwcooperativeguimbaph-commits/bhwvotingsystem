@@ -12,7 +12,7 @@ const {keyFromEnv,decryptDescriptor}=require('./database/biometrics');
 const {beginAdminLogin,completeAdminLogin}=require('./database/admin-auth');
 const {createElection}=require('./database/elections');
 const {sendBrevoEmail}=require('./services/brevo-email');
-const {issueFaceChallenge,consumeFaceChallenge}=require('./database/face-challenges');
+const {createFaceBinding,issueFaceChallenge,consumeFaceChallenge}=require('./database/face-challenges');
 const app=express();
 app.disable('x-powered-by');
 app.set('trust proxy',1);
@@ -22,6 +22,20 @@ const attempts=new Map();
 function decodeStoredTemplate(value){return decryptDescriptor(value,keyFromEnv());}
 function token(req){return /(?:^|; )bhw_session=([0-9a-f]{64})(?:;|$)/.exec(req.headers.cookie||'')?.[1]||null}
 function cookie(res,value,maxAge){res.cookie('bhw_session',value,{httpOnly:true,secure:true,sameSite:'strict',path:'/',maxAge});}
+const faceBindingCookie='bhw_face_bind';
+function faceBinding(req){
+ const match=/(?:^|;\s*)bhw_face_bind=([0-9a-f]{64})(?:;|$)/.exec(req.headers.cookie||'');
+ return match?.[1]||null;
+}
+function setFaceBinding(res,binding){
+ res.cookie(faceBindingCookie,binding,{
+  httpOnly:true,secure:true,sameSite:'strict',path:'/api',maxAge:120000
+ });
+}
+function clearFaceBinding(res){
+ res.clearCookie(faceBindingCookie,{httpOnly:true,secure:true,sameSite:'strict',path:'/api'});
+}
+
 function rateLimit(req,res,next){
  const key=req.ip+':'+req.path,now=Date.now(),prior=attempts.get(key)||{until:now+900000,count:0};
  if(now>prior.until){prior.until=now+900000;prior.count=0}
@@ -115,7 +129,9 @@ app.get('/api/election-info',async(req,res)=>{
 });
 app.post('/api/face-challenge',rateLimit,async(req,res)=>{
  try{
-  const challenge=await issueFaceChallenge(connection.db,req.ip);
+  const binding=createFaceBinding();
+  const challenge=await issueFaceChallenge(connection.db,binding);
+  setFaceBinding(res,binding);
   res.set('Cache-Control','no-store');
   return res.json({success:true,...challenge});
  }catch(_){return res.status(503).json({success:false,message:'Facial challenge temporarily unavailable'})}
@@ -124,9 +140,10 @@ app.post('/api/login-face',rateLimit,async(req,res)=>{
  if(!validDescriptor(req.body?.descriptor))return res.status(400).json({success:false,message:'Invalid face data'});
  let verified=false;
  try{verified=await consumeFaceChallenge(connection.db,{challengeId:req.body?.challengeId,
-  completedActions:req.body?.completedActions,ip:req.ip})}
+  completedActions:req.body?.completedActions,binding:faceBinding(req)})}
  catch(_){return res.status(503).json({success:false,message:'Facial challenge verification unavailable'})}
- if(!verified)return res.status(401).json({success:false,message:'Facial challenge expired or incomplete'});
+ clearFaceBinding(res);
+ if(!verified)return res.status(401).json({success:false,message:'Facial challenge expired, incomplete, or from another browser'});
  try{
   const found=await findFaceMatch(connection.db,req.body.descriptor,decodeStoredTemplate);
   if(found.ambiguous)return res.status(409).json({success:false,message:'Ambiguous face match'});
@@ -226,9 +243,11 @@ async function superadminOnly(req,res,next){
 app.post('/api/admin/register-member',staffOnly,async(req,res)=>{
   let verified=false;
   try{verified=await consumeFaceChallenge(connection.db,{
-    challengeId:req.body?.challengeId,completedActions:req.body?.completedActions,ip:req.ip})}
+    challengeId:req.body?.challengeId,completedActions:req.body?.completedActions,
+    binding:faceBinding(req)})}
   catch(_){return res.status(503).json({success:false,message:'Enrollment facial challenge unavailable'})}
-  if(!verified)return res.status(401).json({success:false,message:'Enrollment facial challenge expired or incomplete'});
+  clearFaceBinding(res);
+  if(!verified)return res.status(401).json({success:false,message:'Enrollment facial challenge expired, incomplete, or from another browser'});
   const {registerMemberWithFace}=require('./database/member-enrollment');
   const {verifyGuimbaLocation}=require('./database/guimba-location');
   try{
