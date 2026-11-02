@@ -6,7 +6,7 @@ const {listElectionHistory}=require('../database/election-history');
 
 const page=fs.readFileSync(path.join(__dirname,'..','public','mongo-admin-console.html'),'utf8');
 assert.match(page,/e\.published\?/);
-assert.match(page,/View verified report/);
+assert.match(page,/View report & verify integrity/);
 assert.match(page,/Pending roster freeze/);
 assert.match(page,/N\/A \(no eligible voters\)/);
 assert.match(page,/timeZone:'Asia\/Manila'/);
