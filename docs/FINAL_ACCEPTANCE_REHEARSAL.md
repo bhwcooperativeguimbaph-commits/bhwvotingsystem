@@ -44,7 +44,8 @@
 - **Super Admin password + Brevo OTP:** **PASS (user-confirmed)**. User signed in to `https://secongvoting.onrender.com/admin-auth-preview` and reached the protected administrator interface. This confirms one successful login path only, not expired-code, lockout, or account-recovery tests.
 - **Anonymous/public staging gate:** **PASS (automated)**, using GitHub Actions with no secrets and no ballot submissions.
 - **Facial challenge browser binding:** **PASS (staging automated live API)**. Following an on-time enrollment failure with the old proxy-IP binding, challenges now use a secure short-lived HttpOnly cookie. The live test confirms that a different browser binding is rejected, the originating browser can consume once, and replay is rejected. **Actual camera enrollment still requires user retest.**
-- **Member biometric enrollment and facial member login:** **NOT RUN** — requires an explicitly consenting camera participant.
+- **Member biometric enrollment:** **PASS (user-confirmed)** on the staging service after the secure browser-binding challenge fix. The user successfully registered a test member through the camera workflow. Exact adult-age, names, address and locked Guimba geography UI changes are committed with green offline regression tests, but their refreshed UI is still awaiting visual confirmation.
+- **Member facial login:** **NOT RUN** — needs separate verification of authentication, session persistence and ballot access.
 - **Election, independent key custodians, ballot/receipt, results:** **NOT RUN** end to end.
 - **Production authorization:** **BLOCKED** pending full acceptance and privacy/security review.
 
@@ -55,3 +56,16 @@ Collect only sanitized evidence: deploy commit SHA, CI pass/fail status, HTTP re
 **Go-live remains blocked** if any test fails or until independent reviewers approve biometric consent/retention, presentation-attack controls or alternative identity verification, ballot secrecy, access-control review, availability, backups and official election procedures.
 
 After the staging rehearsal passes, promote code by reviewed release; **do not** simply switch the production vote-test flag to true.
+
+## Enrollment form UX verification
+
+Code committed and offline regression tests passed:
+- Required first and last names; optional middle name; required membership area and street/house address.
+- Birthdate is validated by the **Asia/Manila calendar date**, including the exact eighteenth birthday. Underage dates are prevented in the date picker and rejected by the server.
+- Region III (Central Luzon), Nueva Ecija, and Guimba are **disabled** dropdowns populated from trusted reference data.
+- The Guimba barangay selector initially shows `— Select your barangay —` with **no barangay selected**.
+- A successful biometric registration opens an accessible confirmation popup containing the generated member ID.
+- Member profile corrections accept split names and enforce the same adult-age rule.
+- Existing registered members are not renamed or modified during this update.
+
+**Remaining acceptance:** after staging auto-deploy, verify the new visual controls, a success popup with a consenting synthetic user, and user-facing validation messages. A previously enrolled face will be rejected as a duplicate; do not reenroll the same participant merely to test the popup.
