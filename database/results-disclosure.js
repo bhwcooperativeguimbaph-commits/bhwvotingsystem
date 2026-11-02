@@ -31,6 +31,12 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
    const totals=new Map(candidates.map(c=>[c.candidateId,0]));
    const ballots=await db.collection('ballots').find({electionId,status:'Valid'},
     {session,projection:{_id:0,encryptedVote:1,voteHash:1}}).toArray();
+   // Ballot ciphertext and identifiable participation are stored separately.
+   // Integrity requires exactly one anonymous ballot per accepted participation.
+   const participants=await db.collection('voterParticipation').countDocuments(
+    {electionId,status:'Valid'},{session});
+   if(participants!==ballots.length)
+    throw Object.assign(new Error('Ballot and participation count mismatch'),{code:'INTEGRITY_FAILURE'});
    for(const ballot of ballots){
     if(typeof ballot.encryptedVote!=='string'||crypto.createHash('sha256').update(ballot.encryptedVote).digest('hex')!==ballot.voteHash)
      throw Object.assign(new Error('Ballot integrity failure'),{code:'INTEGRITY_FAILURE'});
