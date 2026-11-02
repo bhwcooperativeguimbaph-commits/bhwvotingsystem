@@ -85,7 +85,8 @@ async function main(){
    'A different browser could consume a challenge or staging is using the old IP binding');
  const accepted=await check('/api/login-face','POST',synthetic,cookie);
  expect(accepted.status===401&&accepted.data?.message==='Face not recognized',
-   'Correct browser cookie was not accepted for a single-use facial challenge');
+   'Correct browser cookie verification failed: HTTP '+accepted.status+
+   '; category '+String(accepted.data?.message||'unexpected response').slice(0,120));
  const replay=await check('/api/login-face','POST',synthetic,cookie);
  expect(replay.status===401&&/challenge/i.test(replay.data?.message||''),
    'Replaying a facial challenge was not rejected');
