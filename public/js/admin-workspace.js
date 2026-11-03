@@ -150,6 +150,7 @@
   for(const link of nav.querySelectorAll('[data-view-link]'))
    link.classList.toggle('active',link.getAttribute('href')==='#view-'+id);
   by('activePageTitle').textContent=viewNames[id];
+  window.dispatchEvent(new CustomEvent('bhw-view-changed',{detail:{view:id}}));
   sidebar.classList.remove('mobile-open');
   by('mobileMenu').setAttribute('aria-expanded','false');
   window.scrollTo(0,0);
