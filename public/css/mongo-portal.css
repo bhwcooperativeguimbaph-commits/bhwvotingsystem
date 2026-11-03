@@ -231,3 +231,20 @@ body:has(.admin-workspace) .sidebar-links a{font-size:14px}
  .admin-toolbar{align-items:flex-start}
  .registration-frame-panel iframe{min-height:1350px}
 }
+
+/* 2026-11-03: keep admin navigation fixed while content scrolls.
+   The original rounded wrapper used overflow:hidden, which prevented sticky
+   positioning from using the document scrollport. */
+@media(min-width:721px){
+ body:has(.admin-workspace) .admin-workspace{overflow:visible!important;align-items:start}
+ body:has(.admin-workspace) .admin-sidebar{
+  position:sticky!important;top:0!important;height:100dvh!important;
+  align-self:start;overscroll-behavior:contain;z-index:12
+ }
+}
+.registration-frame-panel iframe{
+ min-height:0!important;height:1px;
+ display:block;width:100%;border:0;overflow:hidden;
+}
+/* Reapply min-height:0 after legacy mobile registration override. */
+@media(max-width:720px){.registration-frame-panel iframe{min-height:0!important}}
