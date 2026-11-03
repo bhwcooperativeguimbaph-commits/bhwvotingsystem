@@ -431,7 +431,7 @@ async function listAdmins(){
   button.className=a.status==='Active'?'danger':'ghost';
   button.onclick=async()=>{
    const status=a.status==='Active'?'Inactive':'Active';
-   if(!confirm('Set '+a.username+' to '+status+'?'))return;
+   if(!await BHWDialog.confirm('Set '+a.username+' to '+status+'?'))return;
    const reply=await action('adminResult',()=>call('/api/superadmin/admins/'+encodeURIComponent(a.adminId)+'/status','PATCH',{status}));
    if(reply?.success)await listAdmins();
   };
@@ -516,7 +516,7 @@ async function showMembers(){
   };
   const edit=makeIcon('Edit member','edit',()=>editMember(member));
   const remove=makeIcon('Delete member','delete',async()=>{
-   if(!confirm('Permanently delete '+member.fullName+' and their enrollment biometrics? This is allowed only for unused staging records that never joined a frozen electorate.'))return;
+   if(!await BHWDialog.confirm('Permanently delete '+member.fullName+' and their enrollment biometrics? This is allowed only for unused staging records that never joined a frozen electorate.'))return;
    const response=await call('/api/superadmin/staging-members/'+encodeURIComponent(member.memberId),'DELETE');
    by('memberTotal').textContent=response.success?'Member deleted.':response.message||'Deletion unavailable.';
    if(response.success)await showMembers();
@@ -525,7 +525,7 @@ async function showMembers(){
   const state=member.status==='Active'?'Inactive':'Active';
   const toggle=makeIcon(member.status==='Active'?'Disable member':'Enable member',
    member.status==='Active'?'disable':'enable',async()=>{
-   if(!confirm((state==='Inactive'?'Disable':'Enable')+' '+member.fullName+'?'))return;
+   if(!await BHWDialog.confirm((state==='Inactive'?'Disable':'Enable')+' '+member.fullName+'?'))return;
    const response=await call('/api/admin/members/'+encodeURIComponent(member.memberId)+'/status','PATCH',{status:state});
    if(response.success)await showMembers();
    else by('memberTotal').textContent=response.message||'Status update unavailable';
@@ -846,7 +846,7 @@ by('create').onclick=async()=>{
  const description=createdElectionId?
   'Retry issuing key shares to the two recipients for election '+createdElectionId+'?':
   'Create this election, then send one private key share to EACH listed custodian? Sending shares freezes voter eligibility and candidate edits. Lost shares cannot be recovered.';
- if(!window.confirm(description))return;
+ if(!await BHWDialog.confirm(description))return;
  const submit=by('create');submit.disabled=true;by('wizardError').textContent='Saving election and verifying custodian delivery…';
  try{
   if(!createdElectionId){
@@ -894,7 +894,7 @@ async function showCandidates(){
   button.textContent='Remove this candidate';
   button.type='button';
   button.onclick=async()=>{
-   if(!confirm('Remove '+c.name+' before voting starts?'))return;
+   if(!await BHWDialog.confirm('Remove '+c.name+' before voting starts?'))return;
    const result=await action('candidateResult',()=>call('/api/admin/elections/'+encodeURIComponent(id)+'/candidates/'+encodeURIComponent(c.candidateId),'DELETE'));
    if(result?.success)showCandidates();
   };
@@ -987,7 +987,7 @@ by('provision').onclick=async()=>{
  }
  const caution='Confirm separate key delivery to:\\n1. '+emails[0]+'\\n2. '+emails[1]+
   '\\n\\nThis freezes voter eligibility and candidate configuration. Lost shares cannot be retrieved from this system. Proceed only when both custodians are ready to receive their private shares.';
- if(!window.confirm(caution))return;
+ if(!await BHWDialog.confirm(caution))return;
  const button=by('provision');button.disabled=true;
  try{
   const result=await action('provisionResult',()=>call('/api/admin/elections/'+
