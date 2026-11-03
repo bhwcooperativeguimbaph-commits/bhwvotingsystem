@@ -396,3 +396,48 @@ Requested behavior and source-code implementation baseline (the automated tests 
 8. The UI removes development/rehearsal copy, **but neither the real-voting gate nor the production-approval requirements change**. The application still must pass full staging testing, independent biometric and privacy review, and explicit official approval before use for a consequential live election.
 
 **Manual acceptance still pending:** verify latest Render deployment SHA, all desktop/mobile views, webcam initialization/retry on different browsers, portrait accessibility, same-origin embedded registration and area dropdown, notification bell behavior, vote confirmation/PDF download, role separation, and retention/deletion procedure for photos. Do not enable real voting solely because the UI looks complete.
+
+
+## 2026-11-03 — Owner's Render review: mandatory UX, election lifecycle, results and receipt corrections
+
+This dated section records the owner's specific requirements and the security constraints that must remain intact. Read **WORKING_FEATURES_CHANGE_POLICY.md** before implementing further work: do not change unrelated functioning features without the owner's explicit request. The previously recorded implementation checkpoints do not override this newer UI specification.
+
+### UX-RR-01 — Registration height and fixed navigation
+- Embedded member Registration occupies the available main-column width, with its iframe height measured from actual visible document content. Do **not** use a hard-coded 1120/1350/1450-pixel minimum or measure the old iframe viewport, which creates an excessively long blank white tail. The frame must grow when camera/confirmation/area dialogs expand and shrink after closing them.
+- Desktop admin sidebar remains visible and anchored to the viewport as Dashboard, Registration, Members, Reports or other content scrolls. The right-hand view scrolls normally; on mobile the existing collapsible navigation remains usable and must not cover form inputs.
+- Preserve registration validation, Barangay then Street/house/sitio order, consent, authorized camera capture and the existing Area dropdown. Avoid hidden modal/backdrop interactions inside a tall iframe.
+
+### UX-RR-02 — Consistent status and confirmation popups
+- Replace native browser `confirm()` and `alert()` for administrative actions with consistent, accessible dialogs containing clear action titles, Cancel/Confirm or OK, keyboard support and appropriate focus. Do not print credentials, codes, custodian shares or secrets in dialogs or logs.
+- Errors must explain the cause and the next safe action. Keep routine loading/inline hints unobtrusive; use clear success/error dialogs for high-impact actions (election creation, publishing results, member removal, Super Admin email change).
+- Administrator recovery/email-change OTP delivery uses two independently verified recipients, bounded verification, expiration and session revocation. Each Brevo change-email message body contains **only its own six-digit code**; keep server-side hashes, validation and email-change audit intact. The browser must show explicit success and error dialogs, including before redirecting after revocation.
+
+### UX-RR-03 — Election setup locked while a scheduled election is active
+- After an election has been created and until its scheduled `endTime`, disable/hide the new-election setup wizard and candidate edits for an active election. Show its title, **start date/time** and **end date/time** in Asia/Manila; make it clear when setup becomes available again.
+- Preserve server-side concurrency/one-active-election constraint, candidate-key-provisioning freeze, eligibility snapshot and the required future start date. A cosmetic UI lock is **not** a substitute for server authorization.
+
+### UX-RR-04 — Plain-language dashboard
+- Use labels that members and election staff understand, such as **Total members**, **Active members**, **Total votes**, **Current election**, **Votes cast**, **Eligible members**, **Voter turnout**, **Votes by day** and **Votes by area**.
+- Keep all numerical distinctions correct: lifetime votes versus current-election votes, frozen eligible roster denominator, accurate zero/empty states, Philippine-time grouping and privacy suppression for area totals below three.
+
+### UX-RR-05 — Election results & reports: one dropdown and permanent publication
+- Provide **one election selector**; when selected, show the election title, scheduled start/end and either in-progress, ended/unpublished, or published status. Avoid the old collection of raw election-ID inputs and multiple disconnected operations panels.
+- For an **ended and unpublished** election, only a verified Super Admin may submit *two separate authentic custodian key shares* **after both custodians separately confirm receipt**. The verified decryption/finalization transaction must check ballot count/integrity, publish a durable immutable aggregate report and create one announcement visible to all eligible members. An incorrect share, premature result request or duplicate publication must fail without changing results.
+- **After first successful publication**, report access is permanently unlocked without needing the keys again; subsequent views/downloads never resend notifications. The published report must be integrity-verified, viewable by members and downloadable as an overall report/PDF or CSV.
+- An **overall report** includes candidates/positions and aggregate vote counts. **Area reports** include only aggregate *participation counts* by Area (no candidate-by-area choices or voter-level mappings); groups with fewer than three recorded voters must be suppressed. Staff can download area and overall CSV. Do not create identity-to-ballot links for geographic analytics.
+- Preserve existing immutable final-report hashes, two-custodian threshold, privacy controls and notifications. The owner can confirm the actual two-email and two-share workflow in **isolated synthetic staging only**.
+
+### UX-RR-06 — Audit account names, confidentiality and historic records
+- Protected Audit logs should show the **verified full name** of the acting Admin/Super Admin/member **when the event has a reliable persisted actor/account ID**. Do not guess an identity for historic role-only events; explicitly mark unavailable names.
+- Never expose or reconstruct the real person who cast an anonymous ballot from timestamps, receipt codes or participation links; `BALLOT_CAST` remains anonymous.
+- Preserve action, event time, audit role, outcome, sanitized references and the existing role-limited access.
+
+### UX-RR-07 — Vote readiness and receipt
+- Do not show an actionable **Ready to vote** control until the correct election is within its voting window, the member belongs to the frozen eligible roster and has not voted, synthetic staging vote submission is authorized, and **both custodians have independently confirmed** their key shares.
+- Distinguish `CUSTODIAN_CONFIRMATION_PENDING` from actual `ENCRYPTION_UNAVAILABLE` errors, with a clear popup that explains why submission has not occurred. Do not describe a ballot as accepted unless the server transaction succeeds.
+- After a successful ballot commit, display a proper member receipt popup with random unique receipt number and acceptance date/time, automatically attempt to download the receipt PDF, and offer **Download receipt again** as a fallback. The receipt must never reveal candidate choices or enable repeat voting. Recover an already accepted receipt through the member-owned receipt API after network uncertainty.
+
+### Verification / operational controls
+- Automated regression suites must test the new layout contracts, date-locked setup, branded modal wiring, protected audit name resolution, status-specific voting readiness, permanent published report/announcement behavior, consented member receipt rendering and anonymous area-report aggregation.
+- Manual Render browser verification must confirm the embedded registration height and sticky sidebar on desktop/mobile, styled confirmation dialogs, two-email flow, the election selector states, publish-once results, notifications, download behavior, and actual guarded camera/login on synthetic records.
+- **Never interpret an emailed key share shown in a screenshot as a fresh private secret.** If any real secret has appeared in screenshots or shared conversations, that secret is considered exposed and must not be used in an operational election. Use fresh isolated synthetic election keys and independent custodians for supervised rehearsal. Production voting remains disabled pending independent privacy/security reviews and official authorization.
