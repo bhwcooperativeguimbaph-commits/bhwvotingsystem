@@ -248,3 +248,20 @@ body:has(.admin-workspace) .sidebar-links a{font-size:14px}
 }
 /* Reapply min-height:0 after legacy mobile registration override. */
 @media(max-width:720px){.registration-frame-panel iframe{min-height:0!important}}
+
+/* Shared accessible popups; backend authorization still applies. */
+.bhw-message-dialog{
+ box-sizing:border-box;border:1px solid #d4e8df;border-radius:20px;
+ width:min(460px,calc(100vw - 28px));max-height:85dvh;overflow:auto;
+ padding:27px;background:white;color:#19394b;box-shadow:0 26px 85px #0b2b2255
+}
+.bhw-message-dialog::backdrop{background:rgba(8,34,28,.58)}
+.bhw-message-dialog h2{margin:0 0 12px;color:#143f32;font-size:1.3rem}
+.bhw-message-dialog p{line-height:1.65;margin:0 0 16px;white-space:pre-wrap}
+.bhw-message-dialog input{box-sizing:border-box;width:100%;border:1px solid #aac9bb;
+ padding:12px;border-radius:9px;font:inherit}
+.bhw-message-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.bhw-message-actions button{font:inherit;font-weight:750;border-radius:11px;
+ min-width:106px;padding:12px 15px;cursor:pointer;margin:0;width:auto;border:0}
+.bhw-message-primary{background:#146c4d;color:white}
+.bhw-message-secondary{background:#e8f2ec;color:#165139}
