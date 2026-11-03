@@ -35,10 +35,9 @@ async function requestSuperadminEmailChange(db,{adminId,newEmail,deliver=sendBre
   attempts:0,consumed:false,createdAt:now,expiresAt:new Date(now.getTime()+300000)});
  try{
   await deliver({to:admin.email,subject:'BHW old email confirmation',
-   text:'A request was made to change your BHW Super Admin email. Your OLD address verification code is '+oldCode+
-    '. It expires in five minutes. If you did not request this, contact your administrator.'});
+   text:oldCode});
   await deliver({to:email,subject:'BHW new email confirmation',
-   text:'Your NEW BHW Super Admin email verification code is '+newCode+'. It expires in five minutes.'});
+   text:newCode});
  }catch(_){
   await collection.deleteOne({challengeHash}).catch(()=>{});
   throw fail('EMAIL_DELIVERY_UNAVAILABLE');
