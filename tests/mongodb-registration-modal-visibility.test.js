@@ -1,0 +1,45 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm');
+const root=path.join(__dirname,'..');
+const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const page=read('public/mongo-enrollment-preview.html');
+const admin=read('public/admin-auth-preview.html');
+const workspace=read('public/js/admin-workspace.js');
+const rules=read('WORKING_FEATURES_CHANGE_POLICY.md');
+const agents=read('AGENTS.md');
+const address=page.indexOf('<label>Street / house / sitio address');
+const barangay=page.indexOf('<label>Guimba barangay');
+const consent=page.indexOf('id="consent"');
+assert.ok(barangay>=0&&address>barangay&&consent>address,'Street must follow Guimba barangay, before consent');
+for(const id of ['firstName','lastName','area','address','birthdate','barangay','consent',
+ 'openCapture','captureDialog','successDialog','camera','enroll','webcam','status']){
+ assert.ok(page.includes('id="'+id+'"'),'Registration feature must be retained: '+id);
+}
+assert.match(admin,/<a href="\/admin-password-recovery">Forgot password<\/a>/);
+assert.match(admin,/\/api\/admin\/login-password/);
+assert.match(admin,/\/api\/admin\/login-otp/);
+assert.ok(!admin.includes('Forgot password? Recover your administrator account'));
+assert.match(page,/function openRegistrationDialog\(id\)/);
+assert.match(page,/if\(embeddedMode\)\s*\{/);
+assert.match(page,/element\.show\(\)/);
+assert.match(page,/else element\.showModal\(\)/,'Standalone modal must be retained');
+assert.match(page,/openRegistrationDialog\('captureDialog'\)/);
+assert.match(page,/openRegistrationDialog\('successDialog'\)/);
+assert.match(page,/by\('cancelCapture'\)\.onclick/);
+assert.match(page,/stopRegistrationCamera\(\)/);
+assert.match(page,/window\.runBHWFaceChallenge\(video\)/);
+assert.match(page,/api\/admin\/register-member/);
+assert.match(page,/api\/admin\/members\/.*biometrics/);
+assert.match(page,/\.embedded-registration #captureDialog\[open\]/);
+assert.match(page,/window\.parent\.postMessage\(/);
+assert.match(page,/Camera access was denied/);
+assert.match(page,/Face model loading timed out/);
+assert.match(workspace,/event\.source!==registrationFrame\.contentWindow/);
+assert.match(workspace,/event\.origin!==location\.origin/);
+assert.match(workspace,/registrationFrame\.getBoundingClientRect\(\)\.top/);
+assert.match(workspace,/window\.scrollBy\(0,frameTop\+panelTop-105\)/);
+assert.match(rules,/Do not change, replace, redesign, remove, refactor or reconfigure ANY feature/);
+assert.match(agents,/WORKING_FEATURES_CHANGE_POLICY\.md/);
+new vm.Script(workspace,{filename:'admin-workspace.js'});
+console.log('PASS: password link, address order, visible embedded camera, standalone dialog unchanged, permanent preservation rule');
