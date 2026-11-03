@@ -134,6 +134,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <section id="electionSetupSection" class="wizard-panel">
 <h2>Configure election</h2>
 <p>Build a new election in four steps. Positions and vote limits are fully configurable.</p>
+<div id="setupLockedNotice" class="election-setup-lock" hidden role="status"><h3>Election in progress</h3><p id="setupLockExplanation"></p><p id="setupLockDates"></p><small>Election setup will be available after the scheduled end. Existing ballots and candidate configuration remain protected.</small></div>
 <div class="wizard-progress" role="status" aria-live="polite">
  <span data-step="1" class="current">1. Details</span><span data-step="2">2. Positions</span>
  <span data-step="3">3. Candidates</span><span data-step="4">4. Review &amp; custodians</span>
@@ -339,6 +340,23 @@ async function refreshOverview(){
  }
  const holder=by('historyList');holder.replaceChildren();
  if(history.success){
+  const now=Date.now(),ongoing=(history.elections||[]).find(e=>
+   e.status==='Active'&&new Date(e.endTime).getTime()>now);
+  const locked=Boolean(ongoing),notice=by('setupLockedNotice');
+  notice.hidden=!locked;
+  const stepUI=[...document.querySelectorAll('.wizard-progress, .wizard-controls, .wizard-step'),
+   by('wizardError'),by('createResult')];
+  for(const element of stepUI)if(element)element.hidden=locked;
+  const candidatePanel=by('candidateElection')?.closest('section');
+  if(candidatePanel)candidatePanel.hidden=locked;
+  if(locked){
+   const format=stamp=>new Intl.DateTimeFormat('en-PH',{
+    dateStyle:'medium',timeStyle:'short',timeZone:'Asia/Manila'}).format(new Date(stamp));
+   by('setupLockExplanation').textContent='Current election: '+ongoing.title;
+   by('setupLockDates').textContent='Start: '+format(ongoing.startTime)+' · End: '+format(ongoing.endTime);
+  }else{
+   showWizardStep(wizardStep);
+  }
   const phTime=value=>{
    const dt=new Date(value);
    return Number.isFinite(dt.getTime())?
