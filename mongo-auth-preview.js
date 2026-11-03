@@ -641,7 +641,7 @@ app.post('/api/admin/elections/:electionId/disclose-results',superadminOnly,asyn
  try{
   const {discloseElectionResults}=require('./database/results-disclosure');
   const report=await discloseElectionResults(connection,{
-   electionId:req.params.electionId,shares:req.body?.shares});
+   electionId:req.params.electionId,shares:req.body?.shares,operatorId:req.staff.accountId});
   res.set('Cache-Control','no-store');
   return res.json({success:true,report});
  }catch(e){
