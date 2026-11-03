@@ -5,7 +5,7 @@ const crypto=require('node:crypto');
 const {reconstructElectionPrivateKey}=require('./key-custody');
 const {decryptBallot}=require('./ballot-crypto');
 const {validateBallot}=require('./ballot-validation');
-async function discloseElectionResults(connection,{electionId,shares,now=new Date()}){
+async function discloseElectionResults(connection,{electionId,shares,now=new Date(),operatorId}){
  if(!/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||
     !Array.isArray(shares)||shares.length!==2||!(now instanceof Date))
   throw Object.assign(new Error('Invalid disclosure request'),{code:'INVALID_DISCLOSURE'});
@@ -64,7 +64,7 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
    if(result.modifiedCount!==1)throw new Error('Election changed during finalization');
    await db.collection('auditLogs').insertOne({
     eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',action:'RESULTS_FINALIZED',
-    electionId,createdAt:now
+    ...(operatorId?{operatorId}:{}),electionId,createdAt:now
    },{session});
   },{writeConcern:{w:'majority'}});
   return report;
