@@ -23,7 +23,7 @@ async function publishedAreaTurnout(db,electionId){
  return {electionId,ballotsCast:report.ballotsCast,
   eligibleMembers:Number.isInteger(election.eligibleMembersSnapshot)?
    election.eligibleMembersSnapshot:null,
-  areas:areas.filter(x=>typeof x._id==='string').map(x=>({
+  areas:areas.filter(x=>typeof x._id==='string'&&Number.isInteger(x.votesCast)&&x.votesCast>=3).map(x=>({
    area:x._id,votesCast:x.votesCast
   })),minimumPublishedAreaSize:3,publishedAt:report.publishedAt};
 }
