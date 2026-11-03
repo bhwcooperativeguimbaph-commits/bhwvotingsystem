@@ -474,8 +474,10 @@ app.get('/api/admin/logs',staffOnly,async(req,res)=>{
     sort:{createdAt:-1},skip:(page-1)*perPage,limit:perPage}).toArray(),
    db.collection('auditLogs').countDocuments(filter)
   ]);
+  const {displayAuditAccounts}=require('./database/audit-actor-display');
+  const named=await displayAuditAccounts(db,logs);
   res.set('Cache-Control','no-store');
-  return res.json({success:true,logs,page,perPage,total,pages:Math.ceil(total/perPage)});
+  return res.json({success:true,logs:named,page,perPage,total,pages:Math.ceil(total/perPage)});
  }catch(_){return res.status(503).json({success:false,message:'Audit logs unavailable'})}
 });
 app.get('/api/admin/turnout/:electionId',staffOnly,async(req,res)=>{
