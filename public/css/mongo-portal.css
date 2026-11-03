@@ -265,3 +265,17 @@ body:has(.admin-workspace) .sidebar-links a{font-size:14px}
  min-width:106px;padding:12px 15px;cursor:pointer;margin:0;width:auto;border:0}
 .bhw-message-primary{background:#146c4d;color:white}
 .bhw-message-secondary{background:#e8f2ec;color:#165139}
+
+/* Keep legacy report handlers mounted for backward compatibility, but only
+   show the selected election's compact report workflow. */
+#view-history > :not(.simple-results-panel){display:none!important}
+#view-history .simple-results-panel{display:block!important}
+.simple-results-panel{padding:clamp(18px,3vw,30px)!important}
+.simple-results-panel #simpleElection{max-width:780px}
+.simple-results-panel #simpleRefresh{max-width:240px;display:block}
+.simple-results-panel h3{margin:25px 0 12px}
+.simple-results-panel table{width:100%}
+.simple-results-panel [hidden]{display:none!important}
+.election-setup-lock{border:1px solid #d7e9df;background:#edf8f1;
+ padding:20px;border-radius:14px;margin:20px 0}
+.election-setup-lock h3{margin:0 0 8px;color:#146345}
