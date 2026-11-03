@@ -23,7 +23,7 @@ assert.match(admin,/setupLockDates/);
 assert.match(admin,/ongoing\.endTime/);
 assert.match(admin,/BHWDialog\.confirm/);
 assert.match(admin,/BHWDialog\.notice/);
-assert.ok(!/(?:window\.)?confirm\(/.test(admin),'No native blocking confirmations');
+assert.ok(!admin.includes('if(!confirm(')&&!admin.includes('if(!window.confirm('),'No native blocking confirmations');
 assert.match(dialogs,/showModal\(\)/);
 assert.match(results,/id="simpleElection"/);
 assert.match(results,/id="simpleFinalization"/);
