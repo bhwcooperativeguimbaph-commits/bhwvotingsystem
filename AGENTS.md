@@ -2,6 +2,10 @@
 
 For any future coding assistant session in this repository:
 
+> **USER'S PERMANENT CHANGE RULE — READ FIRST:** [WORKING_FEATURES_CHANGE_POLICY.md](WORKING_FEATURES_CHANGE_POLICY.md).
+> Never alter any already-working feature, workflow, route, design, validation or security guard unless the owner explicitly requests it. Fix only the identified issue with the smallest possible patch; ask permission before unavoidable changes to otherwise-working behavior.
+
+
 1. **Start with [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md) on the latest `main` branch**, then read [SPEC.md](SPEC.md), [README.md](README.md) and [docs/FINAL_ACCEPTANCE_REHEARSAL.md](docs/FINAL_ACCEPTANCE_REHEARSAL.md).
 2. **User-designated working branch is `main`.** Make small testable commits there; do not silently return to an earlier feature branch. Check actual HEAD and CI before editing so new commits do not overwrite others' work.
 3. At the **end of every coding session**, update [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md) on `main` with what was changed, exact commit SHA(s), test evidence, issues that remain, and the next concrete development task. Do not represent a mocked/offline or synthetic test as live acceptance.
