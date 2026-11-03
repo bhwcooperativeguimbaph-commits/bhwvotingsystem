@@ -314,8 +314,11 @@ async function loadAuditLogs(){
  for(const event of result.logs){
   const row=document.createElement('div');row.className='audit-row';
   const date=document.createElement('span');date.textContent=new Date(event.createdAt).toLocaleString('en-PH');
-  const actor=document.createElement('span');actor.textContent=(event.actorRole||'System')+
-   (event.operatorId?' · '+event.operatorId:event.actorId?' · '+event.actorId:'');
+  const actor=document.createElement('span');
+  actor.textContent=event.actorName?
+   event.actorName+' · '+(event.actorRole||'System'):
+   event.action==='BALLOT_CAST'?'Anonymous member':
+   (event.actorRole||'System')+' · Name unavailable';
   const action=document.createElement('span');action.textContent=event.action||'Unknown';
   const detail=document.createElement('small');detail.textContent=[event.electionId||event.memberId||'—',event.candidateId?'Candidate: '+event.candidateId:'',event.targetAdminId?'Admin: '+event.targetAdminId:'',event.outcome?'Outcome: '+event.outcome:'',event.reason?'Reason: '+event.reason:''].filter(Boolean).join(' · ');
   row.append(date,actor,action,detail);table.appendChild(row);
