@@ -43,7 +43,7 @@ function validateElection(input){
  });
  return {title,description,startTime:start,endTime:end,config};
 }
-async function createElection(connection,input,{now=new Date()}={}){
+async function createElection(connection,input,{now=new Date(),operatorId,actorRole='staff'}={}){
  const {db,client}=connection;
  if(!db||!client)throw new TypeError('MongoDB connection with db and client is required');
  const prepared=validateElection(input);
@@ -65,8 +65,8 @@ async function createElection(connection,input,{now=new Date()}={}){
    })));
    await db.collection('candidates').insertMany(candidates,{session});
    await db.collection('auditLogs').insertOne({
-    eventId:'AUD-'+crypto.randomUUID(),actorRole:'staff',action:'ELECTION_CREATED',
-    electionId,createdAt:now
+    eventId:'AUD-'+crypto.randomUUID(),actorRole,action:'ELECTION_CREATED',
+    ...(operatorId?{operatorId}:{}),electionId,createdAt:now
    },{session});
    saved=true;
   },{writeConcern:{w:'majority'}});
