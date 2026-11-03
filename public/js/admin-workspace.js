@@ -106,7 +106,7 @@
   if(event.origin!==location.origin||event.source!==registrationFrame.contentWindow||
      event.data?.type!=='bhw-enrollment-panel-open')return;
   const panelId=event.data.panel;
-  if(!['captureDialog','successDialog'].includes(panelId))return;
+  if(!['captureDialog','successDialog','areaDialog'].includes(panelId))return;
   const panel=registrationFrame.contentDocument?.getElementById(panelId);
   if(!panel?.open)return;
   requestAnimationFrame(()=>{
