@@ -92,6 +92,10 @@ app.get('/js/receipt-pdf.js',(req,res)=>{
  res.type('application/javascript');
  return res.sendFile(path.join(__dirname,'public','js','receipt-pdf.js'));
 });
+app.get('/js/bhw-dialogs.js',(req,res)=>{
+ res.set('Cache-Control','public,max-age=3600');
+ return res.type('application/javascript').sendFile(path.join(__dirname,'public','js','bhw-dialogs.js'));
+});
 app.get('/js/admin-workspace.js',staffOnly,(req,res)=>{res.set('Cache-Control','no-store');return res.type('application/javascript').sendFile(path.join(__dirname,'public','js','admin-workspace.js'))});
 app.get('/js/mongo-face-challenge.js',(req,res)=>{
  res.set('Cache-Control','no-store');
