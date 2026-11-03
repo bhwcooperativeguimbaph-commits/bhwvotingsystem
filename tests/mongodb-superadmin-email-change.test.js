@@ -55,6 +55,7 @@ function hash(value){return crypto.createHash('sha256').update(value).digest('he
  assert.equal(sent.length,2);
  assert.deepEqual(sent.map(x=>x.to),['old@example.test','new@example.test']);
  const codes=sent.map(x=>x.text.match(/\b\d{6}\b/)[0]);
+ assert.deepEqual(sent.map(x=>x.text),codes,'Email bodies must contain only one six-digit code each');
  assert.notEqual(challenges[0].oldCodeHash,codes[0]);
  assert.equal(challenges[0].oldCodeHash,hash(codes[0]));
  assert.equal(challenges[0].newCodeHash,hash(codes[1]));
