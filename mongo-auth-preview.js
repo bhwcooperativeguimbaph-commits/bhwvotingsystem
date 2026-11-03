@@ -750,6 +750,7 @@ app.post('/api/vote',async(req,res)=>{
  }catch(e){
   const responses={NOT_AUTHORIZED:[403,'Voter is not active'],VOTING_CLOSED:[403,'Voting is not open'],
    INVALID_BALLOT:[400,'Invalid candidate selection'],DUPLICATE_BALLOT:[409,'A vote was already recorded'],
+   CUSTODIAN_CONFIRMATION_PENDING:[409,'Voting is not ready: both key custodians must confirm receipt of their private shares'],
    ENCRYPTION_UNAVAILABLE:[503,'Election encryption keys are not configured']};
   const [status,message]=responses[e?.code]||[503,'Secure voting is unavailable'];
   return res.status(status).json({success:false,message});
