@@ -863,6 +863,12 @@ async function main(){
   const result=await ensureStagingSuperadmin(connection.db);
   console.log('Isolated staging Super Admin bootstrap:',result.status);
  }
- app.listen(Number(process.env.PORT)||10000,'0.0.0.0',()=>console.log('MongoDB authentication preview listening; voting disabled'));
+ const listenPort=Number(process.env.PORT)||10000;
+ app.listen(listenPort,'0.0.0.0',()=>{
+  console.log('BHW Voting System HTTP ready: host=0.0.0.0 port='+listenPort+' health=/health');
+  console.log('MongoDB startup and index initialization: complete');
+  console.log('Synthetic staging vote submissions: '+
+   (process.env.ENABLE_MONGODB_VOTE_TEST==='true'?'enabled in isolated test database':'disabled'));
+ });
 }
 main().catch(()=>{console.error('MongoDB authentication preview failed to start; check configuration');process.exitCode=1});
