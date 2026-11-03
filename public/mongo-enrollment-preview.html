@@ -29,7 +29,15 @@ small{color:#52657a;display:block}
 
 .hidden{display:none}
 </style>
-<style>.embedded-registration{margin:0!important;padding:18px 28px!important;max-width:none!important;background:white}.embedded-registration .enrollment-header,.embedded-registration>.portal-footer{display:none!important}.embedded-registration #register{max-width:860px;margin:auto}#addArea{width:auto;max-width:230px}</style><header class="portal-top enrollment-header"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member registration</small></span></a></header>
+<style>.embedded-registration{margin:0!important;padding:18px 28px!important;max-width:none!important;background:white}.embedded-registration .enrollment-header,.embedded-registration>.portal-footer{display:none!important}.embedded-registration #register{max-width:860px;margin:auto}#addArea{width:auto;max-width:230px}
+.embedded-registration #captureDialog[open],.embedded-registration #successDialog[open]{
+ position:static;inset:auto;display:block;box-sizing:border-box;
+ width:100%;max-width:620px;max-height:none;overflow:visible;
+ margin:22px auto;box-shadow:0 8px 35px #12382b1f;
+}
+.embedded-registration #successDialog[open]{max-width:440px}
+.embedded-registration #captureDialog::backdrop,.embedded-registration #successDialog::backdrop{display:none}
+</style><header class="portal-top enrollment-header"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member registration</small></span></a></header>
 
 <h1>Member registration</h1><p>Complete the member's information, then capture their face to register.</p>
 <form id="register">
@@ -80,6 +88,22 @@ small{color:#52657a;display:block}
 const by=id=>document.getElementById(id),video=by('webcam');
 const params=new URLSearchParams(location.search);
 if(params.get('embedded')==='1')document.body.classList.add('embedded-registration');
+const embeddedMode=params.get('embedded')==='1';
+function revealEmbeddedPanel(id){
+ if(!embeddedMode||window.parent===window)return;
+ // The parent positions the in-flow camera near the visible viewport.
+ window.parent.postMessage({type:'bhw-enrollment-panel-open',panel:id},window.location.origin);
+}
+function openRegistrationDialog(id){
+ const element=by(id);
+ if(embeddedMode){
+  // showModal() centers a dialog in the *tall iframe viewport* while its
+  // backdrop darkens the page. The actual camera may be off-screen.
+  // An in-flow dialog avoids the invisible-modal "frozen" experience.
+  element.show();
+  revealEmbeddedPanel(id);
+ }else element.showModal();
+}
 const replaceParam=params.get('replace');
 const replacementMode=/^MEM-[0-9a-f-]{36}$/i.test(replaceParam||'');
 if(replacementMode){
@@ -188,23 +212,37 @@ by('openCapture').onclick=()=>{
   }
   if(!by('register').reportValidity())return;
  }
- by('captureDialog').showModal();
+ openRegistrationDialog('captureDialog');
  by('camera').click();
 };
 
 
 by('camera').onclick=async()=>{
- if(busy||started)return;busy=true;by('camera').disabled=true;by('status').textContent='Loading local face models...';
+ if(busy||started)return;busy=true;by('camera').disabled=true;
+ by('status').textContent='Loading face recognition models. Please keep this panel open…';
+ let loadingTimeout;
  try{
-  await Promise.all([
-   faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-   faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-   faceapi.nets.faceRecognitionNet.loadFromUri('/models')]);
+  if(typeof window.faceapi==='undefined')
+   throw Error('Face recognition library did not load. Check your internet connection and retry.');
+  await Promise.race([
+   Promise.all([
+    faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+    faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('/models')]),
+   new Promise((_,reject)=>{
+    loadingTimeout=setTimeout(()=>reject(Error('Face model loading timed out. Check your connection and retry.')),45000);
+   })
+  ]);
+  clearTimeout(loadingTimeout);loadingTimeout=null;
   video.srcObject=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:'user',width:640,height:480}});
   await video.play();started=true;refreshEnrollmentButton();
   by('status').textContent='Camera ready. Fill the fields and begin the facial challenge.';
- }catch(e){by('status').textContent=e.message||'Camera/model initialization failed';by('camera').disabled=false}
- finally{busy=false;refreshEnrollmentButton()}
+ }catch(e){
+  by('status').textContent=e.name==='NotAllowedError'?
+   'Camera access was denied. Allow camera permission in the browser and retry.':
+   e.message||'Camera/model initialization failed';
+  by('camera').disabled=false;
+ }finally{clearTimeout(loadingTimeout);busy=false;refreshEnrollmentButton()}
 };
 function capturePortrait(){
  const canvas=document.createElement('canvas');canvas.width=180;canvas.height=180;
@@ -257,7 +295,7 @@ by('enroll').onclick=async()=>{
    'Registration complete. Member ID: '+result.memberId;
   by('captureDialog').close();
   stopRegistrationCamera();
-  by('successDialog').showModal();
+  openRegistrationDialog('successDialog');
   if(!replacementMode){by('register').reset();by('barangay').value=''}
   else{by('replaceReason').value='';by('replaceConsent').checked=false}
   by('camera').disabled=false;
