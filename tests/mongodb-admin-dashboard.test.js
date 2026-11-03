@@ -8,12 +8,12 @@ const page=fs.readFileSync(path.join(__dirname,'..','public','mongo-admin-consol
 for(const id of ['currentElectionTitle','currentElectionStatus','currentBallots','currentEligible','currentTurnout','turnoutExplanation']){
  assert.match(page,new RegExp('id="'+id+'"'),id+' must be displayed');
 }
-assert.match(page,/Total accepted ballots · all elections/);
-assert.match(page,/Accepted ballots · latest election/);
+assert.match(page,/Total votes/);
+assert.match(page,/Votes cast/);
 assert.match(page,/Number\.isInteger\(eligible\)/);
 assert.match(page,/eligible===0/);
 assert.match(page,/No election configured/);
-assert.match(page,/Accepted ballots by area/);
+assert.match(page,/Votes by area/);
 
 (async()=>{
  const empty=await getAdminAnalytics({collection(name){
