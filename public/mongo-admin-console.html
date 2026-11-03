@@ -344,7 +344,8 @@ async function refreshOverview(){
    e.status==='Active'&&new Date(e.endTime).getTime()>now);
   const locked=Boolean(ongoing),notice=by('setupLockedNotice');
   notice.hidden=!locked;
-  const stepUI=[...document.querySelectorAll('.wizard-progress, .wizard-controls, .wizard-step'),
+  const wizard=by('electionSetupSection');
+  const stepUI=[...wizard.querySelectorAll('.wizard-progress, .wizard-controls, .wizard-step'),
    by('wizardError'),by('createResult')];
   for(const element of stepUI)if(element)element.hidden=locked;
   const candidatePanel=by('candidateElection')?.closest('section');
