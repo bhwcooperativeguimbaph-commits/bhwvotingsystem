@@ -30,13 +30,13 @@ small{color:#52657a;display:block}
 .hidden{display:none}
 </style>
 <style>.embedded-registration{margin:0!important;padding:18px 28px!important;max-width:none!important;background:white}.embedded-registration .enrollment-header,.embedded-registration>.portal-footer{display:none!important}.embedded-registration #register{max-width:860px;margin:auto}#addArea{width:auto;max-width:230px}
-.embedded-registration #captureDialog[open],.embedded-registration #successDialog[open]{
+.embedded-registration #captureDialog[open],.embedded-registration #successDialog[open],.embedded-registration #areaDialog[open]{
  position:static;inset:auto;display:block;box-sizing:border-box;
  width:100%;max-width:620px;max-height:none;overflow:visible;
  margin:22px auto;box-shadow:0 8px 35px #12382b1f;
 }
 .embedded-registration #successDialog[open]{max-width:440px}
-.embedded-registration #captureDialog::backdrop,.embedded-registration #successDialog::backdrop{display:none}
+.embedded-registration #captureDialog::backdrop,.embedded-registration #successDialog::backdrop,.embedded-registration #areaDialog::backdrop{display:none}
 </style><header class="portal-top enrollment-header"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member registration</small></span></a></header>
 
 <h1>Member registration</h1><p>Complete the member's information, then capture their face to register.</p>
@@ -45,6 +45,13 @@ small{color:#52657a;display:block}
 <label>Middle name <small>(optional)</small><input id="middleName" maxlength="60" autocomplete="off" placeholder="Optional"></label>
 <label>Last name <input id="lastName" required maxlength="60" autocomplete="off" placeholder="Required"></label>
 <label>Area <select id="area" required><option value="">Select area</option></select></label><button id="addArea" type="button" class="ghost">+ Add area</button><p id="areaStatus" role="status" aria-live="polite"></p>
+<dialog id="areaDialog" aria-labelledby="areaDialogTitle">
+ <h2 id="areaDialogTitle">Add a member area</h2>
+ <label>Area name<input id="areaName" type="text" maxlength="100" autocomplete="off" placeholder="Enter area"></label>
+ <p id="areaDialogStatus" role="alert" aria-live="polite"></p>
+ <button id="saveArea" type="button">Save area</button>
+ <button id="cancelArea" type="button" class="ghost">Cancel</button>
+</dialog>
 <label>Date of birth (18 years old or above)<input id="birthdate" required type="date" aria-describedby="ageHelp"></label>
 <p id="ageHelp" class="age-help" role="status" aria-live="polite"></p>
 <label>Gender<select id="gender" required><option value="">Select gender</option><option value="Male">Male</option><option value="Female">Female</option></select></label>
@@ -148,11 +155,23 @@ async function loadAreas(selected=''){
   field.value=selected||'';
  }catch(e){by('areaStatus').textContent=e.message}
 }
-by('addArea').onclick=async()=>{
- const name=prompt('Enter an area name (1–100 characters)');if(name===null)return;
- try{const result=await api('/api/admin/areas',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:name.trim()})});
-  await loadAreas(result.area.name);by('areaStatus').textContent='Area added.';
- }catch(e){by('areaStatus').textContent=e.message}
+by('addArea').onclick=()=>{
+ by('areaName').value='';by('areaDialogStatus').textContent='';
+ openRegistrationDialog('areaDialog');
+};
+by('cancelArea').onclick=()=>by('areaDialog').close();
+by('saveArea').onclick=async()=>{
+ const name=by('areaName').value.trim();
+ if(!name){by('areaDialogStatus').textContent='Enter an area name.';return}
+ by('saveArea').disabled=true;
+ try{
+  const result=await api('/api/admin/areas',{method:'POST',
+   headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  await loadAreas(result.area.name);
+  by('areaDialog').close();
+  by('areaStatus').textContent='Area added.';
+ }catch(e){by('areaDialogStatus').textContent=e.message||'Could not add area'}
+ finally{by('saveArea').disabled=false}
 };
 loadAreas();
 const dateText=date=>[
