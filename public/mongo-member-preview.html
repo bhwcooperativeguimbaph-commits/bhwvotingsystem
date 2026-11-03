@@ -51,6 +51,10 @@ body.member-portal{margin:0;min-height:100vh;background:#f4f8f6;color:#19394b;fo
 #selectionSummary li{margin:7px 0}
 #receipt-no,#receipt-date{display:none}
 #receiptHistorySection{display:none!important}
+.member-receipt-card{display:flex;flex-direction:column;gap:9px;margin:20px 0;padding:20px;
+ border:1px dashed #91bba1;background:#f1faf4;border-radius:12px;overflow-wrap:anywhere}
+.member-receipt-card strong{font:750 16px ui-monospace,monospace;color:#144f3c}
+.member-receipt-card small{font-size:11px;letter-spacing:.08em;color:#496a5c}
 </style></head><body class="member-portal">
 <header class="portal-top"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member Portal</small></span></a></header>
 <main>
@@ -91,6 +95,12 @@ body.member-portal{margin:0;min-height:100vh;background:#f4f8f6;color:#19394b;fo
 </dialog>
 <dialog id="voteSuccess" aria-labelledby="voteSuccessTitle" aria-describedby="voteSuccessText">
  <h2 id="voteSuccessTitle">Your vote has been recorded</h2><p id="voteSuccessText"></p>
+ <div class="member-receipt-card" aria-label="Your voting receipt">
+  <small>BHW GUIMBA · VOTING RECEIPT</small>
+  <strong id="receiptDisplayNo">—</strong>
+  <span id="receiptDisplayDate"></span>
+  <small>Ballot accepted securely. Candidate selections are not included.</small>
+ </div>
  <p>Your receipt should download automatically. Keep it for your records; it does not reveal your selections.</p>
  <div class="modal-actions"><button id="downloadReceipt" type="button">Download receipt again</button><button id="closeVoteSuccess" type="button" class="ghost">Back to my profile</button></div>
 </dialog>
@@ -178,6 +188,8 @@ function showReceipt(receipt){
  const code=receipt?.receiptNo;if(typeof code!=='string'||!code)return;
  latestReceipt=receipt;by('receipt-no').textContent=code;
  by('receipt-date').textContent=receipt.recordedAt?new Date(receipt.recordedAt).toLocaleString('en-PH'):'';
+ by('receiptDisplayNo').textContent=code;
+ by('receiptDisplayDate').textContent=by('receipt-date').textContent;
  by('downloadReceipt').disabled=false;
 }
 function renderBallot(){
