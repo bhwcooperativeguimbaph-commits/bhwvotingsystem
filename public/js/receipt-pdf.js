@@ -2,7 +2,11 @@
 (function () {
   function exportReceipt() {
     const ref = document.getElementById('receipt-no')?.textContent?.trim();
-    if (!ref) { alert('No receipt reference available.'); return false; }
+    if (!ref) {
+      if (window.BHWDialog) window.BHWDialog.notice('No voting receipt is available yet. A receipt is issued only after a ballot has been accepted.','Receipt unavailable');
+      else { const status=document.getElementById('status'); if(status)status.textContent='No accepted voting receipt is available yet.'; }
+      return false;
+    }
     const values = [
       'GUIMBA BHW VOTING RECEIPT',
       'Your ballot was received.',
