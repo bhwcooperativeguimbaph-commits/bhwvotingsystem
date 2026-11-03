@@ -28,7 +28,7 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
    },{session,projection:{memberId:1}});
    if(!member)throw voteError('NOT_AUTHORIZED','Member is not eligible for this election');
    if(election.keyDeliveryConfirmed!==true||election.keyProvisioningState!=='Ready')
-    throw voteError('ENCRYPTION_UNAVAILABLE','Both election custodians must confirm receipt of their key shares');
+    throw voteError('CUSTODIAN_CONFIRMATION_PENDING','Both election key custodians must confirm receipt before voting can begin');
    if(typeof election.ballotPublicKeyPem!=='string'||!election.ballotPublicKeyPem)
     throw voteError('ENCRYPTION_UNAVAILABLE','Election encryption key is unavailable');
    const candidates=await db.collection('candidates').find(
