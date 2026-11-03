@@ -89,6 +89,21 @@
    resize();new ResizeObserver(resize).observe(doc.body);
   }catch(_){registrationFrame.style.height='1500px'}
  });
+ // Only accept navigation messages from our own, same-origin enrollment iframe.
+ // The embedded capture/success panels stay in document flow (no hidden modal).
+ window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||event.source!==registrationFrame.contentWindow||
+     event.data?.type!=='bhw-enrollment-panel-open')return;
+  const panelId=event.data.panel;
+  if(!['captureDialog','successDialog'].includes(panelId))return;
+  const panel=registrationFrame.contentDocument?.getElementById(panelId);
+  if(!panel?.open)return;
+  requestAnimationFrame(()=>{
+   const frameTop=registrationFrame.getBoundingClientRect().top;
+   const panelTop=panel.getBoundingClientRect().top;
+   window.scrollBy(0,frameTop+panelTop-105);
+  });
+ });
  const replacement=new URLSearchParams(location.search).get('replace');
  if(/^MEM-[0-9a-f-]{36}$/i.test(replacement||'')){
   registrationFrame.title='Update member biometrics';
