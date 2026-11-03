@@ -50,25 +50,25 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <section id="adminDashboard"><h2>Election overview</h2>
 <div id="adminAnnouncements" class="admin-announcements" role="status" aria-live="polite"></div>
 <div class="portal-meta" style="margin:0">
-<div><small>Registered members</small><strong id="summaryMembers">—</strong></div>
+<div><small>Total members</small><strong id="summaryMembers">—</strong></div>
 <div><small>Active members</small><strong id="summaryActive">—</strong></div>
-<div><small>Total accepted ballots · all elections</small><strong id="summaryBallots">—</strong></div>
+<div><small>Total votes</small><strong id="summaryBallots">—</strong></div>
 <div><small>Elections</small><strong id="summaryElections">—</strong></div>
 </div>
 <div class="election-snapshot" aria-label="Latest election participation">
- <div class="snapshot-heading"><div><small>Latest configured election</small><h3 id="currentElectionTitle">Checking election…</h3></div>
+ <div class="snapshot-heading"><div><small>Current election</small><h3 id="currentElectionTitle">Checking election…</h3></div>
  <span id="currentElectionStatus" class="status-chip">Checking</span></div>
  <div class="portal-meta snapshot-metrics">
-  <div><small>Accepted ballots · latest election</small><strong id="currentBallots">—</strong></div>
-  <div><small>Eligible voters · frozen roster</small><strong id="currentEligible">—</strong></div>
-  <div><small>Turnout · latest election</small><strong id="currentTurnout">—</strong></div>
+  <div><small>Votes cast</small><strong id="currentBallots">—</strong></div>
+  <div><small>Eligible members</small><strong id="currentEligible">—</strong></div>
+  <div><small>Voter turnout</small><strong id="currentTurnout">—</strong></div>
  </div>
  <p id="turnoutExplanation" class="snapshot-note" role="status" aria-live="polite">Checking the election's recorded participation and eligibility snapshot.</p>
 </div>
 <div class="analytics-grid">
- <article class="analytics-card"><div class="analytics-card-title"><h3>Live participation overview</h3><small>Accepted ballots by day • Philippine time</small></div>
+ <article class="analytics-card"><div class="analytics-card-title"><h3>Votes by day</h3><small>Number of votes recorded each day</small></div>
  <div id="participationChart" class="chart-bars" role="img" aria-label="Accepted ballots by day">No election data yet.</div></article>
- <article class="analytics-card"><div class="analytics-card-title"><h3>Accepted ballots by area</h3><small>Recorded participation; areas with three or more ballots only</small></div>
+ <article class="analytics-card"><div class="analytics-card-title"><h3>Votes by area</h3><small>Areas with at least three voters</small></div>
  <div id="areaChart" class="area-chart" role="img" aria-label="Area turnout">Awaiting eligible turnout.</div></article>
 </div>
 <button id="refreshOverview" class="ghost">Refresh overview</button>
