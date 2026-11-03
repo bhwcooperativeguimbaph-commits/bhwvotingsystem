@@ -749,7 +749,8 @@ app.delete('/api/admin/elections/:electionId/candidates/:candidateId',staffOnly,
 app.post('/api/admin/initialize-election',staffOnly,async(req,res)=>{
  // Administrative preview only; no voting route is enabled.
  try{
-  const {electionId}=await createElection(connection,req.body||{});
+  const {electionId}=await createElection(connection,req.body||{},
+   {operatorId:req.staff.accountId,actorRole:req.staff.role});
   res.set('Cache-Control','no-store');
   res.status(201).json({success:true,electionId,message:'Election created'});
  }catch(e){
