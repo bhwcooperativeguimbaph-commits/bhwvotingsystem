@@ -290,6 +290,30 @@ paths:
           description: Duplicate or election lifecycle conflict
         '503':
           description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/published-area-report:
+    get:
+      summary: "Read post-publication votes cast by area (groups of 3 or more only)"
+      tags: [Administration]
+      x-required-role: "admin-or-superadmin"
+      x-implementation-status: 'staging-code; live acceptance pending'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      responses:
+        '200':
+          description: Area participation only; no area-level candidate selections
+        '400':
+          description: Invalid election ID
+        '403':
+          description: Administrator session required
+        '404':
+          description: Election report is not yet published
+        '503':
+          description: Report temporarily unavailable
   /api/admin/elections/{electionId}/lifecycle:
     get:
       summary: "Sanitized election setup and custody readiness"
