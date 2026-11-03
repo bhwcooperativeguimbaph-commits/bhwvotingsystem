@@ -20,7 +20,9 @@ assert.match(html,/by\('birthdate'\)\.max=oldestAllowed\.toISOString\(\)\.slice\
  'DOB picker must prevent dates younger than 18');
 assert.match(html,/field\.setCustomValidity\(message\)/,'Date validation must be visible');
 assert.match(html,/<dialog id="successDialog"[^>]*aria-labelledby=/,'Accessible success modal missing');
-assert.match(html,/by\('successDialog'\)\.showModal\(\)/,'Success modal never opens');
+assert.match(html,/openRegistrationDialog\('successDialog'\)/,'Success popup must open');
+assert.match(html,/else element\.showModal\(\)/,'Standalone success popup remains modal');
+assert.match(html,/element\.show\(\)/,'Embedded success popup remains visible without backdrop');
 assert.match(html,/firstName:by\('firstName'\)\.value\.trim\(\)/,'Structured first name not sent to server');
 assert.match(html,/lastName:by\('lastName'\)\.value\.trim\(\)/,'Structured last name not sent to server');
 assert.match(html,/middleName:by\('middleName'\)\.value\.trim\(\)/,'Optional middle name not sent to server');
