@@ -671,6 +671,18 @@ app.get('/api/elections/:electionId/results',async(req,res)=>{
   return res.json({success:true,report});
  }catch(_){return res.status(503).json({success:false,message:'Report unavailable'})}
 });
+app.get('/api/admin/elections/:electionId/published-area-report',staffOnly,async(req,res)=>{
+ try{
+  const {publishedAreaTurnout}=require('./database/published-area-report');
+  const report=await publishedAreaTurnout(connection.db,req.params.electionId);
+  if(!report)return res.status(404).json({success:false,message:'Election results are not published yet'});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,report});
+ }catch(e){
+  if(e instanceof TypeError)return res.status(400).json({success:false,message:'Invalid election ID'});
+  return res.status(503).json({success:false,message:'Area report unavailable'});
+ }
+});
 app.get('/api/admin/elections/:electionId/candidates',staffOnly,async(req,res)=>{
  try{
   const id=req.params.electionId;
