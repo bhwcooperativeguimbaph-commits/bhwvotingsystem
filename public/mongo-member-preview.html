@@ -105,7 +105,7 @@ body.member-portal{margin:0;min-height:100vh;background:#f4f8f6;color:#19394b;fo
 const by=id=>document.getElementById(id),video=by('webcam');
 let modelsReady=false,working=false,info=null,currentSession=null,latestReceipt=null;
 function feedback(message,success=false){
- by('feedbackTitle').textContent=success?'Login successful':'Login issue';
+ by('feedbackTitle').textContent=success?'Success':by('voting').classList.contains('hidden')?'Login issue':'Voting issue';
  by('feedbackText').textContent=message;
  if(!by('loginFeedback').open)by('loginFeedback').showModal();
 }
@@ -158,13 +158,14 @@ async function displayBallot(){
  by('homeElectionTitle').textContent=active?info.title:'No current election';
  const now=Date.now();
  const isOpen=active&&now>=new Date(info.startTime).getTime()&&now<new Date(info.endTime).getTime();
- const eligible=active&&auth.eligibleThisElection&&!auth.hasVoted&&info.voteSubmissionEnabled&&isOpen;
+ const eligible=active&&auth.eligibleThisElection&&!auth.hasVoted&&info.voteSubmissionEnabled&&isOpen&&info.custodiansReady===true;
  by('readyToVote').disabled=!eligible;
  by('homeElectionStatus').textContent=!active?'There is no active ballot at the moment.':
   auth.hasVoted?'You have already voted in this election.':
   !auth.eligibleThisElection?'You are not eligible for this election.':
   !isOpen?'Voting is not open at this time.':
-  !info.voteSubmissionEnabled?'Voting is currently unavailable.':'You may now proceed to cast your vote.';
+  !info.voteSubmissionEnabled?'Voting is currently unavailable.':
+  info.custodiansReady!==true?'Voting will open after both election key custodians confirm receipt of their shares.':'You may now proceed to cast your vote.';
  await Promise.all([loadReceipts(),loadNotifications()]);
 }
 async function loadReceipts(){
@@ -266,7 +267,7 @@ by('confirmSubmit').onclick=async()=>{
      by('voteSuccess').showModal();window.downloadReceipt?.()}
    }else{
     const now=Date.now();
-    by('vote').disabled=!session.eligibleThisElection||!info.voteSubmissionEnabled||
+    by('vote').disabled=!session.eligibleThisElection||!info.voteSubmissionEnabled||info.custodiansReady!==true||
       now<new Date(info.startTime).getTime()||now>=new Date(info.endTime).getTime();
     feedback(e.message);
    }
