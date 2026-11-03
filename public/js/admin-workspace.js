@@ -76,18 +76,29 @@
   views.history.appendChild(section);
  }
  const reg=document.createElement('section');reg.className='registration-frame-panel';
- reg.innerHTML='<iframe title="Member enrollment form" src="/member-enrollment-preview?embedded=1" loading="lazy" scrolling="no" style="display:block;box-sizing:border-box;width:100%;max-width:none;min-width:0;height:1450px;border:0"></iframe>';
+ reg.innerHTML='<iframe title="Member enrollment form" src="/member-enrollment-preview?embedded=1" loading="lazy" scrolling="no" style="display:block;box-sizing:border-box;width:100%;max-width:none;min-width:0;height:1px;min-height:0;border:0"></iframe>';
  const registrationFrame=reg.querySelector('iframe');
  registrationFrame.addEventListener('load',()=>{
   try{
    const doc=registrationFrame.contentDocument;
    const resize=()=>{
-    if(!doc)return;
-    const height=Math.max(doc.documentElement.scrollHeight,doc.body.scrollHeight,850);
-    registrationFrame.style.height=(height+32)+'px';
+    if(!doc?.body)return;
+    // An iframe's documentElement.scrollHeight includes its *old viewport*
+    // height. Using it created a self-reinforcing 1500px blank tail.
+    const content=Array.from(doc.body.children).filter(el=>{
+     const style=doc.defaultView.getComputedStyle(el);
+     return style.display!=='none'&&style.position!=='fixed'&&style.position!=='absolute';
+    });
+    const bottom=content.reduce((n,el)=>Math.max(n,el.getBoundingClientRect().bottom),0);
+    const top=doc.body.getBoundingClientRect().top;
+    const height=Math.max(100,Math.ceil(bottom-top+20));
+    if(Math.abs(registrationFrame.getBoundingClientRect().height-height)>2)
+     registrationFrame.style.height=height+'px';
    };
-   resize();new ResizeObserver(resize).observe(doc.body);
-  }catch(_){registrationFrame.style.height='1500px'}
+   resize();
+   if(typeof ResizeObserver==='function')new ResizeObserver(resize).observe(doc.body);
+   else registrationFrame.style.height='1450px';
+  }catch(_){registrationFrame.style.height='1450px'}
  });
  // Only accept navigation messages from our own, same-origin enrollment iframe.
  // The embedded capture/success panels stay in document flow (no hidden modal).
