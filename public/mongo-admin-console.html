@@ -452,14 +452,16 @@ by('requestRecoveryChange').onclick=async()=>{
   by('recoveryVerifyPanel').hidden=false;
   by('oldRecoveryCode').value='';by('newRecoveryCode').value='';
   by('recoveryChangeStatus').textContent='Codes sent to both addresses. Enter each six-digit code within five minutes.';
- }catch(e){pendingEmailChange=null;by('recoveryVerifyPanel').hidden=true;by('recoveryChangeStatus').textContent=e.message||'Unable to request codes'}
+  await BHWDialog.notice('Verification codes have been sent to both email addresses.','Codes sent');
+ }catch(e){pendingEmailChange=null;by('recoveryVerifyPanel').hidden=true;by('recoveryChangeStatus').textContent=e.message||'Unable to request codes';await BHWDialog.notice(e.message||'Unable to request codes','Email verification failed')}
  finally{by('requestRecoveryChange').disabled=false}
 };
 by('confirmRecoveryChange').onclick=async()=>{
  if(!pendingEmailChange)return;
  const oldCode=by('oldRecoveryCode').value.trim(),newCode=by('newRecoveryCode').value.trim();
  if(!/^[0-9]{6}$/.test(oldCode)||!/^[0-9]{6}$/.test(newCode)){
-  by('recoveryChangeStatus').textContent='Enter both six-digit verification codes.';return;
+  by('recoveryChangeStatus').textContent='Enter both six-digit verification codes.';
+  await BHWDialog.notice('Enter both six-digit verification codes.','Check verification codes');return;
  }
  by('confirmRecoveryChange').disabled=true;
  try{
@@ -469,8 +471,9 @@ by('confirmRecoveryChange').onclick=async()=>{
   pendingEmailChange=null;
   by('oldRecoveryCode').value='';by('newRecoveryCode').value='';
   by('recoveryChangeStatus').textContent='Email updated. All sessions revoked; please sign in again.';
+  await BHWDialog.notice('Super Admin email updated. All sessions have been signed out. Please log in again.','Email changed');
   window.location.assign('/admin-auth-preview');
- }catch(e){by('recoveryChangeStatus').textContent=e.message||'Unable to confirm addresses'}
+ }catch(e){by('recoveryChangeStatus').textContent=e.message||'Unable to confirm addresses';await BHWDialog.notice(e.message||'Unable to confirm addresses','Email update unsuccessful')}
  finally{by('confirmRecoveryChange').disabled=false}
 };
 by('refreshAdmins').onclick=listAdmins;
