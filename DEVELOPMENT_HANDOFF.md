@@ -1,6 +1,7 @@
 # DEVELOPMENT_HANDOFF.md — BHW Voting System
-_Last updated: 2026-11-02 (Asia/Manila)_
+_Last updated: 2026-11-03 (Asia/Manila)_
 
+> **USER'S PERMANENT RULE:** Read [`WORKING_FEATURES_CHANGE_POLICY.md`](WORKING_FEATURES_CHANGE_POLICY.md) first. Never change anything already working unless the user specifically asks for it. Fix only the requested defect; preserve other behaviors.
 > **Read this file, `SPEC.md`, `README.md`, and the newest GitHub Actions results BEFORE editing code in a new chat.**
 > This is the persistent cross-chat development checkpoint and decision log. Update **this file on `main` at the end of every development session** with a dated entry, exact commit SHA, evidence, remaining work, and the very next task. Never invent completion or test results.
 
@@ -48,6 +49,24 @@ _Last updated: 2026-11-02 (Asia/Manila)_
 4. Update the dated session log below **on main** with changed files, commit identifiers, verification results, current blockers and next concrete step.
 
 ## Dated session log
+### 2026-11-03 — Surgical fixes: registration camera visibility, field order and recovery label
+
+**Exact user request:** (1) Shorten login link to `Forgot password`; (2) place `Street / house / sitio address` directly beneath `Guimba barangay`; (3) fix Capture biometrics darkening the embedded Admin Registration view while leaving the actual camera seemingly frozen; and (4) create a mandatory, persistent rule to never alter working features without the owner's explicit direction.
+
+**Root cause assessment:** Registration is a tall same-origin iframe embedded in the admin workspace. Calling `showModal()` inside that iframe introduces a dark backdrop but can center the modal outside the portion of the iframe currently visible in the parent page, matching the user's screenshot. This diagnosis is based on code and screenshot; it still needs an authenticated visual Chrome retest.
+
+**Minimal changes on `main`:**
+- New `WORKING_FEATURES_CHANGE_POLICY.md` (commit `a32aa37c`), permanently referenced near the top of `AGENTS.md` (`2ee3bf64`). The rule forbids editing *any other already-working feature*, even small visual changes, without user authorization. Future sessions must read it first.
+- `public/admin-auth-preview.html`: changed recovery link **text only** (`74b7ad46`); existing password recovery URL and OTP workflow untouched.
+- `public/mongo-enrollment-preview.html`: moved the existing address label/input immediately after Barangay (`cb3e1a48`) without changing field ID, required rules, posted data or server validation.
+- `public/mongo-enrollment-preview.html`: in embedded mode, open capture/success dialogs nonmodally and style them as visible in-flow cards, avoiding the dark backdrop/offscreen modal; standalone Registration still uses the original modal `showModal()`. The actual camera permission, challenge, consent, enrollment and receipt of success remain intact. Add visible model-loading status, a bounded model-load timeout, and retryable error state (`3e2c4013`).
+- `public/js/admin-workspace.js`: accept only same-origin messages from the exact embedded registration frame and scroll the open capture/success card into view (`76e49fcc`). No changes to admin routing, roles or other pages.
+- `tests/mongodb-registration-modal-visibility.test.js` and `tests/mongodb-enrollment-ui.test.js` verify address placement, link label, preserved standalone modal/camera flow, embedded capture visibility and mandatory policy. Included in `npm test`.
+
+**Verification:** GitHub JavaScript syntax run https://github.com/bhwcooperativeguimbaph-commits/bhwvotingsystem/actions/runs/41637021682 **SUCCESS** on `1cd0c9dd`; full report https://github.com/bhwcooperativeguimbaph-commits/bhwvotingsystem/actions/runs/41637021698 **SUCCESS** for the same commit. Report on `ci-reports/LATEST_TEST_REPORT.json` confirms install, unit/UI regression, disposable MongoDB replica-set integration and credential-free staging public gate all passed (`testExit=0`, `integrationExit=0`, `stagingExit=0`). Initial CI caught an obsolete assertion expecting only the old modal method; assertion was updated to verify both standalone and embedded behavior.
+
+**Manual step still needed:** after Render deploys these commits, sign in as an admin and click **Registration → Capture biometrics & register** with a synthetic consenting adult. Confirm the in-flow capture card and camera controls are visible without a dark overlay; verify camera permission, face-model loading, Cancel, successful completion and return from capture on desktop and mobile. These tests have NOT been performed by the automated suite. Do not send actual face images or OTPs in feedback; retain production-vote restrictions.
+
 ### 2026-11-02 — Second Render review: registration, members, wizard, custody
 
 **Evidence:** User shared five Chrome screenshots of `/admin-console#view-registration`, `#view-users` and several `#view-setup` steps. Problems observed: embedded enrollment rendered as a tiny scrolling frame, staff JSON response in Users & Roles, long scrolling and native hash anchor jumps, "Purge unused test member" action instead of icons, past date-picker values, candidate JPG decode exception, discarded draft fields during Back/Continue, visible "No election created" placeholder, and missing last-step custodian recipient fields.
