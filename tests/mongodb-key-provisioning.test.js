@@ -40,6 +40,8 @@ async function main(){
   deliver:async data=>{sent.push(data);return {messageId:'provider-'+sent.length}}});
  assert.equal(result.custodians,2);assert.equal(sent.length,2);assert.notEqual(sent[0].to,sent[1].to);
  assert.equal(custodians.length,2);assert.equal(e.keyProvisioningState,'Ready');
+ assert.equal(e.sealedPrivateKey?.version,2);
+ assert.ok(sent.every(m=>m.text.length<500),'New custodian emails must not contain huge tokens');
  assert.deepEqual(custodians.map(c=>c.providerMessageId),['provider-1','provider-2']);
  assert.ok(custodians.every(c=>c.deliveryAcceptedAt instanceof Date));
  assert.equal(typeof e.ballotPublicKeyPem,'string');
