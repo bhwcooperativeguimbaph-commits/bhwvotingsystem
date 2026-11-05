@@ -12,7 +12,7 @@ assert.match(page,/Total votes/);
 assert.match(page,/Votes cast/);
 assert.match(page,/Number\.isInteger\(eligible\)/);
 assert.match(page,/eligible===0/);
-assert.match(page,/No election configured/);
+assert.match(page,/No active election/);
 assert.match(page,/Votes by area/);
 
 (async()=>{
@@ -29,7 +29,11 @@ assert.match(page,/Votes by area/);
  const election={electionId:'ELEC-TEST',title:'Example election',status:'Scheduled',
   eligibleMembersSnapshot:8,startTime:new Date(),endTime:new Date()};
  const db={collection(name){
-  if(name==='elections')return {findOne:async()=>election};
+  if(name==='elections')return {findOne:async query=>{
+   assert.equal(query.status,'Active');
+   assert.ok(query.endTime.$gt instanceof Date);
+   return election;
+  }};
   assert.equal(name,'voterParticipation');
   return {
    aggregate(pipeline){
