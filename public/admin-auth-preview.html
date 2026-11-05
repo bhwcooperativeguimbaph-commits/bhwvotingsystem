@@ -7,6 +7,7 @@
 <main class="auth-card"><h1>Administrator login</h1><p id="authInstruction">Enter your username and password. We’ll send a one-time verification code to your registered email.</p>
 <form id="credentials"><label>Username<input id="username" required autocomplete="username"></label><label>Password<input id="password" type="password" required autocomplete="current-password"></label><button>Send verification code</button></form>
 <p><a href="/admin-password-recovery">Forgot password</a></p>
+<p><a href="/" aria-label="Return to BHW landing page">← Back to landing page</a></p>
 <form id="otpForm" hidden><p>Enter the six-digit code sent to your registered email address.</p><label>Six-digit email code<input id="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required autocomplete="one-time-code"></label><button>Verify login</button></form>
 <p id="message" role="status" aria-live="polite"></p></main>
 <script>
