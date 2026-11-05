@@ -280,7 +280,7 @@ by('confirmSubmit').onclick=async()=>{
      by('voteSuccess').showModal();window.downloadReceipt?.()}
    }else{
     const now=Date.now();
-    by('vote').disabled=!session.eligibleThisElection||!info.voteSubmissionEnabled||info.custodiansReady!==true||
+    by('vote').disabled=!session.eligibleThisElection||!info.voteSubmissionEnabled||info.encryptionReady!==true||
       now<new Date(info.startTime).getTime()||now>=new Date(info.endTime).getTime();
     feedback(e.message);
    }
