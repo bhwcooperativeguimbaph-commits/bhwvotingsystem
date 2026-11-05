@@ -57,6 +57,7 @@ Resend and Gmail SMTP keys are not required by the MongoDB application's email-O
 - Member biometric descriptors are encrypted with AES-256-GCM. Two distinct enrolled faces cannot use the same biometric enrollment identity in the guarded workflow.
 - Facial challenges are generated and atomically consumed from MongoDB using short expiry and network binding. **Client-reported blinks and head turns are not certified presentation-attack detection.**
 - The Super Admin alone provisions custodian shares, creates/deactivates staff accounts, and finalizes results with both custodian shares.
+- Newly provisioned elections use short, independent 2-of-2 custodian codes: their RSA private key is AES-256-GCM encrypted at rest under a random sealing key, and only the 32-byte sealing key is split. Earlier long RSA key shares continue to work for existing elections. Never reuse a share revealed in screenshots or shared messages.
 - Super Admin recovery/OTP address changes require a logged-in Super Admin plus separate email codes from both the current and proposed address; successful changes revoke sessions.
 - Candidate names and JPG/PNG photos may be edited, added or removed only before key provisioning; the database enforces the editing lease.
 - State-changing browser requests require an exact same-origin `Origin` header and reject cross-site Fetch Metadata.
