@@ -1,0 +1,38 @@
+'use strict';
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const read=p=>fs.readFileSync(path.join(__dirname,'..',p),'utf8');
+const admin=read('public/mongo-admin-console.html');
+const enrollment=read('public/mongo-enrollment-preview.html');
+const work=read('public/js/admin-workspace.js');
+const results=read('public/js/admin-results-view.js');
+const server=read('mongo-auth-preview.js');
+const vote=read('database/vote-service.js');
+const publicElection=read('database/election-read.js');
+const history=read('database/election-history.js');
+const disclosure=read('database/results-disclosure.js');
+const api=read('openapi.yaml');
+for(const marker of ['id="memberBiometricPanel"','id="memberBiometricFrame"',
+ 'Replace member biometrics','openMemberBiometricReplacement(member)',
+ 'biometric-replacement-finished'])assert.ok(admin.includes(marker),'Members table missing '+marker);
+assert.ok(admin.includes("controls.append(edit,biometric,remove,toggle)"));
+assert.match(enrollment,/textarea\{display:block;min-height:112px/);
+assert.match(enrollment,/replacePanel/);
+assert.match(enrollment,/bhw-biometric-replacement-finished/);
+assert.match(work,/viewNames/);
+assert.match(results,/simpleArchiveToggle/);
+assert.match(results,/Archived election results/);
+assert.match(results,/entry\.ended/);
+assert.match(results,/Duplicate key share/);
+assert.match(results,/body:JSON\.stringify\(\{archived\}\)/);
+assert.match(history,/archived:Boolean\(e\.archivedAt\)/);
+assert.match(history,/ended:Number\.isFinite/);
+assert.match(server,/app\.patch\('\/api\/admin\/elections\/:electionId\/archive',superadminOnly/);
+assert.match(api,/\/api\/admin\/elections\/\{electionId\}\/archive:/);
+assert.match(server,/ELECTION_STILL_OPEN/);
+assert.match(server,/KEYS_NOT_READY/);
+assert.match(disclosure,/if\(now<closeTime\)/);
+assert.doesNotMatch(disclosure,/keyDeliveryConfirmed:true/);
+assert.match(publicElection,/encryptionReady/);
+assert.doesNotMatch(vote,/keyDeliveryConfirmed!==true/);
+console.log('PASS: Member-inline biometric UI, archive controls, authenticated closure and custody-independent voting contract');
