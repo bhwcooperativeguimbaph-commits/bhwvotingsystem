@@ -182,7 +182,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
  <div id="wizardReview" aria-live="polite"></div>
  <div class="wizard-key-custodians" id="wizardCustodians">
   <h3>Key custodians</h3>
-  <p>Enter two different email addresses. Each custodian receives a separate private share after election creation.</p>
+  <p>Enter two different email addresses. Each custodian receives a separate, 12-word recovery phrase after election creation. Both phrases are needed only to publish results.</p>
   <div class="cols">
    <label>Custodian 1 email<input id="wizardCustodian1" type="email" autocomplete="off" maxlength="254" placeholder="First custodian email" required></label>
    <label>Custodian 2 email<input id="wizardCustodian2" type="email" autocomplete="off" maxlength="254" placeholder="Second custodian email" required></label>
@@ -220,7 +220,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
 <section id="keyProvisionSection" hidden><h2>Assign two election key custodians</h2>
 <label>Election ID<input id="keyElection" placeholder="ELEC-..."></label>
 <div class="cols"><label>Custodian 1 email<input id="email1" type="email"></label><label>Custodian 2 email<input id="email2" type="email"></label></div>
-<small>Two different recipients are mandatory. Brevo accepts the two individual private-key shares separately. Ask each custodian to confirm receipt at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
+<small>Two different recipients are mandatory. Brevo accepts the two 12-word custody phrases separately. Optional receipt confirmation is available at <a href="/custodian-confirm">Custodian confirmation</a>.</small>
 <p class="warning">Final review: sending key shares freezes the eligible voter count and locks all candidate additions, edits and removals. A lost share cannot be recovered from the database. Verify both recipient addresses carefully.</p>
 <button id="provision">Send custodian shares</button><pre id="provisionResult">Not provisioned</pre>
 <button id="checkCustodianStatus" class="ghost" type="button">Check delivery and custodian confirmations</button>
@@ -438,7 +438,7 @@ async function showLifecycle(){
  const next=election.canFinalize?'Voting closed; Super Admin may finalize results with both custodians.':
   election.canProvision?'Complete all candidate edits before issuing custodian keys.':
   election.canEditCandidates?'Candidate configuration may still be edited.':
-  election.phase==='Awaiting custodians'?'Waiting for two independent custodians to confirm their shares.':
+  election.phase==='Setup'?'Create and deliver the encryption key before votes can be cast.':
   election.phase==='Open'?'Election voting window is open. Candidate editing is locked.':
   election.phase==='Finalized'?'Finalized results can be viewed in the public archive.':
   'Candidate editing and key provisioning are locked.';
@@ -1002,13 +1002,13 @@ by('create').onclick=async()=>{
   const issued=await call('/api/admin/elections/'+encodeURIComponent(createdElectionId)+
    '/provision-keys','POST',{emails});
   if(!issued.success)throw Error(issued.message||'Key delivery could not be completed');
-  by('wizardError').textContent='Election created. Key shares accepted for delivery to two custodians. Both must confirm receipt independently before voting opens.';
+  by('wizardError').textContent='Election created and private recovery phrases issued. Voting may begin on schedule once encryption is ready; results require both custodians’ phrases.';
   submit.textContent='Election and custodian invitations saved';
   await refreshOverview();
   await showLifecycle();
  }catch(e){
   by('wizardError').textContent=(createdElectionId?
-   'Election '+createdElectionId+' was created, but custodian provisioning was not confirmed. '+
+   'Election '+createdElectionId+' was created, but encryption key provisioning did not complete. '
    'Check its status in Election results & reports before retrying; do not create another election. ':
    'Election could not be created. ')+(e.message||'Request unavailable');
  }finally{submit.disabled=Boolean(createdElectionId&&by('wizardError').textContent.startsWith('Election created.'))}
