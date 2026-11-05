@@ -27,6 +27,11 @@ input[type="datetime-local"]{min-width:0;font-variant-numeric:tabular-nums}
 .member-directory-photo{width:48px;height:48px;object-fit:cover;border-radius:10px;background:#e4efe8}
 .member-directory-placeholder{width:48px;height:48px;display:grid;place-items:center;border-radius:10px;background:#e4efe8;color:#175f48;font-weight:800}
 .member-directory-placeholder[hidden],.member-directory-photo[hidden]{display:none!important}
+.member-biometric-panel{margin-top:18px;background:#f7faf9;border:1px solid #cbded5;border-radius:16px;padding:20px}
+.member-biometric-panel[hidden]{display:none!important}
+.member-biometric-heading{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.member-biometric-heading button{width:auto;max-width:240px;padding:11px 16px}
+.member-biometric-heading h3{margin:4px 0}.member-biometric-heading p{margin:6px 0;color:#486a5d}
 .member-directory-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 
 .wizard-key-custodians{background:#eff8f2;padding:18px 20px;border-radius:14px;margin-top:18px;border:1px solid #cfdfd3}
@@ -127,7 +132,13 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
  </div>
  <p id="recoveryChangeStatus" role="status" aria-live="polite"></p>
 </details></section>
-<section id="membersSection"><h2>Registered members</h2><div class="member-directory-controls"><label>Search name, member ID, or area<input id="memberSearch" maxlength="80" placeholder="Type to filter registered members" autocomplete="off"></label><label>Member status<select id="memberStatusFilter"><option value="Active" selected>Active members</option><option value="Inactive">Inactive members</option><option value="All">All members</option></select></label><button id="members" type="button" class="ghost">Refresh table</button></div><p id="memberTotal" role="status" aria-live="polite">Loading active members…</p><div id="memberDirectory" aria-live="polite"></div><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
+<section id="membersSection"><h2>Registered members</h2><div class="member-directory-controls"><label>Search name, member ID, or area<input id="memberSearch" maxlength="80" placeholder="Type to filter registered members" autocomplete="off"></label><label>Member status<select id="memberStatusFilter"><option value="Active" selected>Active members</option><option value="Inactive">Inactive members</option><option value="All">All members</option></select></label><button id="members" type="button" class="ghost">Refresh table</button></div><p id="memberTotal" role="status" aria-live="polite">Loading active members…</p><div id="memberDirectory" aria-live="polite"></div>
+<div id="memberBiometricPanel" hidden class="member-biometric-panel" role="region" aria-label="Replace selected member biometrics">
+ <div class="member-biometric-heading"><div><h3>Replace member biometrics</h3><p id="memberBiometricInfo">Consent and replacement reason required.</p></div>
+ <button type="button" id="closeMemberBiometric" class="ghost">Back to members table</button></div>
+ <iframe id="memberBiometricFrame" title="Replace member facial biometrics" scrolling="no" style="width:100%;height:200px;border:0;display:block"></iframe>
+</div>
+<div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
 <dialog id="memberEditor" aria-labelledby="memberEditorTitle"><h2 id="memberEditorTitle">Edit member information</h2>
 <small>Member IDs and prior ballots never change. This form only updates the member's name, membership area and verified Guimba address.</small>
 <input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
@@ -651,8 +662,51 @@ async function editMember(member){
 by('cancelMemberEdit').onclick=()=>{by('memberEditor').close();editingMember=null};
 by('updateMemberBiometrics').onclick=()=>{
  if(!editingMember)return;
- window.location.assign('/admin-console?replace='+encodeURIComponent(editingMember.memberId)+'#view-registration');
+ const member={...editingMember};
+ by('memberEditor').close();editingMember=null;
+ openMemberBiometricReplacement(member);
 };
+function closeMemberBiometricReplacement(){
+ const panel=by('memberBiometricPanel');
+ panel.hidden=true;
+ const frame=by('memberBiometricFrame');
+ frame.src='about:blank';frame.style.height='200px';
+}
+function openMemberBiometricReplacement(member){
+ const panel=by('memberBiometricPanel'),frame=by('memberBiometricFrame');
+ panel.hidden=false;
+ by('memberBiometricInfo').textContent=member.fullName+' · '+member.memberId+
+  ' · Member consent and a recorded reason are required.';
+ frame.src='/member-enrollment-preview?embedded=1&replace='+encodeURIComponent(member.memberId);
+ panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+by('closeMemberBiometric').onclick=closeMemberBiometricReplacement;
+by('memberBiometricFrame').addEventListener('load',()=>{
+ const frame=by('memberBiometricFrame');
+ try{
+  const doc=frame.contentDocument;if(!doc?.body)return;
+  const resize=()=>{
+   const children=[...doc.body.children].filter(el=>{
+    const style=doc.defaultView.getComputedStyle(el);
+    return style.display!=='none'&&style.position!=='fixed'&&style.position!=='absolute';
+   });
+   const bottom=children.reduce((n,el)=>Math.max(n,el.getBoundingClientRect().bottom),0);
+   const top=doc.body.getBoundingClientRect().top;
+   frame.style.height=Math.max(350,Math.ceil(bottom-top+24))+'px';
+  };
+  resize();
+  if(typeof ResizeObserver==='function')new ResizeObserver(resize).observe(doc.body);
+ }catch(_){frame.style.height='850px'}
+});
+window.addEventListener('message',event=>{
+ const frame=by('memberBiometricFrame');
+ if(event.origin!==location.origin||event.source!==frame.contentWindow)return;
+ if(event.data?.type==='bhw-biometric-replacement-finished'){
+  closeMemberBiometricReplacement();showMembers();
+ }else if(event.data?.type==='bhw-enrollment-panel-open'){
+  requestAnimationFrame(()=>frame.scrollIntoView({behavior:'smooth',block:'start'}));
+ }
+});
 by('saveMember').onclick=async()=>{
  if(!editingMember)return;
  const required=['editMemberFirst','editMemberLast','editMemberArea','editMemberAddress'];
