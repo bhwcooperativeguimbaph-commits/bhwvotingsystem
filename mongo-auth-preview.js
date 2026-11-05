@@ -654,11 +654,11 @@ app.post('/api/admin/elections/:electionId/provision-keys',superadminOnly,async(
   res.set('Cache-Control','no-store');
   return res.json({success:true,electionId:result.electionId,
    custodians:result.custodians,keyFingerprint:result.keyFingerprint,
-   message:'Shares accepted for sending. Both custodians must independently confirm receipt.'});
+   message:'Recovery phrases accepted for sending. Voting does not require custodian confirmation; results require both phrases.'});
  }catch(e){
   if(e?.code==='INVALID_CUSTODIANS')return res.status(400).json({success:false,message:'Two different valid custodian emails required'});
-  if(e?.code==='KEY_PROVISION_NOT_ALLOWED')return res.status(409).json({success:false,message:'Election must be scheduled, not started, and have no previous key'});
-  return res.status(503).json({success:false,message:'Key provisioning unavailable; do not vote until both custodians confirm'});
+  if(e?.code==='KEY_PROVISION_NOT_ALLOWED')return res.status(409).json({success:false,message:'Election must not have ended, accepted ballots, or an existing encryption key'});
+  return res.status(503).json({success:false,message:'Election key provisioning unavailable; voting requires an initialized encryption key'});
  }
 });
 app.post('/api/key-custody/confirm',rateLimit,async(req,res)=>{
