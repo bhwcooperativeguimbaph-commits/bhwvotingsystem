@@ -18,6 +18,16 @@ input[type="datetime-local"]{min-width:0;font-variant-numeric:tabular-nums}
 .member-row-actions .member-icon-button svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .member-row-actions .member-icon-button.danger{background:#fff2f0;color:#aa3934;border-color:#eed1cb}
 .member-row-actions .member-icon-button:disabled{opacity:.4}
+.member-directory-scroll{overflow-x:auto;width:100%;margin-top:12px;border:1px solid #d9e7df;border-radius:12px}
+.member-directory-table{width:100%;min-width:760px;border-collapse:collapse;text-align:left}
+.member-directory-table th,.member-directory-table td{padding:11px 10px;border-bottom:1px solid #e2eee7;vertical-align:middle;font-size:14px}
+.member-directory-table th{background:#f0f8f3;font-weight:750;white-space:nowrap}
+.member-directory-table td.member-id{overflow-wrap:anywhere;max-width:205px;font-size:12px}
+.member-directory-table tbody tr:last-child td{border-bottom:0}
+.member-directory-photo{width:48px;height:48px;object-fit:cover;border-radius:10px;background:#e4efe8}
+.member-directory-placeholder{width:48px;height:48px;display:grid;place-items:center;border-radius:10px;background:#e4efe8;color:#175f48;font-weight:800}
+.member-directory-controls{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+
 .wizard-key-custodians{background:#eff8f2;padding:18px 20px;border-radius:14px;margin-top:18px;border:1px solid #cfdfd3}
 .wizard-key-custodians label{min-width:0}
 button{background:#154b82;border:0;color:white;cursor:pointer;margin-top:10px}
@@ -116,7 +126,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff3f8;border-radius
  </div>
  <p id="recoveryChangeStatus" role="status" aria-live="polite"></p>
 </details></section>
-<section id="membersSection"><h2>Registered members</h2><label>Search name, member ID, or membership area<input id="memberSearch" maxlength="80" placeholder="Type to search registered members" autocomplete="off"></label><button id="members">Search / refresh members</button><p id="memberTotal">No members loaded.</p><div id="memberDirectory" aria-live="polite"></div><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
+<section id="membersSection"><h2>Registered members</h2><div class="member-directory-controls"><label>Search name, member ID, or area<input id="memberSearch" maxlength="80" placeholder="Type to filter registered members" autocomplete="off"></label><label>Member status<select id="memberStatusFilter"><option value="Active" selected>Active members</option><option value="Inactive">Inactive members</option><option value="All">All members</option></select></label><button id="members" type="button" class="ghost">Refresh table</button></div><p id="memberTotal" role="status" aria-live="polite">Loading active members…</p><div id="memberDirectory" aria-live="polite"></div><div class="row" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><button id="prevMembers" class="ghost" type="button">Previous page</button><span id="memberPage">Page 1</span><button id="nextMembers" class="ghost" type="button">Next page</button></div><pre id="membersResult" hidden></pre></section>
 <dialog id="memberEditor" aria-labelledby="memberEditorTitle"><h2 id="memberEditorTitle">Edit member information</h2>
 <small>Member IDs and prior ballots never change. This form only updates the member's name, membership area and verified Guimba address.</small>
 <input id="editMemberId" readonly aria-label="Member ID" style="margin-top:12px">
@@ -509,62 +519,112 @@ by('createAdmin').onclick=async()=>{
 };
 
 let stagingCleanupAllowed=false;
-let memberPage=1,memberPages=1;
+let memberPage=1,memberPages=1,memberLoadSequence=0,memberSearchTimer=null;
 async function showMembers(){
- const query=new URLSearchParams({page:String(memberPage),q:by('memberSearch').value.trim()});
- const result=await action('membersResult',()=>call('/api/admin/members?'+query.toString()));
- const view=by('memberDirectory');view.replaceChildren();
- if(!result?.success){by('memberTotal').textContent='Unable to load members.';return}
- memberPages=Math.max(1,result.pages||1);
- by('memberTotal').textContent=(result.total||0)+' matching members';
- by('memberPage').textContent='Page '+memberPage+' of '+memberPages;
- by('prevMembers').disabled=memberPage<=1;
- by('nextMembers').disabled=memberPage>=memberPages;
- for(const member of result.members){
-  const panel=document.createElement('div');
-  panel.style.cssText='display:flex;justify-content:space-between;align-items:center;gap:12px;padding:11px 5px;border-bottom:1px solid #dae6df;flex-wrap:wrap';
-  const title=document.createElement('div'),name=document.createElement('strong'),caption=document.createElement('small');
-  name.textContent=member.fullName;caption.textContent=member.memberId+' • '+member.area+' • '+member.status;
-  title.append(name,document.createElement('br'),caption);
-  const controls=document.createElement('div');controls.className='member-row-actions';
-  const icons={
-   edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>',
-   delete:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>',
-   disable:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/></svg>',
-   enable:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>'
-  };
-  const makeIcon=(label,icon,fn,{danger=false,disabled=false,hint=''}={})=>{
-   const button=document.createElement('button');button.type='button';
-   button.className='member-icon-button'+(danger?' danger':'');
-   button.innerHTML=icons[icon];button.title=hint||label;button.setAttribute('aria-label',label+' — '+member.fullName);
-   button.disabled=disabled;button.onclick=fn;return button;
-  };
-  const edit=makeIcon('Edit member','edit',()=>editMember(member));
-  const remove=makeIcon('Delete member','delete',async()=>{
-   if(!await BHWDialog.confirm('Permanently delete '+member.fullName+' and their enrollment biometrics? This is allowed only for unused staging records that never joined a frozen electorate.'))return;
-   const response=await call('/api/superadmin/staging-members/'+encodeURIComponent(member.memberId),'DELETE');
-   by('memberTotal').textContent=response.success?'Member deleted.':response.message||'Deletion unavailable.';
-   if(response.success)await showMembers();
-  },{danger:true,disabled:!stagingCleanupAllowed,
-   hint:stagingCleanupAllowed?'Delete unused staging member':'Deletion is restricted to Super Admin in isolated staging'});
-  const state=member.status==='Active'?'Inactive':'Active';
-  const toggle=makeIcon(member.status==='Active'?'Disable member':'Enable member',
-   member.status==='Active'?'disable':'enable',async()=>{
-   if(!await BHWDialog.confirm((state==='Inactive'?'Disable':'Enable')+' '+member.fullName+'?'))return;
-   const response=await call('/api/admin/members/'+encodeURIComponent(member.memberId)+'/status','PATCH',{status:state});
-   if(response.success)await showMembers();
-   else by('memberTotal').textContent=response.message||'Status update unavailable';
-  },{danger:member.status==='Active'});
-  controls.append(edit,remove,toggle);
-  panel.append(title,controls);
-  view.appendChild(panel);
- }
- if(!result.members.length)view.textContent='No registered members.';
+ const sequence=++memberLoadSequence;
+ const query=new URLSearchParams({page:String(memberPage),
+  q:by('memberSearch').value.trim(),status:by('memberStatusFilter').value});
+ const view=by('memberDirectory');
+ by('memberTotal').textContent='Loading members…';
+ try{
+  const result=await call('/api/admin/members?'+query.toString());
+  if(sequence!==memberLoadSequence)return;
+  view.replaceChildren();
+  if(!result?.success){
+   if(result?.status===403){window.location.assign('/');return}
+   by('memberTotal').textContent=result.message||'Unable to load members.';return;
+  }
+  memberPages=Math.max(1,result.pages||1);
+  by('memberTotal').textContent=(result.total||0)+' '+(by('memberStatusFilter').value==='Active'?'active ':by('memberStatusFilter').value==='Inactive'?'inactive ':'')+'matching members';
+  by('memberPage').textContent='Page '+memberPage+' of '+memberPages;
+  by('prevMembers').disabled=memberPage<=1;
+  by('nextMembers').disabled=memberPage>=memberPages;
+  if(!result.members.length){
+   view.textContent=by('memberStatusFilter').value==='Active'?'No active members match your search.':'No members match your search.';
+   return;
+  }
+  const scroller=document.createElement('div');scroller.className='member-directory-scroll';
+  const table=document.createElement('table');table.className='member-directory-table';
+  const header=document.createElement('thead'),headingRow=document.createElement('tr');
+  for(const label of ['Photo','First name','Last name','Member ID','Area','Status','Actions']){
+   const th=document.createElement('th');th.scope='col';th.textContent=label;headingRow.appendChild(th);
+  }
+  header.appendChild(headingRow);table.appendChild(header);
+  const tbody=document.createElement('tbody');
+  for(const member of result.members){
+   const row=document.createElement('tr');
+   const tokens=(member.fullName||'').trim().split(/\s+/).filter(Boolean);
+   const first=member.firstName||tokens[0]||'—';
+   const last=member.lastName||tokens.slice(1).join(' ')||'—';
+   const photoCell=document.createElement('td');
+   const placeholder=document.createElement('span');placeholder.className='member-directory-placeholder';
+   placeholder.textContent=(first[0]||'M')+(last[0]&&last!=='—'?last[0]:'');
+   photoCell.appendChild(placeholder);
+   if(member.hasPortrait){
+    const image=document.createElement('img');image.className='member-directory-photo';
+    image.alt='Consented profile photo of '+member.fullName;
+    image.loading='lazy';image.hidden=true;
+    image.onload=()=>{image.hidden=false;placeholder.hidden=true};
+    image.onerror=()=>{image.remove();placeholder.hidden=false};
+    image.src='/api/admin/members/'+encodeURIComponent(member.memberId)+'/portrait';
+    photoCell.appendChild(image);
+   }
+   row.appendChild(photoCell);
+   for(const [value,cls] of [[first,''],[last,''],[member.memberId,'member-id'],
+    [member.area||'—',''],[member.status||'—','']]){
+    const cell=document.createElement('td');cell.textContent=value;if(cls)cell.className=cls;row.appendChild(cell);
+   }
+   const actionCell=document.createElement('td');
+   const controls=document.createElement('div');controls.className='member-row-actions';
+   const icons={
+    edit:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L9 17l-4 1 1-4Z"/></svg>',
+    delete:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15M10 10v7M14 10v7"/></svg>',
+    disable:'<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12h8"/></svg>',
+    enable:'<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8 12 3 3 5-6"/></svg>'
+   };
+   const makeIcon=(label,icon,fn,{danger=false,disabled=false,hint=''}={})=>{
+    const button=document.createElement('button');button.type='button';
+    button.className='member-icon-button'+(danger?' danger':'');
+    button.innerHTML=icons[icon];button.title=hint||label;
+    button.setAttribute('aria-label',label+' — '+member.fullName);
+    button.disabled=disabled;button.onclick=fn;return button;
+   };
+   const edit=makeIcon('Edit member','edit',()=>editMember(member));
+   const remove=makeIcon('Delete member','delete',async()=>{
+    if(!await BHWDialog.confirm('Permanently delete '+member.fullName+' and their enrollment biometrics? This is allowed only for unused staging records that never joined a frozen electorate.'))return;
+    const response=await call('/api/superadmin/staging-members/'+encodeURIComponent(member.memberId),'DELETE');
+    by('memberTotal').textContent=response.success?'Member deleted.':response.message||'Deletion unavailable.';
+    if(response.success)await showMembers();
+   },{danger:true,disabled:!stagingCleanupAllowed,
+    hint:stagingCleanupAllowed?'Delete unused staging member':'Deletion restricted to Super Admin in isolated staging'});
+   const state=member.status==='Active'?'Inactive':'Active';
+   const toggle=makeIcon(member.status==='Active'?'Disable member':'Enable member',
+    member.status==='Active'?'disable':'enable',async()=>{
+    if(!await BHWDialog.confirm((state==='Inactive'?'Disable':'Enable')+' '+member.fullName+'?'))return;
+    const response=await call('/api/admin/members/'+encodeURIComponent(member.memberId)+'/status','PATCH',{status:state});
+    if(response.success)await showMembers();
+    else by('memberTotal').textContent=response.message||'Status update unavailable';
+   },{danger:member.status==='Active'});
+   controls.append(edit,remove,toggle);actionCell.appendChild(controls);row.appendChild(actionCell);
+   tbody.appendChild(row);
+  }
+  table.appendChild(tbody);scroller.appendChild(table);view.appendChild(scroller);
+ }catch(_){if(sequence===memberLoadSequence)by('memberTotal').textContent='Member directory temporarily unavailable.'}
 }
 by('members').onclick=()=>{memberPage=1;showMembers()};
-by('memberSearch').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();memberPage=1;showMembers()}};
+by('memberSearch').oninput=()=>{
+ clearTimeout(memberSearchTimer);memberSearchTimer=setTimeout(()=>{memberPage=1;showMembers()},260);
+};
+by('memberStatusFilter').onchange=()=>{memberPage=1;showMembers()};
 by('prevMembers').onclick=()=>{if(memberPage>1){memberPage--;showMembers()}};
 by('nextMembers').onclick=()=>{if(memberPage<memberPages){memberPage++;showMembers()}};
+// Refresh when opening the Members view, including after a registration visit.
+window.addEventListener('bhw-view-changed',event=>{
+ if(event.detail?.view==='members'){memberPage=1;showMembers()}
+});
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden&&!by('membersSection').closest('.admin-view')?.hidden)showMembers();
+});
 
 let editingMember=null;
 async function editMember(member){
