@@ -25,7 +25,9 @@ async function run(){
  election.eligibilityFrozenAt=new Date('2027-01-01');
  election.eligibleMembersSnapshot=15;
  value=await getElectionLifecycle(db,electionId,new Date('2027-01-01'));
- assert.equal(value.phase,'Awaiting custodians');assert.equal(value.eligibleMembers,15);
+ assert.equal(value.phase,'Ready');assert.equal(value.eligibleMembers,15);
+ value=await getElectionLifecycle(db,electionId,new Date('2027-01-02T13:00:00Z'));
+ assert.equal(value.phase,'Open','Voting is open without custody receipt confirmations');
  confirmations=2;election.keyDeliveryConfirmed=true;
  value=await getElectionLifecycle(db,electionId,new Date('2027-01-01'));
  assert.equal(value.phase,'Ready');assert.equal(value.confirmedCustodians,2);
