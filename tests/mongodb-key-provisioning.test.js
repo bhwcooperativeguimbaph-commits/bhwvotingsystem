@@ -40,7 +40,7 @@ async function main(){
   deliver:async data=>{sent.push(data);return {messageId:'provider-'+sent.length}}});
  assert.equal(result.custodians,2);assert.equal(sent.length,2);assert.notEqual(sent[0].to,sent[1].to);
  assert.equal(custodians.length,2);assert.equal(e.keyProvisioningState,'Ready');
- assert.equal(e.sealedPrivateKey?.version,2);
+ assert.equal(e.sealedPrivateKey?.version,3);
  assert.ok(sent.every(m=>m.text.length<500),'New custodian emails must not contain huge tokens');
  assert.deepEqual(custodians.map(c=>c.providerMessageId),['provider-1','provider-2']);
  assert.ok(custodians.every(c=>c.deliveryAcceptedAt instanceof Date));
@@ -48,8 +48,10 @@ async function main(){
  assert.equal(JSON.stringify(custodians).includes('BHW1.'),false);
  // Attach object IDs like real MongoDB documents for confirmation updates.
  for(let i=0;i<custodians.length;i++)custodians[i]._id=i+1;
- const token1=sent[0].text.match(/BHW1\.[a-f0-9]{20}\.[A-Za-z0-9_-]+/)[0];
- const token2=sent[1].text.match(/BHW2\.[a-f0-9]{20}\.[A-Za-z0-9_-]+/)[0];
+ const phrase=/recovery phrase \(\d of 2\):\n([a-z]+(?: [a-z]+){11})/;
+ const token1=sent[0].text.match(phrase)?.[1];
+ const token2=sent[1].text.match(phrase)?.[1];
+ assert.ok(token1&&token2,'Both messages must contain independent 12-word phrases');
  assert.equal(await confirmCustodianShare(db,{electionId,shareIndex:1,share:token1}),true);
  assert.notEqual(e.keyDeliveryConfirmed,true);
  assert.equal(await confirmCustodianShare(db,{electionId,shareIndex:2,share:token2}),true);
