@@ -74,6 +74,7 @@ async function main(){
   const configured=await db.collection('elections').findOne({electionId});
   assert.equal(configured.eligibleMembersSnapshot,2);
   assert.equal(configured.keyProvisioningState,'Ready');
+  assert.equal(configured.sealedPrivateKey?.version,2);
   await assert.rejects(editCandidate({client,db},{...editArgs,operation:'update',
    candidateId:toRename.candidateId,candidateName:'Change After Keys'}),e=>e.code==='ELECTION_LOCKED');
   assert.equal((await db.collection('candidates').findOne({
