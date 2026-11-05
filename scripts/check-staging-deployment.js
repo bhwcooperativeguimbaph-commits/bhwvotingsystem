@@ -20,21 +20,24 @@ async function check(path,method='GET',body=undefined,cookieHeader=undefined){
 }
 function expect(condition,message){if(!condition)throw Error(message)}
 async function main(){
+ // Deploy can briefly lag the source push; poll without any mutations before
+ // asserting that the exact tested SHA is live.
+ const expected=(process.env.BHW_EXPECTED_COMMIT||process.env.GITHUB_SHA||'').trim().toLowerCase();
+ if(expected)expect(/^[a-f0-9]{40}$/.test(expected),'Invalid expected commit SHA');
  let health;
  for(let attempt=1;attempt<=10;attempt++){
   try{
    health=await check('/health');
-   if(health.status===200&&health.data?.database==='mongodb')break;
+   if(health.status===200&&health.data?.database==='mongodb'&&
+      (!expected||health.data.gitCommit===expected))break;
   }catch(e){if(attempt===10)throw Error('Staging unreachable: '+e.name)}
-  await new Promise(resolve=>setTimeout(resolve,12000));
+  if(attempt<10)await new Promise(resolve=>setTimeout(resolve,12000));
  }
  expect(health?.status===200&&health.data?.database==='mongodb','MongoDB health endpoint failed');
  console.log('PASS staging MongoDB health');
  // In CI, compare exact reviewed source with Render's deployed revision.
  // A successful response from an older build is not completion evidence.
- const expected=(process.env.BHW_EXPECTED_COMMIT||process.env.GITHUB_SHA||'').trim().toLowerCase();
  if(expected){
-  expect(/^[a-f0-9]{40}$/.test(expected),'Invalid expected commit SHA');
   expect(health.data.gitCommit===expected,
    'Staging SHA mismatch or unavailable; verify the current Render deployment');
   console.log('PASS exact staging commit '+expected.slice(0,12));
