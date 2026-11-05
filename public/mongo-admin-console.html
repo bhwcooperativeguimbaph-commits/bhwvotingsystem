@@ -265,13 +265,13 @@ async function refreshAnalytics(){
   if(!result.success)throw Error(result.message||'Analytics unavailable');
   const election=result.election;
   const eligible=election?.eligibleMembers;
-  by('currentElectionTitle').textContent=election?.title||'No election configured';
-  by('currentElectionStatus').textContent=election?.status||'No election';
+  by('currentElectionTitle').textContent=election?.title||'No active election';
+  by('currentElectionStatus').textContent=election?.status||'No active election';
   by('currentBallots').textContent=election?String(result.ballotsCast??0):'—';
   by('currentEligible').textContent=Number.isInteger(eligible)&&eligible>=0?String(eligible):'Not frozen';
   if(!election){
    by('currentTurnout').textContent='—';
-   by('turnoutExplanation').textContent='Create an election to begin observing participation.';
+   by('turnoutExplanation').textContent='There is no active election. Historical results remain available under Election results & reports.';
   }else if(!Number.isInteger(eligible)||eligible<0){
    by('currentTurnout').textContent='Pending';
    by('turnoutExplanation').textContent='Turnout is unavailable until the electorate is frozen during key provisioning.';
