@@ -16,7 +16,8 @@ async function authenticateSession(db,token,now=new Date()){
  const collection=record.role==='member'?'members':'admins';
  const idField=record.role==='member'?'memberId':'adminId';
  const account=await db.collection(collection).findOne({[idField]:record.accountId,status:'Active'});
- if(!account)return null;
+ // An existing session cannot override a staff account's current role.
+ if(!account||(record.role!=='member'&&account.role!==record.role))return null;
  return {accountId:record.accountId,role:record.role};
 }
 async function revokeSession(db,token){
