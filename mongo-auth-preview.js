@@ -671,6 +671,26 @@ app.post('/api/key-custody/confirm',rateLimit,async(req,res)=>{
   return res.json({success:true,message:'Custodian receipt confirmed'});
  }catch(_){return res.status(503).json({success:false,message:'Custodian confirmation unavailable'})}
 });
+app.patch('/api/admin/elections/:electionId/archive',superadminOnly,async(req,res)=>{
+ try{
+  const {setResultsArchived}=require('./database/results-archive');
+  const saved=await setResultsArchived(connection,{
+   electionId:req.params.electionId,archived:req.body?.archived,
+   operatorId:req.staff.accountId});
+  res.set('Cache-Control','no-store');
+  return res.json({success:true,...saved});
+ }catch(e){
+  const messages={
+   ELECTION_NOT_FOUND:[404,'Election not found'],
+   RESULTS_NOT_PUBLISHED:[409,'Only published results can be archived'],
+   ARCHIVE_UNCHANGED:[409,'Election archive status is already set'],
+   ARCHIVE_CONFLICT:[409,'Archive changed; refresh and try again']
+  };
+  const [status,message]=e instanceof TypeError?[400,'Invalid archive request']:
+   messages[e.code]||[503,'Archive temporarily unavailable'];
+  return res.status(status).json({success:false,message});
+ }
+});
 app.post('/api/admin/elections/:electionId/disclose-results',superadminOnly,async(req,res)=>{
  try{
   const {discloseElectionResults}=require('./database/results-disclosure');
@@ -680,7 +700,9 @@ app.post('/api/admin/elections/:electionId/disclose-results',superadminOnly,asyn
   return res.json({success:true,report});
  }catch(e){
   if(e.code==='INVALID_DISCLOSURE'||e.code==='INVALID_SHARES')return res.status(400).json({success:false,message:'Two valid custodian shares are required'});
-  if(e.code==='NOT_DISCLOSABLE')return res.status(409).json({success:false,message:'Results cannot be disclosed before the election ends'});
+  if(e.code==='ELECTION_STILL_OPEN')return res.status(409).json({success:false,message:'Election is still running. Results unlock after its scheduled end (Philippine time).'});
+  if(e.code==='ELECTION_NOT_FOUND')return res.status(404).json({success:false,message:'Election not found'});
+  if(e.code==='KEYS_NOT_READY')return res.status(409).json({success:false,message:'This election has no complete custodian key setup. Both valid issued phrases are required.'});
   if(e.code==='ALREADY_FINALIZED')return res.status(409).json({success:false,message:'Results already finalized'});
   return res.status(503).json({success:false,message:'Result disclosure unavailable; review ballot integrity before retrying'});
  }
