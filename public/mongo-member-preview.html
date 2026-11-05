@@ -169,14 +169,14 @@ async function displayBallot(){
  by('homeElectionTitle').textContent=active?info.title:'No current election';
  const now=Date.now();
  const isOpen=active&&now>=new Date(info.startTime).getTime()&&now<new Date(info.endTime).getTime();
- const eligible=active&&auth.eligibleThisElection&&!auth.hasVoted&&info.voteSubmissionEnabled&&isOpen&&info.custodiansReady===true;
+ const eligible=active&&auth.eligibleThisElection&&!auth.hasVoted&&info.voteSubmissionEnabled&&isOpen&&info.encryptionReady===true;
  by('readyToVote').disabled=!eligible;
  by('homeElectionStatus').textContent=!active?'There is no active ballot at the moment.':
   auth.hasVoted?'You have already voted in this election.':
   !auth.eligibleThisElection?'You are not eligible for this election.':
   !isOpen?'Voting is not open at this time.':
   !info.voteSubmissionEnabled?'Voting is currently unavailable.':
-  info.custodiansReady!==true?'Voting will open after both election key custodians confirm receipt of their shares.':'You may now proceed to cast your vote.';
+  info.encryptionReady!==true?'Voting is waiting for election encryption setup. Custodian phrases are only needed to publish results.':'You may now proceed to cast your vote.';
  await Promise.all([loadReceipts(),loadNotifications()]);
 }
 async function loadReceipts(){
