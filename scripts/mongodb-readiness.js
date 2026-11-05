@@ -24,10 +24,14 @@ async function main(){
   const ttlSessions=sessionIndexes.some(x=>x.key?.expiresAt===1&&x.expireAfterSeconds===0);
   const legacyVoterLinkedBallotIndex=ballotIndexes.some(x=>x.unique===true&&
     x.key?.electionId===1&&x.key?.memberId===1);
-  // Read only one candidate document to check schema, never print the contents.
-  const sample=available.has('ballots')?await db.collection('ballots').findOne({},
-    {projection:{memberId:1,receiptCode:1,_id:0}}):null;
-  const ballotIdentityLeak=!!sample&&('memberId' in sample||'receiptCode' in sample);
+  // Inspect ALL ballot records for forbidden identifying/timing metadata.
+  // The prior one-document sample could miss a leak in later records.
+  // Return only a boolean; never read or print any ballot selection/ciphertext.
+  const ballotIdentityLeak=available.has('ballots')?!!(await db.collection('ballots').findOne({
+    $or:[{memberId:{$exists:true}},{voterId:{$exists:true}},
+      {receiptCode:{$exists:true}},{receiptNo:{$exists:true}},
+      {createdAt:{$exists:true}}]
+  },{projection:{_id:1}})):false;
   const summary={database:db.databaseName,collectionsPresent:required.filter(x=>available.has(x)),
     recordCounts:counts,uniqueParticipationConstraint:uniqueParticipation,
     uniqueReceiptConstraint:receiptUnique,sessionExpiryIndex:ttlSessions,
