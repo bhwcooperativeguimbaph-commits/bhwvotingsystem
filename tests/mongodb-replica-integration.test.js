@@ -74,15 +74,15 @@ async function main(){
   const configured=await db.collection('elections').findOne({electionId});
   assert.equal(configured.eligibleMembersSnapshot,2);
   assert.equal(configured.keyProvisioningState,'Ready');
-  assert.equal(configured.sealedPrivateKey?.version,2);
+  assert.equal(configured.sealedPrivateKey?.version,3);
   await assert.rejects(editCandidate({client,db},{...editArgs,operation:'update',
    candidateId:toRename.candidateId,candidateName:'Change After Keys'}),e=>e.code==='ELECTION_LOCKED');
   assert.equal((await db.collection('candidates').findOne({
    candidateId:toRename.candidateId})).name,'Candidate B Renamed');
   const keys=messages.map((m,i)=>{
-   const match=m.text.match(new RegExp('BHW'+(i+1)+'\\.[a-f0-9]{20}\\.[A-Za-z0-9_-]+'));
+   const match=m.text.match(/recovery phrase \(\d of 2\):\n([a-z]+(?: [a-z]+){11})/);
    assert.ok(match,'Missing mock custodian share');
-   return match[0];
+   return match[1];
   });
   assert.equal(await confirmCustodianShare(db,{electionId,shareIndex:1,share:keys[0]}),true);
   assert.equal(await confirmCustodianShare(db,{electionId,shareIndex:2,share:keys[1]}),true);
