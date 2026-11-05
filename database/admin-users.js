@@ -37,7 +37,7 @@ async function createAdmin(connection,input,{now=new Date(),operatorId}={}){
  }catch(e){if(e?.code===11000)throw invalid('ADMIN_EXISTS');throw e}
  finally{await session.endSession()}
 }
-async function updateAdminStatus(connection,adminId,status,{now=new Date()}={}){
+async function updateAdminStatus(connection,adminId,status,{now=new Date(),operatorId}={}){
  if(!/^ADM-[a-f0-9-]{36}$/i.test(adminId||'')||
     !['Active','Inactive'].includes(status))throw invalid('INVALID_ADMIN');
  const session=connection.client.startSession();
@@ -50,7 +50,8 @@ async function updateAdminStatus(connection,adminId,status,{now=new Date()}={}){
    if(status==='Inactive')await connection.db.collection('authSessions').deleteMany(
     {accountId:adminId},{session});
    await connection.db.collection('auditLogs').insertOne({
-    eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',action:'ADMIN_STATUS_CHANGED',
+    eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',
+    ...(operatorId?{operatorId}:{}),action:'ADMIN_STATUS_CHANGED',
     targetAdminId:adminId,newStatus:status,createdAt:now
    },{session});
    updated=true;
