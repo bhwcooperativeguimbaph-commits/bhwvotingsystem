@@ -23,7 +23,7 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
    if(custodians.length!==2||custodians[0].shareIndex!==1||custodians[1].shareIndex!==2)
     throw Object.assign(new Error('Key custodians not verified'),{code:'INVALID_SHARES'});
    let privatePem;
-   try{privatePem=reconstructElectionPrivateKey(election.ballotPublicKeyPem,shares,custodians.map(c=>c.shareHash))}
+   try{privatePem=reconstructElectionPrivateKey(election.ballotPublicKeyPem,shares,custodians.map(c=>c.shareHash),election.sealedPrivateKey)}
    catch(_){throw Object.assign(new Error('Custodian shares invalid'),{code:'INVALID_SHARES'})}
    const candidates=await db.collection('candidates').find(
     {electionId,status:'Active'},{session,projection:{_id:0,candidateId:1,name:1,position:1,maxVotes:1,status:1}}).toArray();
