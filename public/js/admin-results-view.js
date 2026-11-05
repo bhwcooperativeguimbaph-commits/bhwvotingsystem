@@ -14,7 +14,7 @@
   <p id="simpleResultsStatus" role="status" aria-live="polite">Select an election to continue.</p>
   <div id="simpleFinalization" hidden>
    <h3>Unlock finished election results</h3>
-   <p>After the election ends, two confirmed custodians must privately provide their separate key shares.
+   <p>After the election ends, enter the two different private custody phrases or legacy shares, in either order.
       This will publish the results permanently and notify members once. Confirming emailed delivery beforehand is optional.</p>
    <div class="cols">
     <label>First custodian phrase or legacy share<textarea id="simpleShare1" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste any one 12-word phrase or older token"></textarea></label>
