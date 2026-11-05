@@ -15,7 +15,7 @@ async function check(path,method='GET',body=undefined,cookieHeader=undefined){
    signal:controller.signal});
   const raw=await r.text();let data=null;
   try{data=JSON.parse(raw)}catch(_){}
-  return {status:r.status,data,raw:raw.slice(0,20000),type:r.headers.get('content-type')||'',setCookie:r.headers.get('set-cookie')||''};
+  return {status:r.status,data,raw:raw.slice(0,20000),type:r.headers.get('content-type')||'',location:r.headers.get('location')||'',setCookie:r.headers.get('set-cookie')||''};
  }finally{clearTimeout(timeout)}
 }
 function expect(condition,message){if(!condition)throw Error(message)}
@@ -64,11 +64,16 @@ async function main(){
  const archive=await check('/api/elections/recent-finalized');
  expect(archive.status===200&&Array.isArray(archive.data?.elections),'Public results archive failed');
  console.log('PASS public finalized-results archive');
- for(const p of ['/admin-console','/member-enrollment-preview','/api/superadmin/admins',
-  '/api/admin/overview']){
+ for(const p of ['/admin-console','/member-enrollment-preview']){
   const r=await check(p);
-  expect(r.status===403,'Anonymous protection failure '+p+' HTTP '+r.status);
-  console.log('PASS anonymous access denied '+p);
+  expect(r.status===302&&r.location==='/',
+   'Protected page must redirect unauthorized users to landing: '+p+' HTTP '+r.status);
+  console.log('PASS anonymous protected page redirects to landing '+p);
+ }
+ for(const p of ['/api/superadmin/admins','/api/admin/overview']){
+  const r=await check(p);
+  expect(r.status===403,'Anonymous API protection failure '+p+' HTTP '+r.status);
+  console.log('PASS anonymous protected API denied '+p);
  }
  const session=await check('/api/session');
  expect(session.status===401,'Unauthenticated session should be 401');
