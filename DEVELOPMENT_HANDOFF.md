@@ -1,5 +1,5 @@
 # DEVELOPMENT_HANDOFF.md — BHW Voting System
-_Last updated: 2026-11-03 (Asia/Manila)_
+_Last updated: 2026-11-05 (Asia/Manila)_
 
 > **USER'S PERMANENT RULE:** Read [`WORKING_FEATURES_CHANGE_POLICY.md`](WORKING_FEATURES_CHANGE_POLICY.md) first. Never change anything already working unless the user specifically asks for it. Fix only the requested defect; preserve other behaviors.
 > **Read this file, `SPEC.md`, `README.md`, and the newest GitHub Actions results BEFORE editing code in a new chat.**
@@ -49,6 +49,27 @@ _Last updated: 2026-11-03 (Asia/Manila)_
 4. Update the dated session log below **on main** with changed files, commit identifiers, verification results, current blockers and next concrete step.
 
 ## Dated session log
+### 2026-11-05 — Owner-requested finish preparation: security checks, audit provenance, deploy identity and full-flow handoff
+
+**Scope:** Owner requested completing as much outstanding development as possible before their own final full-system test. Preserve already-working features and don't enable operational voting. This session used direct small commits on `main`; it did **not** control the authenticated Render console, actual two Brevo recipient inboxes, a physical camera, or production Atlas data.
+
+**Code changes directly on main:**
+- `database/sessions.js` (`ed97bf2b`) + `tests/mongodb-sessions.test.js` (`890bcd03`): reject staff cookies whose stored role no longer matches the currently active staff account, and add role-change/deactivation regression checks.
+- `database/admin-users.js` (`630262f2`) + `tests/mongodb-admin-users.test.js` (`6f1a39a7`): include the verified Super Admin operator in a staff status-change audit. Existing status mutation and session revocation remain unchanged.
+- `database/key-provisioning.js` (`1eeee45f`), `tests/mongodb-key-provisioning.test.js` (`fdff58d9`), `tests/mongodb-replica-integration.test.js` (`b41d80ce`): attribute successful key-share issuance to the verified Super Admin without storing shares or email codes in audit history.
+- `mongo-auth-preview.js` (`8c786c06`): pass the authenticated actor ID to those two existing guarded operations; add a nonsecret `gitCommit` field to GET `/health` from Render's published commit SHA. No ballot acceptance, role permission or key-handling changes.
+- `scripts/check-staging-deployment.js` (`c897d76d`, then `899f2c41`): compare public staging's reported commit to `GITHUB_SHA` and poll a bounded period for an in-progress deploy. This is non-mutating and rejects falsely declaring old code ready.
+- `scripts/mongodb-readiness.js` (`5b3ba82`): read-only privacy check now scans for *any* ballot record containing forbidden identity or timestamp metadata, rather than inspecting the first record only; no ballot data is printed.
+- `docs/OWNER_FULL_FLOW_ACCEPTANCE.md` (`e549d29d`) and `README.md` (`8d0b6827`): 20 explicit owner PASS/FAIL/NOT RUN acceptance observations, sanitized-feedback format, synthetic-only setup, deployment identity and unapproved privacy/recovery blockers.
+
+**Verified at handoff preparation:** On exact `5b3ba821ff1977a68263f784fdb9f9460baed5a5`, JavaScript syntax GitHub Actions and sanitized offline test-report workflow both succeeded (syntax run `41951661609`, report run `41951661625`), with `npm ci`, `npm test`, and disposable MongoDB replica-set integration success. On exact `899f2c41bcac816464fdb2e7fbb7b76895686315`, syntax run `41951787032` succeeded; full report and separate staging gate were **in progress at time of writing**. Verify fresh exact-HEAD Actions and `ci-reports/LATEST_TEST_REPORT.json` before relying on the later SHA; do not copy earlier PASS to a new commit.
+
+**Known external blocker:** On preceding commits, `stagingExit=1` and the independent staging gate reported **deployment SHA mismatch or unavailable**. This may simply reflect the Render deployment not yet serving the current pushed source. It is **not evidence of a failed database transaction**, and it is **not an accepted up-to-date deploy** either. Inspect Render's active deployment revision and GET `/health` after rollout. Do not disable SHA verification to obtain a green check.
+
+**Unverified and not complete:** Authenticated browser/mobile UI, camera capture/login with consented synthetic adult, full actual Brevo two-inbox confirmations, real Atlas concurrency and reports, proper PDF rendering, supervised 20-case owner flow, restore drill, privacy retention/deletion, accessible alternative to biometrics, independent PAD/ballot-secrecy assessment, lost-share operational handling and stakeholder approval. Existing browser-reported facial gestures remain insufficient as standalone spoof protection. No real vote-test flag was changed.
+
+**Next precise task:** After Render is confirmed on exact `main` SHA, run the `docs/OWNER_FULL_FLOW_ACCEPTANCE.md` synthetic end-to-end rehearsal with consenting participants. Correct *observed* failures surgically, rerun same-SHA Actions/CI, and record screenshots only after redacting credentials and identity data. Keep production voting off until independent approvals.
+
 ### 2026-11-03 — Third Render screenshot review: registration, fixed sidebar, popups, results and receipts
 
 **User request:** Remove long blank Registration scroll region; keep admin sidebar fixed while dashboard/registration content scrolls; replace native alerts/confirmations with consistent popups; lock new-election setup while an existing election is ongoing and show its start/end dates; simplify dashboard labels; redesign Election results & reports into ONE election dropdown with a 2-share finalization step only after the election has ended and permanent published archive thereafter; allow overall and per-area report downloads; show verified actor names in audit; make Super Admin email-change status dialogs and code-only messages; fix the failed-vote / missing receipt flow; record these requirements in `SPEC.md`. Do not modify unrelated working features (see `WORKING_FEATURES_CHANGE_POLICY.md`).
