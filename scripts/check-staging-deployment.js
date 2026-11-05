@@ -30,6 +30,17 @@ async function main(){
  }
  expect(health?.status===200&&health.data?.database==='mongodb','MongoDB health endpoint failed');
  console.log('PASS staging MongoDB health');
+ // In CI, compare exact reviewed source with Render's deployed revision.
+ // A successful response from an older build is not completion evidence.
+ const expected=(process.env.BHW_EXPECTED_COMMIT||process.env.GITHUB_SHA||'').trim().toLowerCase();
+ if(expected){
+  expect(/^[a-f0-9]{40}$/.test(expected),'Invalid expected commit SHA');
+  expect(health.data.gitCommit===expected,
+   'Staging SHA mismatch or unavailable; verify the current Render deployment');
+  console.log('PASS exact staging commit '+expected.slice(0,12));
+ }else{
+  console.log('INFO staging SHA '+(health.data.gitCommit||'not exposed; verify in Render dashboard'));
+ }
  for(const [path,marker] of [['/','BHW Guimba'],['/admin-auth-preview','Administrator'],
    ['/member-preview','Member login'],['/results','Published election results']]){
   const response=await check(path);
