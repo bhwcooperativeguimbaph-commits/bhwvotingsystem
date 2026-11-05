@@ -15,6 +15,8 @@ This repository replaces the old MySQL entry point with a MongoDB-backed electio
 - Full specifications and launch criteria: [SPEC.md](SPEC.md).
 - Cross-chat development continuation and verified/pending work: [DEVELOPMENT_HANDOFF.md](DEVELOPMENT_HANDOFF.md).
 - Staging UI walkthrough and sanitized feedback checklist: [docs/RENDER_FLOW_REVIEW.md](docs/RENDER_FLOW_REVIEW.md).
+- Owner's final full-flow staging checklist: [docs/OWNER_FULL_FLOW_ACCEPTANCE.md](docs/OWNER_FULL_FLOW_ACCEPTANCE.md).
+- Public `/health` exposes the Render `gitCommit` when available, and CI staging smoke rejects a deployment SHA that does not match the tested `main` commit.
 - Staged HTTP endpoint inventory and selected JSON contracts: [openapi.yaml](openapi.yaml) (not yet complete production API parity).
 
 ## Render configuration
