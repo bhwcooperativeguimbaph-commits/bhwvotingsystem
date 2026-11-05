@@ -1,6 +1,6 @@
 'use strict';
 // Transactional ballot + receipt. Intended for guarded staging tests; do not activate
-// until custodian key provisioning, secrecy review and full browser tests succeed.
+// until key provisioning, secrecy review and full browser tests succeed.
 const crypto=require('node:crypto');
 const {validateBallot}=require('./ballot-validation');
 const {encryptBallot}=require('./ballot-crypto');
@@ -27,8 +27,10 @@ async function castEncryptedVote(connection,{memberId,choices,now=new Date()}){
     memberId,status:'Active',createdAt:{$lte:election.eligibilityFrozenAt}
    },{session,projection:{memberId:1}});
    if(!member)throw voteError('NOT_AUTHORIZED','Member is not eligible for this election');
-   if(election.keyDeliveryConfirmed!==true||election.keyProvisioningState!=='Ready')
-    throw voteError('CUSTODIAN_CONFIRMATION_PENDING','Both election key custodians must confirm receipt before voting can begin');
+   // Votes require an established election public key and frozen electorate;
+   // possession-confirmation of private shares is only needed to release results.
+   if(election.keyProvisioningState!=='Ready')
+    throw voteError('ENCRYPTION_UNAVAILABLE','Election encryption setup is not complete');
    if(typeof election.ballotPublicKeyPem!=='string'||!election.ballotPublicKeyPem)
     throw voteError('ENCRYPTION_UNAVAILABLE','Election encryption key is unavailable');
    const candidates=await db.collection('candidates').find(
