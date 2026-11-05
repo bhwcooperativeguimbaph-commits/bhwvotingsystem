@@ -78,3 +78,11 @@ Resend and Gmail SMTP keys are not required by the MongoDB application's email-O
 10. Supervising election officials explicitly approve live launch. **No live vote flag is enabled automatically.**
 
 See [SPEC.md](SPEC.md) for the detailed engineering requirements and known limitations.
+
+## November 5 owner follow-up: voting, custody and archive
+
+New synthetic elections issue **two separate 12-word BHW custodian recovery phrases** (BIP-39 English encoding, 128 bits of random entropy per custodian). These are **NOT cryptocurrency wallet seeds**. The private RSA election key is sealed under a key derived from the two XOR shares; both authentic phrases are required to publish aggregate results. Previously issued v1/v2 long or compact tokens remain usable without rotation. Never paste phrases or screenshots of them into bug reports.
+
+Voting can open on schedule after **public-key provisioning and frozen voter eligibility**, even if custodians have not confirmed receipt of their individual emailed phrases. No election can accept encrypted votes without its public encryption key, and real voting remains disabled outside authorized synthetic staging. The post-election result release requires both authentic shares, in **either input order**, and an election whose scheduled end has passed.
+
+Member-table biometric replacement now stays inside the Members view. Super Admin can archive or restore **published** election results from the protected results dropdown; the verified public results and immutable hashes remain accessible. See `docs/OWNER_FULL_FLOW_ACCEPTANCE.md` for browser checks and role restrictions.

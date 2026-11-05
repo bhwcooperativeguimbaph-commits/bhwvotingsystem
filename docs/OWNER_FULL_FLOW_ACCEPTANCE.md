@@ -73,3 +73,19 @@ After confirming that Render has the same exact commit SHA as GitHub:
 - **Login performance:** The camera must detect whether a face is visible before starting gesture tasks. Member-registry matching remains *after* the bound challenge, because a prechallenge membership lookup would expose the biometric enrollment status of unrelated people. Record camera setup and challenge usability problems without submitting face images.
 
 **Security note:** the screenshot shared on November 5 shows an entire private custodian share. Do not reuse that share for an official election. Its parent election can be used only for controlled test/diagnostic purposes; use a newly generated election for any later authorized process.
+
+## November 5 follow-up targeted acceptance — new changes
+
+Use only consented synthetic test data. In feedback, redact face photographs, member identity and **all 12-word recovery phrases**, including browser input fields.
+
+| Case | Staging observation | State |
+| --- | --- | --- |
+| P01 | Open **Members table**; use the row's biometric icon. The existing member's full-width reason and consent fields appear **inside Members**, not on Registration. Cancel and successful updates return to Members. | NOT RUN |
+| P02 | Create a fresh **synthetic** election with two distinct test-recipient inboxes. Each recipient receives exactly one **12-word BHW custody phrase**, not a wallet seed. | NOT RUN |
+| P03 | Election reaches scheduled voting time before custodians confirm receipt; an eligible synthetic member can vote **only after the public encryption key was issued and eligibility frozen**, without any receipt-confirmation requirement. | NOT RUN |
+| P04 | Attempt results publication before scheduled end: server refuses with a specific **Election is still running** response. | NOT RUN |
+| P05 | After end, submit two authentic but **reversed** custody phrases. Server verifies the pair and publishes once. Entering the same phrase twice or one invalid phrase never publishes. | NOT RUN |
+| P06 | Archive the published report, see it under **Archived election results**, verify the same public report and hash, then Restore. Reopening must not send duplicate notifications. | NOT RUN |
+| P07 | Old, previously issued v1/v2 custodian shares still work for their original elections; **do not reuse any screenshot-exposed shares in a real election**. | NOT RUN |
+
+The old UI's claim that receipts must be confirmed before *voting* is superseded. Confirmation remains an optional delivery acknowledgement, not a cryptographic proof or voting prerequisite. Neither this checklist nor CI authorizes a real cooperative election.

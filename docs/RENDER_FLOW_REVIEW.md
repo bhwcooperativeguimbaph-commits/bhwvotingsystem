@@ -70,3 +70,12 @@ The Admin interface now uses discrete hash-routed sidebar views (`#view-dashboar
 The member login attempts to start the camera on page access. If browser camera permission is refused, an error dialog appears and **Login** remains available to retry. On success, expect the personal profile hub, a collapsible notification bell with Mark as read, and a disabled **Ready to vote** control until an authorized eligible election is actually open. Existing accounts registered before photo storage was introduced may show initials until a consented new photo is captured through an approved future profile workflow.
 
 **Safety distinction:** UI wording is final-style, but real voting remains blocked in the backend unless its isolated staging testing condition is explicitly met. A polished page is not approval to use real members or ballots. Never disclose actual voter data or private custodian shares in screenshots.
+
+## November 5 owner follow-up overrides (read this after the older table)
+
+- Members table includes an in-place consented biometric replacement panel; test its reason-field width, iframe height, camera permissions and return to member list.
+- Each new election's two emailed private key codes are independent **12-word phrases**; old v1/v2 tokens are grandfathered. Both phrases are still required to unlock and publish after the end, in either order, but their prior *receipt confirmations* are optional.
+- Before any synthetic ballot is accepted, the RSA public encryption key and frozen eligible-member roster **must** already exist. A scheduled election can run without custodians' email receipt confirmations. If provisioning was not done before voting began, a Super Admin can provision during the still-open window *before any vote*.
+- The Results dropdown offers a separate **Archived election results** group with reversible Super Admin archive/restore; public published reports and hashes remain immutable.
+- The finalization API reports `ELECTION_STILL_OPEN` only if the authoritative server says it has not ended. It no longer masks missing encryption keys, invalid shares or already-published reports as a time error.
+- Previous exposed shares, real biometric images and credentials must never be pasted in bug reports. The project remains synthetic-staging only until required approvals.
