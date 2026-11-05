@@ -15,10 +15,10 @@ async function getPublicElectionInfo(db,now=new Date()){
   if(p.maxVotes!==c.maxVotes)throw new Error('Inconsistent election position limits');
   p.candidates.push({candidateId:c.candidateId,name:c.name,photo:c.photo});
  }
- const custodiansReady=election.keyProvisioningState==='Ready'&&
-  election.keyDeliveryConfirmed===true&&
+ const encryptionReady=election.keyProvisioningState==='Ready'&&
   typeof election.ballotPublicKeyPem==='string'&&Boolean(election.ballotPublicKeyPem);
+ const custodiansReady=encryptionReady&&election.keyDeliveryConfirmed===true;
  return {active:true,title:election.title,config:[...groups.values()],
-  startTime:election.startTime,endTime:election.endTime,custodiansReady};
+  startTime:election.startTime,endTime:election.endTime,custodiansReady,encryptionReady};
 }
 module.exports={getPublicElectionInfo};
