@@ -15,15 +15,16 @@
   <div id="simpleFinalization" hidden>
    <h3>Unlock finished election results</h3>
    <p>After the election ends, two confirmed custodians must privately provide their separate key shares.
-      This will publish the results permanently and notify members once.</p>
+      This will publish the results permanently and notify members once. Confirming emailed delivery beforehand is optional.</p>
    <div class="cols">
-    <label>Custodian 1 key share<textarea id="simpleShare1" rows="3" spellcheck="false" autocomplete="off"></textarea></label>
-    <label>Custodian 2 key share<textarea id="simpleShare2" rows="3" spellcheck="false" autocomplete="off"></textarea></label>
+    <label>First custodian phrase or legacy share<textarea id="simpleShare1" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste any one 12-word phrase or older token"></textarea></label>
+    <label>Second custodian phrase or legacy share<textarea id="simpleShare2" rows="3" spellcheck="false" autocomplete="off" placeholder="Paste the other distinct share; either order is accepted"></textarea></label>
    </div>
    <button id="simpleFinalize" type="button">Unlock and publish results</button>
   </div>
   <div id="simplePublished" hidden>
    <h3>Published overall results</h3>
+   <div class="row"><button id="simpleArchiveToggle" class="ghost" type="button" hidden>Archive this election</button><span id="simpleArchiveState" aria-live="polite"></span></div>
    <p id="simpleTotals"></p>
    <div id="simpleCandidates"></div>
    <p><a id="simplePublicLink" target="_blank" rel="noopener">View verified report and PDF</a></p>
@@ -78,7 +79,7 @@
   overall=null;areas=null;
   const entry=entries.find(e=>e.electionId===selected);
   if(!entry){say('Select an election to continue.');return}
-  const closed=new Date(entry.endTime).getTime()<=Date.now();
+  const closed=typeof entry.ended==='boolean'?entry.ended:new Date(entry.endTime).getTime()<=Date.now();
   say(entry.title+' · '+date(entry.startTime)+' – '+date(entry.endTime)+
    (entry.published?' · Results published':closed?' · Voting ended':' · Election in progress'));
   if(entry.published){
@@ -96,12 +97,15 @@
     simpleTable('simpleAreas',['Area','Members who voted'],
      areas.areas.map(row=>[row.area,row.votesCast]));
     by('simplePublicLink').href='/results?electionId='+encodeURIComponent(selected);
+    by('simpleArchiveToggle').hidden=!superAdmin;
+    by('simpleArchiveToggle').textContent=entry.archived?'Restore from archive':'Archive this election';
+    by('simpleArchiveState').textContent=entry.archived?'Archived · Results remain published':'Published · Not archived';
     by('simplePublished').hidden=false;
    }catch(e){say(e.message||'Report unavailable');return}
   }else if(closed){
    by('simpleFinalization').hidden=!superAdmin;
    if(!superAdmin)say('Voting has ended. Waiting for Super Admin to publish results.');
-   else say('Voting has ended. Both custodians must confirm delivery and provide their key shares to publish results.');
+   else say('Voting has ended. Enter both distinct custodian shares to publish results. Prior email-receipt confirmation is optional.');
   }else say('Election is still running. Results unlock only after the scheduled end.');
  }
  async function refresh(){
@@ -112,11 +116,16 @@
    const select=by('simpleElection');select.replaceChildren();
    const placeholder=document.createElement('option');
    placeholder.value='';placeholder.textContent='Select election';select.appendChild(placeholder);
+   const available=document.createElement('optgroup');available.label='Election results';
+   const archive=document.createElement('optgroup');archive.label='Archived election results';
    for(const e of entries){
     const option=document.createElement('option');option.value=e.electionId;
-    option.textContent=e.title+' ('+(e.published?'Published':'Not published')+')';
-    select.appendChild(option);
+    option.textContent=e.title+' ('+(e.published?'Published':'Not published')+')'+
+     (e.archived?' · Archived':'');
+    (e.archived?archive:available).appendChild(option);
    }
+   if(available.children.length)select.appendChild(available);
+   if(archive.children.length)select.appendChild(archive);
    select.value=entries.some(e=>e.electionId===current)?current:'';
    await display();
   }catch(e){say(e.message||'Could not load election list')}
@@ -129,6 +138,9 @@
   if(!shares[0]||!shares[1]){
    await window.BHWDialog.notice('Both private custodian shares are required.','Missing key shares');return;
   }
+  if(shares[0].trim().toLowerCase().replace(/\s+/g,' ')===shares[1].trim().toLowerCase().replace(/\s+/g,' ')){
+   await window.BHWDialog.notice('Enter two different custodians’ shares, not the same share twice.','Duplicate key share');return;
+  }
   if(!await window.BHWDialog.confirm('Publish this finished election permanently? Every member will receive one results notification.','Publish election results'))return;
   const button=by('simpleFinalize');button.disabled=true;
   try{
@@ -140,6 +152,24 @@
    await refresh();
   }catch(e){await window.BHWDialog.notice(e.message||'Unable to publish results','Results not published')}
   finally{first.value='';second.value='';button.disabled=false}
+ };
+ by('simpleArchiveToggle').onclick=async()=>{
+  const entry=entries.find(e=>e.electionId===selected);
+  if(!entry||!entry.published||!superAdmin)return;
+  const archived=!entry.archived;
+  if(!await window.BHWDialog.confirm((archived?'Archive':'Restore')+' this published election? Its public report and integrity hash will remain unchanged.',
+   archived?'Archive election':'Restore election'))return;
+  const button=by('simpleArchiveToggle');button.disabled=true;
+  try{
+   const response=await fetch('/api/admin/elections/'+encodeURIComponent(selected)+'/archive',{
+    method:'PATCH',credentials:'same-origin',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({archived})
+   });
+   const value=await response.json();
+   if(!response.ok||!value.success)throw Error(value.message||'Archive update unavailable');
+   await refresh();
+  }catch(e){await window.BHWDialog.notice(e.message||'Archive unavailable','Archive not changed')}
+  finally{button.disabled=false}
  };
  by('simpleOverallCsv').onclick=()=>{
   if(!overall)return;
