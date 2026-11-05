@@ -1,6 +1,7 @@
 'use strict';
 // Encrypt a consented enrollment portrait at rest. Never store a raw data URI.
-// Portraits are ONLY sent to their own authenticated member session.
+// Portraits are served only to the authenticated owner or authorized staff,
+// after decryption on the server. Never expose biometric recognition descriptors.
 const crypto=require('node:crypto');
 function decodePhoto(value){
  if(typeof value!=='string'||value.length>240000)throw new TypeError('Invalid member portrait');
