@@ -243,8 +243,13 @@ app.post('/api/admin/login-otp',rateLimit,async(req,res)=>{
 async function staffOnly(req,res,next){
  try{
   const auth=await authenticateSession(connection.db,token(req));
-  if(!auth||!['admin','superadmin'].includes(auth.role))
+  if(!auth||!['admin','superadmin'].includes(auth.role)){
+   // Protected HTML routes redirect to the public landing page. API routes
+   // still return 403 so unauthorized operations are explicitly rejected.
+   if(req.method==='GET'&&['/admin-console','/member-enrollment-preview'].includes(req.path))
+    return res.redirect(302,'/');
    return res.status(403).json({success:false,message:'Administrator session required'});
+  }
   req.staff=auth;next();
  }catch(_){res.status(503).json({success:false,message:'Authorization unavailable'})}
 }
@@ -511,17 +516,37 @@ app.get('/api/admin/members',staffOnly,async(req,res)=>{
   let filter;
   try{filter=directoryFilter(req.query.q||'')}
   catch(_){return res.status(400).json({success:false,message:'Search must contain at most 80 printable characters'})}
+  const status=req.query.status;
+  if(status!==undefined&&!['Active','Inactive','All'].includes(status))
+   return res.status(400).json({success:false,message:'Invalid member status filter'});
+  if(status==='Active'||status==='Inactive')filter.status=status;
   const perPage=25;
-  const [members,total]=await Promise.all([
+  const [rows,total]=await Promise.all([
     connection.db.collection('members').find(filter,{
-      projection:{_id:0,memberId:1,fullName:1,firstName:1,middleName:1,lastName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1},
+      projection:{_id:0,memberId:1,fullName:1,firstName:1,middleName:1,lastName:1,area:1,address:1,birthdate:1,gender:1,location:1,status:1,createdAt:1,portraitEncrypted:1},
       sort:{createdAt:-1,memberId:1},skip:(page-1)*perPage,limit:perPage
     }).toArray(),
     connection.db.collection('members').countDocuments(filter)
   ]);
+  // Never return encrypted photo fields or biometric templates in the list.
+  const members=rows.map(({portraitEncrypted,...member})=>({...member,hasPortrait:Boolean(portraitEncrypted)}));
   res.set('Cache-Control','no-store');
   return res.json({success:true,members,page,perPage,total,pages:Math.ceil(total/perPage)});
  }catch(_){return res.status(503).json({success:false,message:'Member directory unavailable'})}
+});
+// Authorized staff can view the consented portrait, not the biometric template.
+app.get('/api/admin/members/:memberId/portrait',staffOnly,async(req,res)=>{
+ try{
+  if(!/^MEM-[0-9a-f-]{36}$/i.test(req.params.memberId))
+   return res.status(400).json({success:false,message:'Invalid member'});
+  const member=await connection.db.collection('members').findOne(
+   {memberId:req.params.memberId},{projection:{_id:0,portraitEncrypted:1}});
+  if(!member?.portraitEncrypted)return res.status(404).end();
+  const {decryptPortrait,decodePhoto}=require('./database/member-portrait');
+  const photo=decodePhoto(decryptPortrait(member.portraitEncrypted,keyFromEnv()));
+  res.set('Cache-Control','private,no-store');
+  return res.type(photo.mime==='jpeg'?'image/jpeg':'image/png').send(photo.raw);
+ }catch(_){return res.status(503).json({success:false,message:'Portrait unavailable'})}
 });
 app.delete('/api/superadmin/staging-members/:memberId',superadminOnly,async(req,res)=>{
  try{
