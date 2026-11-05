@@ -5,7 +5,7 @@ const {encryptBallot}=require('../database/ballot-crypto');
 const {discloseElectionResults}=require('../database/results-disclosure');
 async function run(){
  const electionId='ELEC-00000000-0000-4000-8000-000000000001',pkg=createCustodianPackage();
- const election={electionId,status:'Active',keyProvisioningState:'Ready',keyDeliveryConfirmed:true,ballotPublicKeyPem:pkg.publicKeyPem,sealedPrivateKey:pkg.sealedPrivateKey};
+ const election={electionId,status:'Active',endTime:new Date('2027-01-01T00:00:00Z'),keyProvisioningState:'Ready',keyDeliveryConfirmed:false,ballotPublicKeyPem:pkg.publicKeyPem,sealedPrivateKey:pkg.sealedPrivateKey};
  const candidates=[
   {candidateId:'c1',name:'One',position:'Kagawad',maxVotes:1,status:'Active'},
   {candidateId:'c2',name:'Two',position:'Kagawad',maxVotes:1,status:'Active'},
@@ -33,7 +33,10 @@ async function run(){
   throw Error(name);
  }}};
  const now=new Date('2027-02-01T00:00:00Z');
- const report=await discloseElectionResults(connection,{electionId,shares:pkg.shares,now});
+ election.endTime=new Date('2028-01-01T00:00:00Z');
+ await assert.rejects(discloseElectionResults(connection,{electionId,shares:pkg.shares,now}),e=>e.code==='ELECTION_STILL_OPEN');
+ election.endTime=new Date('2027-01-01T00:00:00Z');
+ const report=await discloseElectionResults(connection,{electionId,shares:[pkg.shares[1],pkg.shares[0]],now});
  assert.equal(report.ballotsCast,2);
  assert.equal(report.results.find(x=>x.candidateId==='c1').votes,1);
  assert.equal(report.results.find(x=>x.candidateId==='c2').votes,1);
