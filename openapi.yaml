@@ -251,6 +251,41 @@ paths:
           description: Duplicate or election lifecycle conflict
         '503':
           description: Service or MongoDB dependency unavailable
+  /api/admin/elections/{electionId}/archive:
+    patch:
+      summary: "Archive or restore immutable published results (non-destructive)"
+      tags: [Administration]
+      x-required-role: "superadmin"
+      x-implementation-status: 'rehearsal-code; not live-approved'
+      security:
+        - sessionCookie: []
+      parameters:
+        - name: electionId
+          in: path
+          required: true
+          schema: {type: string}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [archived]
+              properties:
+                archived: {type: boolean}
+      responses:
+        '200':
+          description: Archive metadata changed; published report remains immutable
+        '400':
+          description: Invalid election or request
+        '403':
+          description: Super Admin required
+        '404':
+          description: Election missing
+        '409':
+          description: Election is not yet published or archive state conflict
+        '503':
+          description: Archive operation unavailable
   /api/admin/elections/{electionId}/disclose-results:
     post:
       summary: "Finalize aggregate results after election close using two independent key shares"
