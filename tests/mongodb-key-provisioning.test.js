@@ -32,11 +32,11 @@ async function main(){
    updateOne:async(q,u)=>{const c=custodians.find(x=>x._id===q._id);if(c){Object.assign(c,u.$set);return {modifiedCount:1}}return {modifiedCount:0}},
    countDocuments:async q=>custodians.filter(c=>c.electionId===q.electionId&&c.status===q.status).length
   };
-  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'KEY_SHARES_ISSUED');assert.ok(opts?.session)}};
+  if(name==='auditLogs')return {insertOne:async(doc,opts)=>{assert.equal(doc.action,'KEY_SHARES_ISSUED');assert.equal(doc.operatorId,'SUPERADMIN');assert.ok(opts?.session)}};
   throw Error(name);
  }};
  const connection={db,client:{startSession:()=>session}};
- const result=await provisionElectionKeys(connection,{electionId,emails,now:new Date('2027-01-01'),
+ const result=await provisionElectionKeys(connection,{electionId,emails,operatorId:'SUPERADMIN',now:new Date('2027-01-01'),
   deliver:async data=>{sent.push(data);return {messageId:'provider-'+sent.length}}});
  assert.equal(result.custodians,2);assert.equal(sent.length,2);assert.notEqual(sent[0].to,sent[1].to);
  assert.equal(custodians.length,2);assert.equal(e.keyProvisioningState,'Ready');
