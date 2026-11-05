@@ -65,10 +65,12 @@ async function main(){
   assert.ok(edits.every(x=>x.operatorId==='SUPERADMIN'&&x.actorRole==='superadmin'));
   assert.equal(await db.collection('candidates').countDocuments({electionId,status:'Active'}),5);
   const messages=[];
-  await provisionElectionKeys({client,db},{electionId,now,
+  await provisionElectionKeys({client,db},{electionId,now,operatorId:'SUPERADMIN',
    emails:['custodian1@example.test','custodian2@example.test'],
    deliver:async mail=>messages.push(mail)});
   assert.equal(messages.length,2);
+  const keyAudit=await db.collection('auditLogs').findOne({electionId,action:'KEY_SHARES_ISSUED'});
+  assert.equal(keyAudit.operatorId,'SUPERADMIN');
   const configured=await db.collection('elections').findOne({electionId});
   assert.equal(configured.eligibleMembersSnapshot,2);
   assert.equal(configured.keyProvisioningState,'Ready');
