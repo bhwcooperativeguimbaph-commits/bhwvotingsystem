@@ -5,7 +5,7 @@ const crypto=require('node:crypto');
 const {createCustodianPackage}=require('./key-custody');
 const {sendBrevoEmail}=require('../services/brevo-email');
 function validEmail(s){return typeof s==='string'&&s.length<=254&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)}
-async function provisionElectionKeys(connection,{electionId,emails,now=new Date(),deliver=sendBrevoEmail}){
+async function provisionElectionKeys(connection,{electionId,emails,now=new Date(),deliver=sendBrevoEmail,operatorId}){
  if(!/^ELEC-[0-9a-f-]{36}$/i.test(electionId||'')||!Array.isArray(emails)||emails.length!==2||
   !emails.every(validEmail)||emails[0].toLowerCase()===emails[1].toLowerCase())
   throw Object.assign(new TypeError('Two distinct custodian email addresses required'),{code:'INVALID_CUSTODIANS'});
@@ -57,7 +57,8 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
      $unset:{keyReservationId:''}},{session});
     if(result.modifiedCount!==1)throw new Error('Election reservation changed');
     await db.collection('auditLogs').insertOne({
-     eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',action:'KEY_SHARES_ISSUED',
+     eventId:'AUD-'+crypto.randomUUID(),actorRole:'superadmin',
+     ...(operatorId?{operatorId}:{}),action:'KEY_SHARES_ISSUED',
      electionId,createdAt:new Date()
     },{session});
    },{writeConcern:{w:'majority'}});
