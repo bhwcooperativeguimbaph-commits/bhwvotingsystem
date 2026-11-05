@@ -1008,10 +1008,10 @@ by('create').onclick=async()=>{
   await showLifecycle();
  }catch(e){
   by('wizardError').textContent=(createdElectionId?
-   'Election '+createdElectionId+' was created, but encryption key provisioning did not complete. '
+   'Election '+createdElectionId+' was created, but encryption key provisioning did not complete. '+
    'Check its status in Election results & reports before retrying; do not create another election. ':
    'Election could not be created. ')+(e.message||'Request unavailable');
- }finally{submit.disabled=Boolean(createdElectionId&&by('wizardError').textContent.startsWith('Election created.'))}
+ }finally{submit.disabled=Boolean(createdElectionId&&by('wizardError').textContent.startsWith('Election created and private recovery phrases issued.'))}
 };
 async function showCandidates(){
  const id=by('candidateElection').value.trim();
