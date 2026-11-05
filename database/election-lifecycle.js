@@ -25,15 +25,13 @@ async function getElectionLifecycle(db,electionId,now=new Date()){
  let phase;
  if(election.status==='Finalized')phase='Finalized';
  else if(now>=end)phase='Closed';
- else if(now<start)phase=prepared?(confirmedCustodians===2?'Ready':'Awaiting custodians'):'Setup';
- else phase=(prepared&&frozen&&confirmedCustodians===2&&election.keyDeliveryConfirmed===true)?
-   'Open':'Blocked';
+ else if(now<start)phase=prepared?'Ready':'Setup';
+ else phase=(prepared&&frozen)?'Open':'Blocked';
  const canEditCandidates=election.status==='Active'&&now<start&&
    election.keyProvisioningState==null;
- const canProvision=election.status==='Active'&&now<start&&
+ const canProvision=election.status==='Active'&&now<end&&
    election.keyProvisioningState==null;
- const canFinalize=election.status!=='Finalized'&&now>=end&&prepared&&
-   election.keyDeliveryConfirmed===true&&confirmedCustodians===2;
+ const canFinalize=election.status!=='Finalized'&&now>=end&&prepared;
  return {electionId,title:election.title,status:election.status,phase,
   startTime:election.startTime,endTime:election.endTime,
   candidateCount:candidates,confirmedCustodians,
