@@ -147,7 +147,7 @@ async function main(){
   assert.equal(report.results.find(x=>x.candidateId===cand('Kapitan',2)).votes,1);
   assert.equal((await getElectionLifecycle(db,electionId,new Date(end.getTime()+3000))).phase,'Finalized');
   await assert.rejects(discloseElectionResults({client,db},{
-   electionId,shares:keys,now:new Date(end.getTime()+4000)}),e=>e.code==='NOT_DISCLOSABLE');
+   electionId,shares:keys,now:new Date(end.getTime()+4000)}),e=>e.code==='ALREADY_FINALIZED');
   assert.equal(await revokeSession(db,login.token),true);
   assert.equal(await authenticateSession(db,login.token,now),null);
   console.log('PASS: Real MongoDB transactions, concurrent one-vote guard, orphan participation rejection, two-share finalization and anonymous aggregate tallies');
