@@ -5,7 +5,7 @@ const {encryptBallot}=require('../database/ballot-crypto');
 const {discloseElectionResults}=require('../database/results-disclosure');
 async function run(){
  const electionId='ELEC-00000000-0000-4000-8000-000000000001',pkg=createCustodianPackage();
- const election={electionId,status:'Active',keyProvisioningState:'Ready',keyDeliveryConfirmed:true,ballotPublicKeyPem:pkg.publicKeyPem};
+ const election={electionId,status:'Active',keyProvisioningState:'Ready',keyDeliveryConfirmed:true,ballotPublicKeyPem:pkg.publicKeyPem,sealedPrivateKey:pkg.sealedPrivateKey};
  const candidates=[
   {candidateId:'c1',name:'One',position:'Kagawad',maxVotes:1,status:'Active'},
   {candidateId:'c2',name:'Two',position:'Kagawad',maxVotes:1,status:'Active'},
