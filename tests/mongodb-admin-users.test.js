@@ -48,8 +48,10 @@ async function main(){
  const verified=await completeAdminLogin(db,{challenge:started.challenge,code:sent[0].code,now:at});
  assert.equal(verified.ok,true);assert.equal(verified.role,'admin');
  sessions.push({accountId:admin.adminId});
- await updateAdminStatus(activeConnection,admin.adminId,'Inactive');
+ await updateAdminStatus(activeConnection,admin.adminId,'Inactive',{operatorId:'SUPERADMIN'});
  assert.equal(existing[0].status,'Inactive');
+ assert.equal(audits[1].operatorId,'SUPERADMIN');
+ assert.equal(audits[1].action,'ADMIN_STATUS_CHANGED');
  assert.equal(sessions.filter(s=>s.accountId===admin.adminId).length,0);
  const rejected=await beginAdminLogin(db,{username:'staff.one',password:'Correct-Horse-Battery-2026',
   deliverOtp:async()=>{},now:at});
