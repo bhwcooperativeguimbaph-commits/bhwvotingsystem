@@ -61,3 +61,15 @@ SCREENSHOT: redacted, if useful
 - Real voting remains **disabled** until evidence for all required checks, independent reviewer findings, and election-official authorization are recorded. Do not change production flags based solely on automated test results.
 
 See [FINAL_ACCEPTANCE_REHEARSAL.md](FINAL_ACCEPTANCE_REHEARSAL.md) for the longer 23-scenario security/transaction rehearsal, and [RENDER_FLOW_REVIEW.md](RENDER_FLOW_REVIEW.md) for navigation details.
+
+## November 5 targeted regression checks (owner report)
+
+After confirming that Render has the same exact commit SHA as GitHub:
+
+- **Navigation:** Visit `/admin-console` and `/member-enrollment-preview` while logged out. Both protected HTML routes must return to `/`. Protected APIs must remain inaccessible (HTTP 403). The member login screen remains publicly accessible but must not expose a ballot without a valid member session. Confirm the visible Back to landing link from both logins.
+- **Admin dashboard:** With no Active election, expect **No active election**, no stale historical turnout in the current-election card, and historical reports still available under the results section.
+- **Member directory:** Enter the Members tab without pressing Refresh; active members should appear automatically. The default status is Active. Check searchable First name, Last name, Member ID, Area, Photo, Status, and existing edit/disable actions. Switch to Inactive/All and confirm pagination. Portraits belong only to consenting members and must not leak to logged-out users; legacy accounts without consented portrait show initials.
+- **Short shares:** Create a **fresh disposable synthetic election** and verify each of two separate Brevo recipients gets only their own short code (under 90 visible characters). Each confirms privately; results must require **both** authentic codes. Do not paste either code in feedback. Existing elections issued before the upgrade still require their original long codes; these are not rekeyed.
+- **Login performance:** The camera must detect whether a face is visible before starting gesture tasks. Member-registry matching remains *after* the bound challenge, because a prechallenge membership lookup would expose the biometric enrollment status of unrelated people. Record camera setup and challenge usability problems without submitting face images.
+
+**Security note:** the screenshot shared on November 5 shows an entire private custodian share. Do not reuse that share for an official election. Its parent election can be used only for controlled test/diagnostic purposes; use a newly generated election for any later authorized process.
