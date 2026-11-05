@@ -45,7 +45,14 @@ function rateLimit(req,res,next){
 const {originCheck}=require('./database/request-origin');
 app.use(originCheck);
 let connection;
-app.get('/health',(req,res)=>res.json({status:'ok',database:'mongodb',mode:'auth-preview'}));
+app.get('/health',(req,res)=>{
+ // Render supplies the deployed commit; exposing a source SHA is safe and
+ // lets CI reject stale builds before any manual acceptance test.
+ const sha=process.env.RENDER_GIT_COMMIT||'';
+ res.set('Cache-Control','no-store');
+ return res.json({status:'ok',database:'mongodb',mode:'auth-preview',
+  gitCommit:/^[a-f0-9]{40}$/i.test(sha)?sha.toLowerCase():null});
+});
 app.get('/',(req,res)=>{
  res.set('Cache-Control','no-store');
  res.set('Content-Security-Policy',"default-src 'none'; style-src 'self' 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; form-action 'self'; base-uri 'none'");
@@ -348,7 +355,8 @@ app.post('/api/superadmin/admins',superadminOnly,async(req,res)=>{
 app.patch('/api/superadmin/admins/:adminId/status',superadminOnly,async(req,res)=>{
  try{
   const {updateAdminStatus}=require('./database/admin-users');
-  await updateAdminStatus(connection,req.params.adminId,req.body?.status);
+  await updateAdminStatus(connection,req.params.adminId,req.body?.status,
+     {operatorId:req.staff.accountId});
   res.set('Cache-Control','no-store');
   return res.json({success:true});
  }catch(e){
@@ -616,7 +624,8 @@ app.post('/api/admin/elections/:electionId/provision-keys',superadminOnly,async(
    return res.status(503).json({success:false,message:'Brevo is not configured'});
   const {provisionElectionKeys}=require('./database/key-provisioning');
   const result=await provisionElectionKeys(connection,{
-   electionId:req.params.electionId,emails:req.body?.emails});
+   electionId:req.params.electionId,emails:req.body?.emails,
+    operatorId:req.staff.accountId});
   res.set('Cache-Control','no-store');
   return res.json({success:true,electionId:result.electionId,
    custodians:result.custodians,keyFingerprint:result.keyFingerprint,
