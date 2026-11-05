@@ -53,6 +53,7 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
      electionId,keyReservationId:reservationId,keyProvisioningState:'Initializing',
      ballotPublicKeyPem:{$exists:false}
     },{$set:{ballotPublicKeyPem:pkg.publicKeyPem,keyFingerprint:pkg.fingerprint,
+     sealedPrivateKey:pkg.sealedPrivateKey,
      keyProvisioningState:'Ready',eligibleMembersSnapshot,eligibilityFrozenAt:now,updatedAt:new Date()},
      $unset:{keyReservationId:''}},{session});
     if(result.modifiedCount!==1)throw new Error('Election reservation changed');
