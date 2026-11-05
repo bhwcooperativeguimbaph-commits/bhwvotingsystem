@@ -2,7 +2,8 @@
 // Privacy-preserving aggregate analytics. Never expose individual participation,
 // the vote ledger, member identifiers or encrypted choices to dashboard clients.
 async function getAdminAnalytics(db){
- const election=await db.collection('elections').findOne({},{
+ // The Current election card must not show a closed historical election.
+ const election=await db.collection('elections').findOne({status:'Active',endTime:{$gt:new Date()}},{
   sort:{createdAt:-1},
   projection:{_id:0,electionId:1,title:1,status:1,startTime:1,endTime:1,eligibleMembersSnapshot:1}
  });
