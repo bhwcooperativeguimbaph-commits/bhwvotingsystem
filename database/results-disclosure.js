@@ -14,14 +14,27 @@ async function discloseElectionResults(connection,{electionId,shares,now=new Dat
  try{
   let report;
   await session.withTransaction(async()=>{
-   const election=await db.collection('elections').findOne({
-    electionId,status:{$in:['Active','Closed']},endTime:{$lte:now},keyProvisioningState:'Ready',keyDeliveryConfirmed:true
-   },{session});
-   if(!election)throw Object.assign(new Error('Election cannot be disclosed'),{code:'NOT_DISCLOSABLE'});
+   // Check time separately from key availability. Previously one catch-all
+   // query incorrectly reported "not ended" when the actual problem was
+   // custodian confirmation or missing cryptographic setup.
+   const election=await db.collection('elections').findOne({electionId},{session});
+   if(!election)throw Object.assign(new Error('Election not found'),{code:'ELECTION_NOT_FOUND'});
+   const closeTime=new Date(election.endTime);
+   if(!Number.isFinite(closeTime.getTime()))
+    throw Object.assign(new Error('Election close time invalid'),{code:'INTEGRITY_FAILURE'});
+   if(now<closeTime)
+    throw Object.assign(new Error('Election is still open'),{code:'ELECTION_STILL_OPEN'});
+   if(election.status==='Finalized')
+    throw Object.assign(new Error('Results already finalized'),{code:'ALREADY_FINALIZED'});
+   if(!['Active','Closed'].includes(election.status)||
+      election.keyProvisioningState!=='Ready'||!election.ballotPublicKeyPem)
+    throw Object.assign(new Error('Election encryption key was not provisioned'),{code:'KEYS_NOT_READY'});
+   // A valid pair proves the custodians possess their secrets. Optional
+   // delivery-receipt confirmation is NOT a condition for decryption.
    const custodians=await db.collection('keyCustodians').find(
-    {electionId,status:'Confirmed'},{session,sort:{shareIndex:1}}).toArray();
+    {electionId},{session,sort:{shareIndex:1}}).toArray();
    if(custodians.length!==2||custodians[0].shareIndex!==1||custodians[1].shareIndex!==2)
-    throw Object.assign(new Error('Key custodians not verified'),{code:'INVALID_SHARES'});
+    throw Object.assign(new Error('Two custodian shares were not issued'),{code:'KEYS_NOT_READY'});
    let privatePem;
    try{privatePem=reconstructElectionPrivateKey(election.ballotPublicKeyPem,shares,custodians.map(c=>c.shareHash),election.sealedPrivateKey)}
    catch(_){throw Object.assign(new Error('Custodian shares invalid'),{code:'INVALID_SHARES'})}
