@@ -12,7 +12,7 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
  const {db,client}=connection;
  const reservationId=crypto.randomUUID();
  const reserved=await db.collection('elections').updateOne({
-  electionId,status:'Active',startTime:{$gt:now},
+  electionId,status:'Active',endTime:{$gt:now},
   ballotPublicKeyPem:{$exists:false},keyProvisioningState:{$exists:false},
   $or:[{candidateEditLeaseUntil:{$exists:false}},{candidateEditLeaseUntil:{$lte:now}}]
  },{$set:{keyProvisioningState:'Initializing',keyReservationId:reservationId,updatedAt:now}});
@@ -22,14 +22,15 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
   const already=await db.collection('ballots').findOne({electionId},{projection:{ballotId:1}});
   if(already)throw new Error('Election already has ballots');
   const pkg=createCustodianPackage();
-  // Once issued, only the recipients possess individual shares. Provider
-  // acceptance is NOT proof of inbox delivery; verify both before voting.
+  // Only recipients possess their phrases. Provider acceptance does not
+  // guarantee delivery. Confirmations are optional for voting, but recovery
+  // of both real phrases is mandatory for post-election results publication.
   const deliveries=[];
   for(let i=0;i<2;i++){
    const receipt=await deliver({to:emails[i],subject:'BHW election key share '+(i+1)+' of 2',
     text:'Election: '+electionId+'\nKey fingerprint: '+pkg.fingerprint+
-     '\nYour confidential share ('+(i+1)+' of 2):\n'+pkg.shares[i]+
-     '\nKeep this share private. Two distinct custodian shares are required to disclose results.'});
+     '\nYour private 12-word BHW custodian recovery phrase ('+(i+1)+' of 2):\n'+pkg.shares[i]+
+     '\nKeep these 12 words private and in order. This is NOT a cryptocurrency wallet seed. Two separate valid phrases are required to publish election results.'});
    deliveries.push({providerMessageId:typeof receipt?.messageId==='string'?
     receipt.messageId:null,deliveryAcceptedAt:new Date()});
   }
@@ -38,7 +39,7 @@ async function provisionElectionKeys(connection,{electionId,emails,now=new Date(
    await session.withTransaction(async()=>{
     const election=await db.collection('elections').findOne(
      {electionId,keyProvisioningState:'Initializing',keyReservationId:reservationId,
-      startTime:{$gt:new Date()}},{session});
+      endTime:{$gt:new Date()}},{session});
     if(!election)throw new Error('Key provisioning expired or was replaced');
     // Freeze the electorate when both custodians' shares have been issued.
     // This is before voting opens, not on the first turnout dashboard view.
