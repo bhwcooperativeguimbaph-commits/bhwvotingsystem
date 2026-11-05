@@ -5,7 +5,10 @@
 <style>
 body{font:16px system-ui;max-width:760px;margin:30px auto;padding:15px;color:#163354}
 h1{font-size:1.65rem}label{display:block;margin:14px 0;font-weight:600}
-input,select,button{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #9baec3;border-radius:6px}
+input,select,textarea,button{box-sizing:border-box;width:100%;font:inherit;padding:12px;border:1px solid #9baec3;border-radius:9px}
+textarea{display:block;min-height:112px;resize:vertical;line-height:1.5;margin-top:9px}
+#replacePanel{max-width:720px;margin:22px auto;padding:8px 0}
+#replacePanel p{line-height:1.6}
 button{background:#174e87;color:#fff;cursor:pointer;border:0;margin-top:12px}
 button:disabled{opacity:.5}
 video{display:block;width:100%;max-width:480px;min-height:230px;background:#222;border-radius:8px;transform:scaleX(-1)}
@@ -39,7 +42,7 @@ small{color:#52657a;display:block}
 .embedded-registration #captureDialog::backdrop,.embedded-registration #successDialog::backdrop,.embedded-registration #areaDialog::backdrop{display:none}
 </style><header class="portal-top enrollment-header"><a class="portal-brand" href="/"><span class="portal-emblem" aria-hidden="true"><img src="/assets/logo.svg" alt="" width="40" height="40"></span><span>BHW Guimba Voting System<small>Member registration</small></span></a></header>
 
-<h1>Member registration</h1><p>Complete the member's information, then capture their face to register.</p>
+<h1>Member registration</h1><p id="enrollmentIntro">Complete the member's information, then capture their face to register.</p>
 <form id="register">
 <label>First name <input id="firstName" required maxlength="60" autocomplete="off" placeholder="Required"></label>
 <label>Middle name <small>(optional)</small><input id="middleName" maxlength="60" autocomplete="off" placeholder="Optional"></label>
@@ -117,7 +120,8 @@ if(replacementMode){
  by('register').hidden=true;by('replacePanel').hidden=false;
  by('replaceMemberLabel').textContent='Member ID: '+replaceParam;
  by('openCapture').textContent='Capture replacement biometrics';
- document.querySelector('h1').textContent='Member biometric replacement';
+ document.querySelector('h1').textContent='Replace member biometrics';
+ by('enrollmentIntro').textContent='Confirm the member’s consent and explain why a new facial biometric template is needed. Existing profile details will not be changed.';
 }
 
 let started=false,busy=false;
@@ -205,7 +209,11 @@ for(const id of ['firstName','lastName','address']){
 }
 by('birthdate').addEventListener('input',refreshEnrollmentButton);
 by('birthdate').addEventListener('change',refreshEnrollmentButton);
-by('closeSuccess').onclick=()=>by('successDialog').close();
+by('closeSuccess').onclick=()=>{
+ by('successDialog').close();
+ if(replacementMode&&window.parent!==window)
+  window.parent.postMessage({type:'bhw-biometric-replacement-finished'},location.origin);
+};
 function stopRegistrationCamera(){
  video.srcObject?.getTracks().forEach(track=>track.stop());
  video.srcObject=null;started=false;busy=false;
